@@ -70,6 +70,54 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          patient_id: string
+          physician_id: string | null
+          status: string | null
+          title: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          patient_id: string
+          physician_id?: string | null
+          status?: string | null
+          title?: string | null
+          type: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          patient_id?: string
+          physician_id?: string | null
+          status?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["conversation_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals: {
         Row: {
           address: string | null
@@ -111,6 +159,54 @@ export type Database = {
           state?: string | null
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          message_type: Database["public"]["Enums"]["message_type"] | null
+          metadata: Json | null
+          sender_id: string | null
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"] | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"] | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       physician_availability: {
         Row: {
@@ -233,6 +329,16 @@ export type Database = {
         Args: { patient_uuid: string }
         Returns: number
       }
+      get_available_physicians: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          specialization: string
+          hospital_name: string
+        }[]
+      }
       get_nearby_physicians: {
         Args: {
           patient_lat: number
@@ -252,6 +358,8 @@ export type Database = {
     }
     Enums: {
       appointment_status: "pending" | "confirmed" | "cancelled" | "completed"
+      conversation_type: "ai_diagnosis" | "physician_consultation"
+      message_type: "text" | "image" | "file"
       subscription_plan: "basic" | "premium" | "enterprise"
       user_role: "patient" | "physician" | "hospital_admin" | "agent"
     }
@@ -370,6 +478,8 @@ export const Constants = {
   public: {
     Enums: {
       appointment_status: ["pending", "confirmed", "cancelled", "completed"],
+      conversation_type: ["ai_diagnosis", "physician_consultation"],
+      message_type: ["text", "image", "file"],
       subscription_plan: ["basic", "premium", "enterprise"],
       user_role: ["patient", "physician", "hospital_admin", "agent"],
     },

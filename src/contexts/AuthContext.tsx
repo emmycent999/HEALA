@@ -4,6 +4,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 type UserRole = 'patient' | 'physician' | 'hospital_admin' | 'agent';
+type SubscriptionPlan = 'basic' | 'premium' | 'enterprise';
 
 interface UserProfile {
   id: string;
@@ -15,6 +16,7 @@ interface UserProfile {
   hospital_id?: string;
   license_number?: string;
   specialization?: string;
+  subscription_plan?: SubscriptionPlan;
 }
 
 interface AuthContextType {

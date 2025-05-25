@@ -1,19 +1,21 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Heart, User, Bell, Settings, Plus } from "lucide-react";
+import { Calendar, Clock, Heart, User, Bell, Settings, Plus, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppointmentBooking } from "@/components/appointments/AppointmentBooking";
 import { AppointmentList } from "@/components/appointments/AppointmentList";
+import { ChatList } from "@/components/chat/ChatList";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { signOut, profile } = useAuth();
   const [notifications] = useState(3);
+  const [selectedConversation, setSelectedConversation] = useState<any>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -81,10 +83,14 @@ const PatientDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 gap-4 mb-8">
           <Button className="h-16 bg-purple-600 hover:bg-purple-700 flex flex-col">
             <Plus className="w-6 h-6 mb-1" />
             Book Appointment
+          </Button>
+          <Button variant="outline" className="h-16 flex flex-col">
+            <MessageSquare className="w-6 h-6 mb-1" />
+            Chat & Consult
           </Button>
           <Button variant="outline" className="h-16 flex flex-col">
             <User className="w-6 h-6 mb-1" />
@@ -101,9 +107,10 @@ const PatientDashboard = () => {
         </div>
 
         <Tabs defaultValue="appointments" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="book">Book New</TabsTrigger>
+            <TabsTrigger value="chat">Chat & Consult</TabsTrigger>
             <TabsTrigger value="health">Health Data</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="records">Records</TabsTrigger>
@@ -115,6 +122,17 @@ const PatientDashboard = () => {
 
           <TabsContent value="book" className="space-y-4">
             <AppointmentBooking />
+          </TabsContent>
+
+          <TabsContent value="chat" className="space-y-4">
+            {selectedConversation ? (
+              <ChatInterface 
+                conversation={selectedConversation}
+                onBack={() => setSelectedConversation(null)}
+              />
+            ) : (
+              <ChatList onSelectConversation={setSelectedConversation} />
+            )}
           </TabsContent>
 
           <TabsContent value="health" className="space-y-4">

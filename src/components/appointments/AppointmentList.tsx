@@ -52,13 +52,13 @@ export const AppointmentList = () => {
           appointment_time,
           status,
           notes,
-          physician:physician_id (
+          physician:profiles!appointments_physician_id_fkey (
             first_name,
             last_name,
             specialization,
             phone
           ),
-          hospital:hospital_id (
+          hospital:hospitals (
             name,
             address,
             phone
