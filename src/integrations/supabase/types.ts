@@ -9,38 +9,150 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          appointment_date: string
+          appointment_time: string
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          physician_id: string
+          status: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_date: string
+          appointment_time: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          physician_id: string
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          appointment_time?: string
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          physician_id?: string
+          status?: Database["public"]["Enums"]["appointment_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospitals: {
         Row: {
           address: string | null
+          city: string | null
           created_at: string | null
           email: string | null
           id: string
           is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string
           phone: string | null
+          state: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           phone?: string | null
+          state?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           phone?: string | null
+          state?: string | null
         }
         Relationships: []
       }
+      physician_availability: {
+        Row: {
+          created_at: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          is_active: boolean | null
+          physician_id: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          physician_id: string
+          start_time: string
+        }
+        Update: {
+          created_at?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          physician_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physician_availability_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          city: string | null
           created_at: string | null
           email: string
           first_name: string | null
@@ -49,12 +161,19 @@ export type Database = {
           is_active: boolean | null
           last_name: string | null
           license_number: string | null
+          location_latitude: number | null
+          location_longitude: number | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization: string | null
+          state: string | null
+          subscription_plan:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
           updated_at: string | null
         }
         Insert: {
+          city?: string | null
           created_at?: string | null
           email: string
           first_name?: string | null
@@ -63,12 +182,19 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           license_number?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           phone?: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
+          state?: string | null
+          subscription_plan?:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
           updated_at?: string | null
         }
         Update: {
+          city?: string | null
           created_at?: string | null
           email?: string
           first_name?: string | null
@@ -77,9 +203,15 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           license_number?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
+          state?: string | null
+          subscription_plan?:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
           updated_at?: string | null
         }
         Relationships: [
@@ -97,9 +229,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_monthly_booking_limit: {
+        Args: { patient_uuid: string }
+        Returns: number
+      }
+      get_nearby_physicians: {
+        Args: {
+          patient_lat: number
+          patient_lng: number
+          search_radius_km?: number
+          specialty_filter?: string
+        }
+        Returns: {
+          physician_id: string
+          first_name: string
+          last_name: string
+          specialization: string
+          hospital_name: string
+          distance_km: number
+        }[]
+      }
     }
     Enums: {
+      appointment_status: "pending" | "confirmed" | "cancelled" | "completed"
+      subscription_plan: "basic" | "premium" | "enterprise"
       user_role: "patient" | "physician" | "hospital_admin" | "agent"
     }
     CompositeTypes: {
@@ -216,6 +369,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      appointment_status: ["pending", "confirmed", "cancelled", "completed"],
+      subscription_plan: ["basic", "premium", "enterprise"],
       user_role: ["patient", "physician", "hospital_admin", "agent"],
     },
   },

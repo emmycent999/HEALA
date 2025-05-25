@@ -4,33 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Heart, User, Bell, Settings } from "lucide-react";
+import { Calendar, Clock, Heart, User, Bell, Settings, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { AppointmentBooking } from "@/components/appointments/AppointmentBooking";
+import { AppointmentList } from "@/components/appointments/AppointmentList";
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
+  const { signOut, profile } = useAuth();
   const [notifications] = useState(3);
 
-  const upcomingAppointments = [
-    {
-      id: 1,
-      doctor: "Dr. Sarah Johnson",
-      specialty: "Cardiologist",
-      date: "Today",
-      time: "2:30 PM",
-      type: "Follow-up",
-      status: "confirmed"
-    },
-    {
-      id: 2,
-      doctor: "Dr. Michael Chen",
-      specialty: "General Practice",
-      date: "Tomorrow",
-      time: "10:00 AM",
-      type: "Consultation",
-      status: "pending"
-    }
-  ];
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   const recentActivity = [
     { id: 1, action: "Appointment booked with Dr. Johnson", time: "2 hours ago" },
@@ -70,6 +58,9 @@ const PatientDashboard = () => {
               <Button variant="ghost" size="sm">
                 <Settings className="w-5 h-5" />
               </Button>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>
@@ -78,14 +69,21 @@ const PatientDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, John!</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back, {profile?.first_name || 'Patient'}!
+          </h2>
           <p className="text-gray-600">Here's your health overview for today</p>
+          {profile?.subscription_plan === 'basic' && (
+            <Badge variant="secondary" className="mt-2">
+              Basic Plan - 3 appointments per month
+            </Badge>
+          )}
         </div>
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <Button className="h-16 bg-purple-600 hover:bg-purple-700 flex flex-col">
-            <Calendar className="w-6 h-6 mb-1" />
+            <Plus className="w-6 h-6 mb-1" />
             Book Appointment
           </Button>
           <Button variant="outline" className="h-16 flex flex-col">
@@ -103,50 +101,20 @@ const PatientDashboard = () => {
         </div>
 
         <Tabs defaultValue="appointments" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
+            <TabsTrigger value="book">Book New</TabsTrigger>
             <TabsTrigger value="health">Health Data</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="records">Records</TabsTrigger>
           </TabsList>
 
           <TabsContent value="appointments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upcoming Appointments</CardTitle>
-                <CardDescription>Your scheduled consultations</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {upcomingAppointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-purple-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">{appointment.doctor}</h4>
-                        <p className="text-sm text-gray-600">{appointment.specialty}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {appointment.date} at {appointment.time}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge 
-                        variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
-                        className={appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : ''}
-                      >
-                        {appointment.status}
-                      </Badge>
-                      <p className="text-sm text-gray-600 mt-1">{appointment.type}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <AppointmentList />
+          </TabsContent>
+
+          <TabsContent value="book" className="space-y-4">
+            <AppointmentBooking />
           </TabsContent>
 
           <TabsContent value="health" className="space-y-4">
