@@ -4,33 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Bot, User, Send, Phone, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User, Stethoscope } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AIBot } from './AIBot';
-
-interface Message {
-  id: string;
-  content: string;
-  sender_type: 'patient' | 'physician' | 'ai_bot';
-  created_at: string;
-  sender_id?: string;
-}
-
-interface Conversation {
-  id: string;
-  type: 'ai_diagnosis' | 'physician_consultation';
-  title?: string;
-  status: string;
-  physician?: {
-    first_name: string;
-    last_name: string;
-    specialization: string;
-  };
-}
+import { Message, Conversation } from '@/types/chat';
 
 interface ChatInterfaceProps {
   conversation: Conversation;
@@ -67,7 +46,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Map the data to ensure sender_type is properly typed
+      const typedMessages: Message[] = (data || []).map(msg => ({
+        ...msg,
+        sender_type: msg.sender_type as 'patient' | 'physician' | 'ai_bot'
+      }));
+      
+      setMessages(typedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
@@ -80,20 +66,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
 
   const subscribeToMessages = () => {
     const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversation.id}`
-        },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
-        }
-      )
+      .channel('messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversation.id}`
+      }, (payload) => {
+        const newMessage = payload.new as Message;
+        setMessages(prev => [...prev, {
+          ...newMessage,
+          sender_type: newMessage.sender_type as 'patient' | 'physician' | 'ai_bot'
+        }]);
+      })
       .subscribe();
 
     return () => {
@@ -101,40 +86,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
     };
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+  const sendMessage = async (content: string, senderType: 'patient' | 'physician' | 'ai_bot' = 'patient') => {
+    if (!content.trim() || !user) return;
 
-    setLoading(true);
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversation.id,
-          sender_id: user.id,
-          sender_type: 'patient',
-          content: newMessage,
+          sender_id: senderType === 'ai_bot' ? null : user.id,
+          sender_type: senderType,
+          content: content.trim(),
           message_type: 'text'
         });
 
       if (error) throw error;
 
-      setNewMessage('');
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversation.id);
 
-      // If it's an AI conversation, trigger AI response
-      if (conversation.type === 'ai_diagnosis') {
-        const aiResponse = AIBot.getDiagnosisResponse(newMessage);
-        
-        setTimeout(async () => {
-          await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversation.id,
-              sender_type: 'ai_bot',
-              content: aiResponse,
-              message_type: 'text'
-            });
-        }, 1000);
-      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -142,6 +115,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
         description: "Failed to send message.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+
+    const userMessage = newMessage;
+    setNewMessage('');
+    setLoading(true);
+
+    try {
+      await sendMessage(userMessage);
+
+      // If it's an AI diagnosis conversation, get AI response
+      if (conversation.type === 'ai_diagnosis') {
+        const aiResponse = AIBot.getDiagnosisResponse(userMessage);
+        await sendMessage(aiResponse, 'ai_bot');
+      }
+    } catch (error) {
+      console.error('Error in message flow:', error);
     } finally {
       setLoading(false);
     }
@@ -150,96 +143,108 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
+    }
+  };
+
+  const getSenderIcon = (senderType: 'patient' | 'physician' | 'ai_bot') => {
+    switch (senderType) {
+      case 'ai_bot':
+        return <Bot className="w-4 h-4" />;
+      case 'physician':
+        return <Stethoscope className="w-4 h-4" />;
+      default:
+        return <User className="w-4 h-4" />;
+    }
+  };
+
+  const getSenderColor = (senderType: 'patient' | 'physician' | 'ai_bot') => {
+    switch (senderType) {
+      case 'ai_bot':
+        return 'bg-blue-100 text-blue-800';
+      case 'physician':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-purple-100 text-purple-800';
     }
   };
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              ← Back
-            </Button>
-            <div className="flex items-center space-x-2">
-              {conversation.type === 'ai_diagnosis' ? (
-                <Bot className="w-5 h-5 text-blue-500" />
-              ) : (
-                <User className="w-5 h-5 text-green-500" />
-              )}
-              <div>
-                <CardTitle className="text-lg">
-                  {conversation.type === 'ai_diagnosis' 
-                    ? 'AI Health Assistant' 
-                    : `Dr. ${conversation.physician?.first_name} ${conversation.physician?.last_name}`
-                  }
-                </CardTitle>
-                {conversation.physician && (
-                  <p className="text-sm text-gray-600">{conversation.physician.specialization}</p>
-                )}
-              </div>
-            </div>
+      <CardHeader className="flex-shrink-0">
+        <div className="flex items-center space-x-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <CardTitle className="text-lg">
+              {conversation.title || (conversation.type === 'ai_diagnosis' ? 'AI Health Assistant' : 'Physician Consultation')}
+            </CardTitle>
+            <Badge variant="outline" className="mt-1">
+              {conversation.type === 'ai_diagnosis' ? 'AI Diagnosis' : 'Live Consultation'}
+            </Badge>
           </div>
-          <Badge variant={conversation.status === 'active' ? 'default' : 'secondary'}>
-            {conversation.status}
-          </Badge>
         </div>
       </CardHeader>
-      
-      <Separator />
-      
-      <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-[400px] p-4">
-          <div className="space-y-4">
-            {messages.map((message) => (
+
+      <CardContent className="flex-1 flex flex-col p-0">
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && conversation.type === 'ai_diagnosis' && (
+            <div className="text-center p-4">
+              <Bot className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+              <p className="text-gray-600">{AIBot.getGreeting()}</p>
+            </div>
+          )}
+
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+            >
               <div
-                key={message.id}
-                className={`flex ${message.sender_type === 'patient' ? 'justify-end' : 'justify-start'}`}
+                className={`max-w-[70%] rounded-lg p-3 ${
+                  message.sender_id === user?.id
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
               >
-                <div
-                  className={`max-w-[70%] rounded-lg p-3 ${
-                    message.sender_type === 'patient'
-                      ? 'bg-purple-600 text-white'
-                      : message.sender_type === 'ai_bot'
-                      ? 'bg-blue-100 text-blue-900 border border-blue-200'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2 mb-1">
-                    {message.sender_type === 'ai_bot' && <Bot className="w-4 h-4" />}
-                    {message.sender_type === 'physician' && <User className="w-4 h-4" />}
-                    {message.sender_type === 'patient' && <MessageSquare className="w-4 h-4" />}
-                    <span className="text-xs font-medium">
-                      {message.sender_type === 'ai_bot' 
-                        ? 'AI Assistant' 
-                        : message.sender_type === 'physician'
-                        ? 'Doctor'
-                        : 'You'
-                      }
-                    </span>
+                <div className="flex items-center space-x-2 mb-1">
+                  <div className={`p-1 rounded ${getSenderColor(message.sender_type)}`}>
+                    {getSenderIcon(message.sender_type)}
                   </div>
-                  <p className="text-sm">{message.content}</p>
-                  <p className="text-xs opacity-70 mt-1">
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
+                  <span className="text-xs font-medium">
+                    {message.sender_type === 'ai_bot' ? 'AI Assistant' : 
+                     message.sender_type === 'physician' ? 'Physician' : 'You'}
+                  </span>
                 </div>
+                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className={`text-xs mt-1 ${
+                  message.sender_id === user?.id ? 'text-purple-200' : 'text-gray-500'
+                }`}>
+                  {new Date(message.created_at).toLocaleTimeString()}
+                </p>
               </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-        
-        <div className="p-4 border-t">
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Message Input */}
+        <div className="border-t p-4">
           <div className="flex space-x-2">
             <Input
+              placeholder="Type your message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
               disabled={loading}
             />
-            <Button onClick={sendMessage} disabled={loading || !newMessage.trim()}>
+            <Button 
+              onClick={handleSendMessage} 
+              disabled={loading || !newMessage.trim()}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
               <Send className="w-4 h-4" />
             </Button>
           </div>

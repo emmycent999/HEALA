@@ -1,15 +1,67 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Calendar, Heart, Settings, Bell, User } from "lucide-react";
+import { Users, Calendar, Heart, Settings, Bell, User, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [notifications] = useState(7);
+  const [ambulanceRequests, setAmbulanceRequests] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAmbulanceRequests();
+      subscribeToAmbulanceRequests();
+    }
+  }, [user]);
+
+  const fetchAmbulanceRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ambulance_requests')
+        .select(`
+          *,
+          patient:profiles!ambulance_requests_patient_id_fkey(first_name, last_name, email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setAmbulanceRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching ambulance requests:', error);
+    }
+  };
+
+  const subscribeToAmbulanceRequests = () => {
+    const channel = supabase
+      .channel('ambulance_requests')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'ambulance_requests'
+      }, (payload) => {
+        toast({
+          title: "New Ambulance Request",
+          description: "A new emergency ambulance request has been received.",
+        });
+        fetchAmbulanceRequests();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const hospitalStats = [
     { label: "Total Patients", value: "2,847", change: "+15%" },
@@ -32,6 +84,35 @@ const HospitalDashboard = () => {
     { id: 3, action: "Equipment maintenance scheduled", time: "1 hour ago", type: "maintenance" },
     { id: 4, action: "New physician onboarded", time: "2 hours ago", type: "staff" }
   ];
+
+  const handleAmbulanceAction = async (requestId: string, action: 'dispatch' | 'assign') => {
+    try {
+      const updateData = action === 'dispatch' 
+        ? { status: 'dispatched' }
+        : { status: 'en_route', ambulance_eta: 15 };
+
+      const { error } = await supabase
+        .from('ambulance_requests')
+        .update(updateData)
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Request Updated",
+        description: `Ambulance request has been ${action === 'dispatch' ? 'dispatched' : 'assigned'}.`,
+      });
+
+      fetchAmbulanceRequests();
+    } catch (error) {
+      console.error('Error updating ambulance request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update ambulance request.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,13 +177,98 @@ const HospitalDashboard = () => {
           ))}
         </div>
 
-        <Tabs defaultValue="departments" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="emergency" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="emergency">Emergency Requests</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
             <TabsTrigger value="staff">Staff Management</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="emergency" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                  <span>Ambulance Requests</span>
+                </CardTitle>
+                <CardDescription>Real-time emergency ambulance requests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {ambulanceRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Emergency Requests</h3>
+                    <p className="text-gray-600">All emergency requests have been handled.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {ambulanceRequests.map((request) => (
+                      <div key={request.id} className="p-4 border rounded-lg bg-red-50 border-red-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                              <AlertTriangle className="w-6 h-6 text-red-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">
+                                {request.patient?.first_name} {request.patient?.last_name}
+                              </h4>
+                              <p className="text-sm text-gray-600">{request.emergency_type}</p>
+                              <p className="text-sm text-gray-600">
+                                Pickup: {request.pickup_address}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(request.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right space-y-2">
+                            <Badge 
+                              className={`${
+                                request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                request.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
+                                request.status === 'en_route' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {request.status}
+                            </Badge>
+                            <div className="space-x-2">
+                              {request.status === 'pending' && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleAmbulanceAction(request.id, 'dispatch')}
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                  Dispatch
+                                </Button>
+                              )}
+                              {request.status === 'dispatched' && (
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleAmbulanceAction(request.id, 'assign')}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  En Route
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {request.description && (
+                          <p className="text-sm text-gray-600 mt-2 ml-16">
+                            {request.description}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="departments" className="space-y-4">
             <Card>

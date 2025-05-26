@@ -1,15 +1,18 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Heart, User, Bell, Settings, Plus, MessageSquare } from "lucide-react";
+import { Calendar, Clock, Heart, User, Bell, Settings, Plus, MessageSquare, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppointmentBooking } from "@/components/appointments/AppointmentBooking";
 import { AppointmentList } from "@/components/appointments/AppointmentList";
 import { ChatList } from "@/components/chat/ChatList";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { AmbulanceRequest } from "@/components/emergency/AmbulanceRequest";
+import { AmbulanceStatus } from "@/components/emergency/AmbulanceStatus";
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
@@ -100,17 +103,18 @@ const PatientDashboard = () => {
             <Heart className="w-6 h-6 mb-1" />
             Health Records
           </Button>
-          <Button variant="outline" className="h-16 flex flex-col">
-            <Bell className="w-6 h-6 mb-1" />
+          <Button variant="outline" className="h-16 flex flex-col bg-red-50 hover:bg-red-100 text-red-600 border-red-200">
+            <AlertTriangle className="w-6 h-6 mb-1" />
             Emergency
           </Button>
         </div>
 
         <Tabs defaultValue="appointments" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="book">Book New</TabsTrigger>
             <TabsTrigger value="chat">Chat & Consult</TabsTrigger>
+            <TabsTrigger value="emergency">Emergency</TabsTrigger>
             <TabsTrigger value="health">Health Data</TabsTrigger>
             <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="records">Records</TabsTrigger>
@@ -133,6 +137,19 @@ const PatientDashboard = () => {
             ) : (
               <ChatList onSelectConversation={setSelectedConversation} />
             )}
+          </TabsContent>
+
+          <TabsContent value="emergency" className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Request Ambulance</h3>
+                <AmbulanceRequest />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Ambulance Status</h3>
+                <AmbulanceStatus />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="health" className="space-y-4">

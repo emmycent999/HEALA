@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Heart, Bell, Settings, User, Users } from "lucide-react";
+import { Calendar, Clock, Heart, Bell, Settings, User, Users, Car } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AssistedPatients } from "@/components/agent/AssistedPatients";
+import { AppointmentBookingAgent } from "@/components/agent/AppointmentBooking";
+import { TransportBooking } from "@/components/agent/TransportBooking";
 
 const AgentDashboard = () => {
   const navigate = useNavigate();
@@ -99,16 +102,16 @@ const AgentDashboard = () => {
             New Booking
           </Button>
           <Button variant="outline" className="h-16 flex flex-col">
-            <Users className="w-6 h-6 mb-1" />
-            Start Chat
+            <Car className="w-6 h-6 mb-1" />
+            Book Transport
           </Button>
           <Button variant="outline" className="h-16 flex flex-col">
-            <Heart className="w-6 h-6 mb-1" />
-            Emergency
+            <Users className="w-6 h-6 mb-1" />
+            Manage Patients
           </Button>
           <Button variant="outline" className="h-16 flex flex-col">
             <Clock className="w-6 h-6 mb-1" />
-            Transport
+            Emergency
           </Button>
         </div>
 
@@ -131,13 +134,26 @@ const AgentDashboard = () => {
           ))}
         </div>
 
-        <Tabs defaultValue="chats" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="patients" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="patients">Assisted Patients</TabsTrigger>
+            <TabsTrigger value="appointments">Book Appointments</TabsTrigger>
+            <TabsTrigger value="transport">Book Transport</TabsTrigger>
             <TabsTrigger value="chats">Active Chats</TabsTrigger>
             <TabsTrigger value="requests">Pending Requests</TabsTrigger>
-            <TabsTrigger value="bookings">Appointments</TabsTrigger>
-            <TabsTrigger value="transport">Transport</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="patients" className="space-y-4">
+            <AssistedPatients />
+          </TabsContent>
+
+          <TabsContent value="appointments" className="space-y-4">
+            <AppointmentBookingAgent />
+          </TabsContent>
+
+          <TabsContent value="transport" className="space-y-4">
+            <TransportBooking />
+          </TabsContent>
 
           <TabsContent value="chats" className="space-y-4">
             <Card>
@@ -194,7 +210,7 @@ const AgentDashboard = () => {
                         'bg-purple-100'
                       }`}>
                         {request.type === 'Appointment' && <Calendar className="w-6 h-6 text-blue-600" />}
-                        {request.type === 'Transport' && <Heart className="w-6 h-6 text-green-600" />}
+                        {request.type === 'Transport' && <Car className="w-6 h-6 text-green-600" />}
                         {request.type === 'Insurance' && <User className="w-6 h-6 text-purple-600" />}
                       </div>
                       <div>
@@ -209,56 +225,6 @@ const AgentDashboard = () => {
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="bookings" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appointment Management</CardTitle>
-                <CardDescription>Book and manage patient appointments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No pending bookings</h3>
-                  <p className="text-gray-600 mb-4">All appointment requests have been processed</p>
-                  <Button className="bg-purple-600 hover:bg-purple-700">New Booking</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="transport" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Transport Coordination</CardTitle>
-                <CardDescription>Manage patient transport requests and scheduling</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-blue-600">23</div>
-                        <p className="text-sm text-gray-600">Active Requests</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-green-600">89</div>
-                        <p className="text-sm text-gray-600">Completed Today</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <div className="text-2xl font-bold text-orange-600">12</div>
-                        <p className="text-sm text-gray-600">Available Drivers</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -9,6 +9,126 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agent_assisted_patients: {
+        Row: {
+          agent_id: string
+          assistance_type: string
+          created_at: string | null
+          description: string | null
+          id: string
+          patient_id: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          assistance_type: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          patient_id: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          assistance_type?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          patient_id?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_assisted_patients_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_assisted_patients_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ambulance_requests: {
+        Row: {
+          ambulance_eta: number | null
+          assigned_hospital_id: string | null
+          contact_phone: string
+          created_at: string | null
+          description: string | null
+          destination_address: string | null
+          destination_latitude: number | null
+          destination_longitude: number | null
+          emergency_type: string
+          id: string
+          patient_id: string
+          pickup_address: string
+          pickup_latitude: number | null
+          pickup_longitude: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ambulance_eta?: number | null
+          assigned_hospital_id?: string | null
+          contact_phone: string
+          created_at?: string | null
+          description?: string | null
+          destination_address?: string | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          emergency_type: string
+          id?: string
+          patient_id: string
+          pickup_address: string
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ambulance_eta?: number | null
+          assigned_hospital_id?: string | null
+          contact_phone?: string
+          created_at?: string | null
+          description?: string | null
+          destination_address?: string | null
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          emergency_type?: string
+          id?: string
+          patient_id?: string
+          pickup_address?: string
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ambulance_requests_assigned_hospital_id_fkey"
+            columns: ["assigned_hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ambulance_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -246,6 +366,57 @@ export type Database = {
           },
         ]
       }
+      physician_documents: {
+        Row: {
+          document_name: string
+          document_type: string
+          document_url: string
+          id: string
+          physician_id: string
+          uploaded_at: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          document_name: string
+          document_type: string
+          document_url: string
+          id?: string
+          physician_id: string
+          uploaded_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          document_name?: string
+          document_type?: string
+          document_url?: string
+          id?: string
+          physician_id?: string
+          uploaded_at?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physician_documents_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physician_documents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           city: string | null
@@ -316,6 +487,85 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transport_requests: {
+        Row: {
+          agent_id: string | null
+          appointment_id: string | null
+          created_at: string | null
+          destination_address: string
+          destination_latitude: number | null
+          destination_longitude: number | null
+          driver_info: Json | null
+          id: string
+          patient_id: string
+          pickup_address: string
+          pickup_latitude: number | null
+          pickup_longitude: number | null
+          scheduled_time: string
+          status: string | null
+          transport_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          appointment_id?: string | null
+          created_at?: string | null
+          destination_address: string
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          driver_info?: Json | null
+          id?: string
+          patient_id: string
+          pickup_address: string
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          scheduled_time: string
+          status?: string | null
+          transport_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          appointment_id?: string | null
+          created_at?: string | null
+          destination_address?: string
+          destination_latitude?: number | null
+          destination_longitude?: number | null
+          driver_info?: Json | null
+          id?: string
+          patient_id?: string
+          pickup_address?: string
+          pickup_latitude?: number | null
+          pickup_longitude?: number | null
+          scheduled_time?: string
+          status?: string | null
+          transport_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_requests_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

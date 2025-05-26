@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Users, Heart, Bell, Settings, User } from "lucide-react";
+import { Calendar, Clock, Users, Heart, Bell, Settings, User, FileText, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { PhysicianRegistration } from "@/components/physician/PhysicianRegistration";
 
 const PhysicianDashboard = () => {
   const navigate = useNavigate();
@@ -43,6 +44,13 @@ const PhysicianDashboard = () => {
     { label: "Today's Appointments", value: "8", change: "0%" },
     { label: "Pending Reviews", value: "23", change: "+5%" },
     { label: "Emergency Cases", value: "2", change: "-50%" }
+  ];
+
+  const performanceMetrics = [
+    { label: "Patient Satisfaction", value: "94%", trend: "+2%" },
+    { label: "Appointment Completion", value: "98%", trend: "0%" },
+    { label: "Response Time", value: "3.2 min", trend: "-15%" },
+    { label: "Cases This Month", value: "156", trend: "+8%" }
   ];
 
   return (
@@ -109,10 +117,12 @@ const PhysicianDashboard = () => {
         </div>
 
         <Tabs defaultValue="appointments" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="appointments">Today's Schedule</TabsTrigger>
             <TabsTrigger value="patients">Patients</TabsTrigger>
             <TabsTrigger value="consultations">Consultations</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="registration">Profile</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -206,6 +216,38 @@ const PhysicianDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance Metrics</CardTitle>
+                <CardDescription>Your professional performance indicators</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {performanceMetrics.map((metric, index) => (
+                    <Card key={index}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600">{metric.label}</p>
+                            <p className="text-2xl font-bold">{metric.value}</p>
+                          </div>
+                          <span className={`text-sm ${metric.trend.includes('+') ? 'text-green-600' : metric.trend.includes('-') ? 'text-red-600' : 'text-gray-600'}`}>
+                            {metric.trend}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="registration" className="space-y-4">
+            <PhysicianRegistration />
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
