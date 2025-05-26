@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,7 @@ export const TestSuite: React.FC = () => {
     },
     {
       name: 'Real-time Subscriptions',
-      test: async () => {
+      test: async (): Promise<string> => {
         return new Promise((resolve, reject) => {
           const channel = supabase.channel('test-channel')
             .subscribe((status) => {
@@ -75,6 +74,54 @@ export const TestSuite: React.FC = () => {
             reject(new Error('Real-time connection timeout'));
           }, 5000);
         });
+      }
+    },
+    {
+      name: 'Emergency Notifications',
+      test: async () => {
+        // Test emergency channel subscription
+        return new Promise<string>((resolve, reject) => {
+          const emergencyChannel = supabase
+            .channel('emergency-test')
+            .subscribe((status) => {
+              if (status === 'SUBSCRIBED') {
+                supabase.removeChannel(emergencyChannel);
+                resolve('Emergency notification system ready');
+              } else if (status === 'CHANNEL_ERROR') {
+                reject(new Error('Emergency channel failed'));
+              }
+            });
+          
+          setTimeout(() => {
+            supabase.removeChannel(emergencyChannel);
+            reject(new Error('Emergency channel timeout'));
+          }, 3000);
+        });
+      }
+    },
+    {
+      name: 'Chat System',
+      test: async () => {
+        if (!user) throw new Error('User required for chat test');
+        const { data, error } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('patient_id', user.id)
+          .limit(1);
+        if (error) throw error;
+        return 'Chat system accessible';
+      }
+    },
+    {
+      name: 'Physician Search',
+      test: async () => {
+        const { data, error } = await supabase.rpc('get_nearby_physicians', {
+          patient_lat: 34.0522,
+          patient_lng: -118.2437,
+          search_radius_km: 50
+        });
+        if (error) throw error;
+        return `Found ${data?.length || 0} physicians`;
       }
     }
   ];
@@ -99,7 +146,7 @@ export const TestSuite: React.FC = () => {
         
         setTestResults(prev => prev.map(test => 
           test.name === testCase.name 
-            ? { ...test, status: 'passed' as const, message: result, duration }
+            ? { ...test, status: 'passed' as const, message: String(result), duration }
             : test
         ));
       } catch (error) {
