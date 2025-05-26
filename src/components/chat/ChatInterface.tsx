@@ -1,127 +1,133 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bot, MessageCircle, User, Send, Phone } from 'lucide-react';
+import { ArrowLeft, Send, Bot, User, Stethoscope } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Message, Conversation } from '@/types/chat';
 import { EnhancedAIBot } from './EnhancedAIBot';
 
-export const ChatInterface: React.FC = () => {
+interface Message {
+  id: string;
+  content: string;
+  sender_type: 'patient' | 'physician' | 'ai_bot';
+  sender_id?: string;
+  created_at: string;
+  message_type?: 'text' | 'image' | 'file';
+  metadata?: any;
+}
+
+interface ChatInterfaceProps {
+  conversation: any;
+  onBack: () => void;
+}
+
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBack }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) {
-      fetchConversations();
-      subscribeToMessages();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation);
-    }
-  }, [selectedConversation]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const fetchConversations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('patient_id', user?.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      setConversations(data || []);
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load conversations.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const fetchMessages = async (conversationId: string) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      setMessages(data || []);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const subscribeToMessages = () => {
+    fetchMessages();
+    
+    // Set up real-time subscription
     const channel = supabase
-      .channel('messages_channel')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages'
-      }, (payload) => {
-        const newMessage = payload.new as Message;
-        if (newMessage.conversation_id === selectedConversation) {
-          setMessages(prev => [...prev, newMessage]);
+      .channel('chat-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversation.id}`
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          setMessages(prev => [...prev, {
+            id: newMsg.id,
+            content: newMsg.content,
+            sender_type: newMsg.sender_type as 'patient' | 'physician' | 'ai_bot',
+            sender_id: newMsg.sender_id,
+            created_at: newMsg.created_at,
+            message_type: newMsg.message_type || 'text',
+            metadata: newMsg.metadata
+          }]);
         }
-      })
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [conversation.id]);
+
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversation.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      
+      const formattedMessages: Message[] = (data || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_type: msg.sender_type as 'patient' | 'physician' | 'ai_bot',
+        sender_id: msg.sender_id || undefined,
+        created_at: msg.created_at,
+        message_type: (msg.message_type as 'text' | 'image' | 'file') || 'text',
+        metadata: msg.metadata
+      }));
+      
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !user) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase
         .from('messages')
         .insert({
-          conversation_id: selectedConversation,
-          sender_id: user?.id,
-          sender_type: 'patient',
+          conversation_id: conversation.id,
           content: newMessage,
+          sender_type: 'patient',
+          sender_id: user.id,
           message_type: 'text'
         });
 
       if (error) throw error;
+
       setNewMessage('');
+
+      // If it's an AI conversation, get AI response
+      if (conversation.type === 'ai_diagnosis') {
+        setTimeout(async () => {
+          const aiResponse = EnhancedAIBot.getDiagnosisResponse(newMessage);
+          
+          await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversation.id,
+              content: aiResponse,
+              sender_type: 'ai_bot',
+              message_type: 'text'
+            });
+        }, 1000);
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -129,199 +135,96 @@ export const ChatInterface: React.FC = () => {
         description: "Failed to send message.",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const startNewConversation = async (type: 'ai_diagnosis' | 'physician_consultation') => {
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .insert({
-          patient_id: user?.id,
-          type,
-          title: type === 'ai_diagnosis' ? 'AI Health Assistant' : 'Physician Consultation'
-        })
-        .select()
-        .single();
+  const getSenderIcon = (senderType: string) => {
+    switch (senderType) {
+      case 'ai_bot': return <Bot className="w-4 h-4" />;
+      case 'physician': return <Stethoscope className="w-4 h-4" />;
+      default: return <User className="w-4 h-4" />;
+    }
+  };
 
-      if (error) throw error;
-      
-      setConversations(prev => [data, ...prev]);
-      setSelectedConversation(data.id);
-      
-      // Send initial AI message for AI diagnosis
-      if (type === 'ai_diagnosis') {
-        await supabase
-          .from('messages')
-          .insert({
-            conversation_id: data.id,
-            sender_type: 'ai_bot',
-            content: 'Hello! I\'m your AI health assistant. How can I help you today?',
-            message_type: 'text'
-          });
-      }
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start conversation.",
-        variant: "destructive"
-      });
+  const getSenderName = (senderType: string) => {
+    switch (senderType) {
+      case 'ai_bot': return 'AI Assistant';
+      case 'physician': return 'Dr. Smith';
+      default: return 'You';
     }
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-6 h-[600px]">
-      {/* Conversations List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <MessageCircle className="w-5 h-5" />
-            <span>Conversations</span>
-          </CardTitle>
-          <CardDescription>Your chat history and consultations</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Button 
-              onClick={() => startNewConversation('ai_diagnosis')}
-              className="w-full bg-purple-600 hover:bg-purple-700"
-            >
-              <Bot className="w-4 h-4 mr-2" />
-              AI Health Assistant
+    <Card className="h-[600px] flex flex-col">
+      <CardHeader className="flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Button 
-              onClick={() => startNewConversation('physician_consultation')}
-              variant="outline"
-              className="w-full"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Talk to Doctor
-            </Button>
+            <div>
+              <CardTitle className="text-lg">{conversation.title || 'Chat'}</CardTitle>
+              <Badge variant="outline" className="mt-1">
+                {conversation.type === 'ai_diagnosis' ? 'AI Diagnosis' : 'Physician Consultation'}
+              </Badge>
+            </div>
           </div>
-          
-          <div className="space-y-2">
-            {conversations.map((conversation) => (
+        </div>
+      </CardHeader>
+
+      <CardContent className="flex-1 flex flex-col p-0">
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {messages.map((message) => (
               <div
-                key={conversation.id}
-                onClick={() => setSelectedConversation(conversation.id)}
-                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                  selectedConversation === conversation.id 
-                    ? 'bg-purple-50 border-purple-200' 
-                    : 'hover:bg-gray-50'
+                key={message.id}
+                className={`flex items-start space-x-3 ${
+                  message.sender_type === 'patient' ? 'flex-row-reverse space-x-reverse' : ''
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">{conversation.title}</h4>
-                  <Badge variant="outline" className="text-xs">
-                    {conversation.type === 'ai_diagnosis' ? 'AI' : 'Doctor'}
-                  </Badge>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                  message.sender_type === 'ai_bot' ? 'bg-purple-100 text-purple-600' :
+                  message.sender_type === 'physician' ? 'bg-blue-100 text-blue-600' :
+                  'bg-gray-100 text-gray-600'
+                }`}>
+                  {getSenderIcon(message.sender_type)}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(conversation.updated_at).toLocaleDateString()}
-                </p>
+                <div className={`flex-1 max-w-xs lg:max-w-md ${
+                  message.sender_type === 'patient' ? 'text-right' : ''
+                }`}>
+                  <div className={`rounded-lg p-3 ${
+                    message.sender_type === 'patient' 
+                      ? 'bg-purple-600 text-white ml-auto' 
+                      : 'bg-gray-100 text-gray-900'
+                  }`}>
+                    <p className="text-sm">{message.content}</p>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {getSenderName(message.sender_type)} • {new Date(message.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </ScrollArea>
 
-      {/* Chat Window */}
-      <div className="md:col-span-2">
-        {selectedConversation ? (
-          <Card className="h-full flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>
-                  {conversations.find(c => c.id === selectedConversation)?.title || 'Chat'}
-                </span>
-                <Badge>
-                  {conversations.find(c => c.id === selectedConversation)?.type === 'ai_diagnosis' ? 'AI Assistant' : 'Doctor Chat'}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {loading ? (
-                  <div className="text-center">Loading messages...</div>
-                ) : (
-                  messages.map((message) => (
-                    <div key={message.id} className={`flex ${
-                      message.sender_type === 'patient' ? 'justify-end' : 'justify-start'
-                    }`}>
-                      <div className={`max-w-[80%] p-3 rounded-lg ${
-                        message.sender_type === 'patient' 
-                          ? 'bg-purple-600 text-white' 
-                          : message.sender_type === 'ai_bot'
-                          ? 'bg-blue-100 text-blue-900'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input */}
-              <div className="p-4 border-t">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  />
-                  <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Tabs defaultValue="ai" className="h-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="ai">AI Assistant</TabsTrigger>
-              <TabsTrigger value="doctor">Find Doctor</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="ai" className="h-full">
-              <EnhancedAIBot />
-            </TabsContent>
-            
-            <TabsContent value="doctor" className="h-full">
-              <Card className="h-full">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Phone className="w-6 h-6" />
-                    <span>Connect with a Doctor</span>
-                  </CardTitle>
-                  <CardDescription>Get professional medical consultation</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Professional Consultation</h3>
-                    <p className="text-gray-600 mb-4">Connect with certified physicians for medical advice</p>
-                    <Button 
-                      onClick={() => startNewConversation('physician_consultation')}
-                      className="bg-purple-600 hover:bg-purple-700"
-                    >
-                      Start Consultation
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        )}
-      </div>
-    </div>
+        <div className="border-t p-4">
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Type your message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              disabled={loading}
+            />
+            <Button onClick={sendMessage} disabled={loading || !newMessage.trim()}>
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };

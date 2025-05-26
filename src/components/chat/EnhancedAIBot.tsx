@@ -1,364 +1,197 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Bot, Send, AlertTriangle, Info, Heart } from 'lucide-react';
-
-interface Symptom {
-  name: string;
-  severity: 'mild' | 'moderate' | 'severe';
-  category: string;
-}
-
-interface Diagnosis {
-  condition: string;
-  confidence: number;
-  urgency: 'low' | 'medium' | 'high';
-  recommendations: string[];
-  symptoms_matched: string[];
-}
-
-interface ChatMessage {
-  id: string;
-  type: 'user' | 'bot';
-  content: string;
-  timestamp: Date;
-  diagnosis?: Diagnosis;
-}
-
-export const EnhancedAIBot: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'bot',
-      content: 'Hello! I\'m your AI health assistant. I can help analyze your symptoms and provide initial guidance. Please describe how you\'re feeling.',
-      timestamp: new Date()
-    }
-  ]);
-  const [input, setInput] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  // Enhanced symptom database with more comprehensive coverage
-  const symptomDatabase = {
-    respiratory: {
-      'cough': { severity: 'mild', related: ['chest pain', 'shortness of breath', 'fever'] },
-      'shortness of breath': { severity: 'moderate', related: ['chest pain', 'dizziness', 'fatigue'] },
-      'chest pain': { severity: 'severe', related: ['shortness of breath', 'arm pain', 'sweating'] },
-      'wheezing': { severity: 'moderate', related: ['cough', 'breathing difficulty'] },
-      'sore throat': { severity: 'mild', related: ['fever', 'headache', 'swollen glands'] }
+export class EnhancedAIBot {
+  private static symptoms = {
+    fever: {
+      keywords: ['fever', 'temperature', 'hot', 'chills', 'burning up', 'feverish'],
+      severity: 'moderate' as const
     },
-    cardiovascular: {
-      'chest pain': { severity: 'severe', related: ['arm pain', 'jaw pain', 'sweating', 'nausea'] },
-      'palpitations': { severity: 'moderate', related: ['dizziness', 'shortness of breath'] },
-      'arm pain': { severity: 'moderate', related: ['chest pain', 'jaw pain'] },
-      'jaw pain': { severity: 'moderate', related: ['chest pain', 'arm pain'] }
+    headache: {
+      keywords: ['headache', 'head pain', 'migraine', 'head hurt', 'head ache'],
+      severity: 'mild' as const
     },
-    neurological: {
-      'headache': { severity: 'mild', related: ['nausea', 'sensitivity to light', 'neck stiffness'] },
-      'dizziness': { severity: 'moderate', related: ['nausea', 'balance problems', 'headache'] },
-      'confusion': { severity: 'severe', related: ['memory problems', 'disorientation'] },
-      'numbness': { severity: 'moderate', related: ['tingling', 'weakness'] },
-      'seizure': { severity: 'severe', related: ['confusion', 'loss of consciousness'] }
+    cough: {
+      keywords: ['cough', 'coughing', 'hack', 'phlegm', 'dry cough', 'wet cough'],
+      severity: 'mild' as const
     },
-    gastrointestinal: {
-      'nausea': { severity: 'mild', related: ['vomiting', 'stomach pain', 'dizziness'] },
-      'vomiting': { severity: 'moderate', related: ['nausea', 'dehydration', 'stomach pain'] },
-      'stomach pain': { severity: 'moderate', related: ['nausea', 'vomiting', 'bloating'] },
-      'diarrhea': { severity: 'mild', related: ['stomach pain', 'dehydration', 'fever'] },
-      'constipation': { severity: 'mild', related: ['stomach pain', 'bloating'] }
+    sore_throat: {
+      keywords: ['sore throat', 'throat pain', 'swallow hurt', 'throat ache', 'scratchy throat'],
+      severity: 'mild' as const
     },
-    general: {
-      'fever': { severity: 'moderate', related: ['chills', 'sweating', 'headache', 'fatigue'] },
-      'fatigue': { severity: 'mild', related: ['weakness', 'dizziness', 'sleep problems'] },
-      'sweating': { severity: 'mild', related: ['fever', 'chest pain', 'anxiety'] },
-      'chills': { severity: 'mild', related: ['fever', 'fatigue'] },
-      'weight loss': { severity: 'moderate', related: ['fatigue', 'appetite loss'] }
+    nausea: {
+      keywords: ['nausea', 'sick', 'vomit', 'throw up', 'queasy', 'nauseated'],
+      severity: 'moderate' as const
+    },
+    fatigue: {
+      keywords: ['tired', 'fatigue', 'exhausted', 'weak', 'no energy', 'weary'],
+      severity: 'mild' as const
+    },
+    chest_pain: {
+      keywords: ['chest pain', 'chest hurt', 'chest tight', 'heart pain', 'chest pressure'],
+      severity: 'severe' as const
+    },
+    shortness_of_breath: {
+      keywords: ['shortness of breath', 'hard to breathe', 'breathing difficult', 'cant breathe', 'breathless'],
+      severity: 'severe' as const
+    },
+    stomach_pain: {
+      keywords: ['stomach pain', 'belly hurt', 'abdominal pain', 'tummy ache', 'stomach ache'],
+      severity: 'moderate' as const
+    },
+    dizziness: {
+      keywords: ['dizzy', 'lightheaded', 'spinning', 'vertigo', 'unsteady'],
+      severity: 'moderate' as const
+    },
+    rash: {
+      keywords: ['rash', 'skin irritation', 'red spots', 'itchy skin', 'bumps'],
+      severity: 'mild' as const
+    },
+    joint_pain: {
+      keywords: ['joint pain', 'arthritis', 'stiff joints', 'aching joints'],
+      severity: 'moderate' as const
     }
   };
 
-  // Enhanced diagnosis rules with more conditions
-  const diagnosisRules = [
-    {
-      condition: 'Possible Heart Attack',
-      urgency: 'high' as const,
-      requiredSymptoms: ['chest pain'],
-      supportingSymptoms: ['arm pain', 'jaw pain', 'sweating', 'nausea', 'shortness of breath'],
-      minSupporting: 2,
-      recommendations: [
-        'CALL 911 IMMEDIATELY',
-        'Chew aspirin if not allergic',
-        'Rest and stay calm',
-        'Do not drive yourself to hospital'
-      ]
-    },
-    {
-      condition: 'Respiratory Infection',
-      urgency: 'medium' as const,
-      requiredSymptoms: ['cough'],
-      supportingSymptoms: ['fever', 'sore throat', 'fatigue', 'headache'],
-      minSupporting: 2,
-      recommendations: [
-        'Rest and stay hydrated',
-        'Consider over-the-counter fever reducers',
-        'Isolate if fever present',
-        'See physician if symptoms worsen'
-      ]
-    },
-    {
-      condition: 'Migraine Headache',
-      urgency: 'medium' as const,
-      requiredSymptoms: ['headache'],
-      supportingSymptoms: ['nausea', 'sensitivity to light', 'dizziness'],
-      minSupporting: 1,
-      recommendations: [
-        'Rest in dark, quiet room',
-        'Apply cold compress',
-        'Stay hydrated',
-        'Consider pain medication as directed'
-      ]
-    },
-    {
-      condition: 'Gastroenteritis',
-      urgency: 'medium' as const,
-      requiredSymptoms: ['nausea'],
-      supportingSymptoms: ['vomiting', 'diarrhea', 'stomach pain', 'fever'],
-      minSupporting: 2,
-      recommendations: [
-        'Stay hydrated with clear fluids',
-        'BRAT diet (bananas, rice, applesauce, toast)',
-        'Rest',
-        'Seek care if severe dehydration occurs'
-      ]
-    },
-    {
-      condition: 'Anxiety/Panic Attack',
+  private static conditions = {
+    common_cold: {
+      symptoms: ['cough', 'sore_throat', 'fatigue', 'headache'],
+      advice: 'This sounds like a common cold. Rest, stay hydrated, and consider over-the-counter medications. If symptoms persist beyond 7-10 days, consult a doctor.',
       urgency: 'low' as const,
-      requiredSymptoms: ['palpitations'],
-      supportingSymptoms: ['sweating', 'shortness of breath', 'dizziness', 'chest pain'],
-      minSupporting: 2,
-      recommendations: [
-        'Practice deep breathing exercises',
-        'Find a calm environment',
-        'Use grounding techniques',
-        'Consider speaking with a mental health professional'
-      ]
+      duration: '7-10 days'
     },
-    {
-      condition: 'Stroke Warning Signs',
+    flu: {
+      symptoms: ['fever', 'headache', 'fatigue', 'cough', 'joint_pain'],
+      advice: 'These symptoms suggest flu. Rest, drink plenty of fluids, and consider antiviral medication if seen within 48 hours. Seek medical attention if symptoms worsen.',
+      urgency: 'medium' as const,
+      duration: '1-2 weeks'
+    },
+    gastroenteritis: {
+      symptoms: ['nausea', 'stomach_pain', 'fatigue', 'dizziness'],
+      advice: 'This could be gastroenteritis (stomach flu). Stay hydrated with clear fluids, rest, and eat bland foods when able. Contact a doctor if symptoms are severe.',
+      urgency: 'medium' as const,
+      duration: '3-7 days'
+    },
+    heart_emergency: {
+      symptoms: ['chest_pain', 'shortness_of_breath'],
+      advice: '🚨 URGENT: These symptoms could indicate a heart condition. Seek immediate medical attention or call emergency services.',
       urgency: 'high' as const,
-      requiredSymptoms: ['confusion'],
-      supportingSymptoms: ['numbness', 'dizziness', 'headache'],
-      minSupporting: 1,
-      recommendations: [
-        'CALL 911 IMMEDIATELY',
-        'Note time symptoms started',
-        'Do not give food or water',
-        'Stay with patient until help arrives'
-      ]
+      duration: 'immediate attention needed'
+    },
+    respiratory_emergency: {
+      symptoms: ['shortness_of_breath', 'chest_pain', 'fever'],
+      advice: '🚨 These symptoms require immediate medical attention. Please visit an emergency room or urgent care center.',
+      urgency: 'high' as const,
+      duration: 'immediate attention needed'
+    },
+    allergic_reaction: {
+      symptoms: ['rash', 'shortness_of_breath', 'nausea'],
+      advice: 'This could be an allergic reaction. If breathing difficulties persist, seek immediate medical attention. For mild reactions, antihistamines may help.',
+      urgency: 'medium' as const,
+      duration: 'varies'
+    },
+    migraine: {
+      symptoms: ['headache', 'nausea', 'dizziness'],
+      advice: 'This appears to be a migraine. Rest in a dark, quiet room, stay hydrated, and consider over-the-counter pain relievers. If severe or frequent, consult a doctor.',
+      urgency: 'low' as const,
+      duration: '4-72 hours'
     }
-  ];
-
-  const extractSymptoms = (text: string): Symptom[] => {
-    const symptoms: Symptom[] = [];
-    const lowerText = text.toLowerCase();
-
-    // Check all symptom categories
-    Object.entries(symptomDatabase).forEach(([category, categorySymptoms]) => {
-      Object.entries(categorySymptoms).forEach(([symptom, details]) => {
-        if (lowerText.includes(symptom)) {
-          symptoms.push({
-            name: symptom,
-            severity: details.severity,
-            category
-          });
-        }
-      });
-    });
-
-    return symptoms;
   };
 
-  const analyzeDiagnosis = (symptoms: Symptom[]): Diagnosis | null => {
-    const symptomNames = symptoms.map(s => s.name);
-    let bestMatch: Diagnosis | null = null;
-    let highestConfidence = 0;
+  static getDiagnosisResponse(userMessage: string): string {
+    const message = userMessage.toLowerCase();
+    const detectedSymptoms: Array<{name: string, severity: 'mild' | 'moderate' | 'severe'}> = [];
 
-    diagnosisRules.forEach(rule => {
-      const hasRequired = rule.requiredSymptoms.every(req => 
-        symptomNames.includes(req)
+    // Detect symptoms from user message
+    Object.entries(this.symptoms).forEach(([symptom, config]) => {
+      if (config.keywords.some(keyword => message.includes(keyword))) {
+        detectedSymptoms.push({
+          name: symptom,
+          severity: config.severity
+        });
+      }
+    });
+
+    if (detectedSymptoms.length === 0) {
+      return "I understand you're not feeling well. Could you describe your symptoms in more detail? For example, are you experiencing fever, pain, nausea, or any other specific symptoms?";
+    }
+
+    // Check for emergency symptoms
+    const hasEmergencySymptoms = detectedSymptoms.some(s => s.severity === 'severe');
+    if (hasEmergencySymptoms) {
+      return "🚨 **EMERGENCY**: The symptoms you've described could indicate a serious medical condition. Please seek immediate medical attention by calling emergency services or visiting the nearest emergency room. Do not delay seeking professional medical care.";
+    }
+
+    // Find matching conditions
+    const possibleConditions = Object.entries(this.conditions).filter(([_, condition]) => {
+      const symptomNames = detectedSymptoms.map(s => s.name);
+      const matchingSymptoms = condition.symptoms.filter(symptom => 
+        symptomNames.includes(symptom)
       );
-
-      if (hasRequired) {
-        const supportingCount = rule.supportingSymptoms.filter(sup => 
-          symptomNames.includes(sup)
-        ).length;
-
-        if (supportingCount >= rule.minSupporting) {
-          const confidence = Math.min(95, 
-            40 + (supportingCount * 15) + (symptoms.length * 5)
-          );
-
-          if (confidence > highestConfidence) {
-            highestConfidence = confidence;
-            bestMatch = {
-              condition: rule.condition,
-              confidence,
-              urgency: rule.urgency,
-              recommendations: rule.recommendations,
-              symptoms_matched: [
-                ...rule.requiredSymptoms.filter(s => symptomNames.includes(s)),
-                ...rule.supportingSymptoms.filter(s => symptomNames.includes(s))
-              ]
-            };
-          }
-        }
-      }
+      return matchingSymptoms.length >= Math.min(2, condition.symptoms.length);
     });
 
-    return bestMatch;
-  };
-
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: input,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsAnalyzing(true);
-
-    // Simulate analysis delay
-    setTimeout(() => {
-      const symptoms = extractSymptoms(input);
-      const diagnosis = analyzeDiagnosis(symptoms);
-
-      let botResponse = '';
-      if (symptoms.length === 0) {
-        botResponse = 'I understand you\'re not feeling well. Could you be more specific about your symptoms? For example, do you have pain, fever, nausea, or breathing difficulties?';
-      } else {
-        botResponse = `I've identified the following symptoms: ${symptoms.map(s => s.name).join(', ')}. `;
-        
-        if (diagnosis) {
-          botResponse += `Based on this information, you might be experiencing ${diagnosis.condition}.`;
-        } else {
-          botResponse += 'I recommend speaking with a healthcare professional for a proper evaluation.';
-        }
-      }
-
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: botResponse,
-        timestamp: new Date(),
-        diagnosis
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-      setIsAnalyzing(false);
-    }, 1500);
-  };
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-green-100 text-green-800';
+    if (possibleConditions.length === 0) {
+      const symptomList = detectedSymptoms.map(s => s.name.replace('_', ' ')).join(', ');
+      return `I noticed you mentioned symptoms like ${symptomList}. While I can provide general information, I recommend consulting with a healthcare professional for proper diagnosis and treatment. Would you like to chat with one of our physicians?`;
     }
-  };
 
-  const getUrgencyIcon = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return <AlertTriangle className="w-4 h-4" />;
-      case 'medium': return <Info className="w-4 h-4" />;
-      default: return <Heart className="w-4 h-4" />;
+    // Sort by urgency and number of matching symptoms
+    possibleConditions.sort((a, b) => {
+      const urgencyOrder = { high: 3, medium: 2, low: 1 };
+      const urgencyDiff = urgencyOrder[b[1].urgency] - urgencyOrder[a[1].urgency];
+      if (urgencyDiff !== 0) return urgencyDiff;
+      
+      // If same urgency, sort by number of matching symptoms
+      const aMatches = a[1].symptoms.filter(s => detectedSymptoms.map(d => d.name).includes(s)).length;
+      const bMatches = b[1].symptoms.filter(s => detectedSymptoms.map(d => d.name).includes(s)).length;
+      return bMatches - aMatches;
+    });
+
+    const [conditionName, topCondition] = possibleConditions[0];
+    const symptomList = detectedSymptoms.map(s => s.name.replace('_', ' ')).join(', ');
+    
+    let response = `**Possible Condition**: ${conditionName.replace('_', ' ').toUpperCase()}\n\n`;
+    response += `**Symptoms Detected**: ${symptomList}\n\n`;
+    response += `**Assessment**: ${topCondition.advice}\n\n`;
+    response += `**Expected Duration**: ${topCondition.duration}\n\n`;
+
+    // Add severity-based recommendations
+    const maxSeverity = Math.max(...detectedSymptoms.map(s => 
+      s.severity === 'severe' ? 3 : s.severity === 'moderate' ? 2 : 1
+    ));
+
+    if (maxSeverity >= 2) {
+      response += "**Recommendation**: Monitor your symptoms closely. ";
     }
-  };
 
-  return (
-    <Card className="h-[600px] flex flex-col">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Bot className="w-6 h-6 text-purple-600" />
-          <span>Enhanced AI Health Assistant</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-0">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((message) => (
-            <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] p-3 rounded-lg ${
-                message.type === 'user' 
-                  ? 'bg-purple-600 text-white' 
-                  : 'bg-gray-100 text-gray-900'
-              }`}>
-                <p className="text-sm">{message.content}</p>
-                
-                {message.diagnosis && (
-                  <div className="mt-3 space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getUrgencyColor(message.diagnosis.urgency)}>
-                        <div className="flex items-center space-x-1">
-                          {getUrgencyIcon(message.diagnosis.urgency)}
-                          <span className="capitalize">{message.diagnosis.urgency} Priority</span>
-                        </div>
-                      </Badge>
-                      <span className="text-xs">Confidence: {message.diagnosis.confidence}%</span>
-                    </div>
-                    
-                    <div className="text-xs">
-                      <p className="font-medium mb-1">Recommendations:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        {message.diagnosis.recommendations.map((rec, idx) => (
-                          <li key={idx}>{rec}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-                
-                <p className="text-xs opacity-70 mt-2">
-                  {message.timestamp.toLocaleTimeString()}
-                </p>
-              </div>
-            </div>
-          ))}
-          
-          {isAnalyzing && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                  <span className="text-sm">Analyzing symptoms...</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+    if (topCondition.urgency === 'high') {
+      response += "\n\n🚨 **URGENT**: This is not a substitute for professional medical advice. Please seek immediate medical attention.";
+    } else if (topCondition.urgency === 'medium') {
+      response += "\n\n⚠️ **IMPORTANT**: Consider scheduling an appointment with a healthcare provider if symptoms persist or worsen.";
+    } else {
+      response += "\n\n💡 **Note**: These are mild symptoms that often resolve on their own, but don't hesitate to seek medical care if you're concerned.";
+    }
 
-        {/* Input */}
-        <div className="p-4 border-t">
-          <div className="flex space-x-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe your symptoms..."
-              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              disabled={isAnalyzing}
-            />
-            <Button onClick={handleSendMessage} disabled={isAnalyzing || !input.trim()}>
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+    response += "\n\n**Disclaimer**: This is general information only and cannot replace professional medical advice. Would you like to connect with one of our physicians for a consultation?";
+
+    return response;
+  }
+
+  static getGreeting(): string {
+    return "👋 Hello! I'm your AI Health Assistant. I can help provide general information about symptoms and when to seek medical care.\n\n**How to use me:**\n• Describe your symptoms in detail\n• Be specific about location, duration, and severity\n• Mention any relevant medical history\n\n**Important**: I provide general information only and cannot replace professional medical advice. For serious symptoms, always seek immediate medical attention.\n\nPlease describe how you're feeling or what symptoms you're experiencing.";
+  }
+
+  static getRandomHealthTip(): string {
+    const tips = [
+      "💧 Stay hydrated! Aim for 8 glasses of water daily.",
+      "🏃‍♀️ Regular exercise can boost your immune system and mood.",
+      "😴 Adults need 7-9 hours of quality sleep each night.",
+      "🥗 Eating a variety of colorful fruits and vegetables provides essential nutrients.",
+      "🧼 Wash your hands frequently to prevent the spread of illness.",
+      "🧘‍♂️ Practice stress management through meditation or deep breathing.",
+      "☀️ Get some sunlight for natural vitamin D production.",
+      "🚭 Avoid smoking and limit alcohol consumption for better health."
+    ];
+    
+    return tips[Math.floor(Math.random() * tips.length)];
+  }
+}
