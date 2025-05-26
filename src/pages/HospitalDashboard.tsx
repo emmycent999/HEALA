@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { PhysicianManagement } from "@/components/hospital/PhysicianManagement";
+import { ActivityDashboard } from "@/components/hospital/ActivityDashboard";
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
@@ -177,14 +178,23 @@ const HospitalDashboard = () => {
           ))}
         </div>
 
-        <Tabs defaultValue="emergency" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="activity" className="w-full">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="activity">Activity Dashboard</TabsTrigger>
+            <TabsTrigger value="physicians">Physician Management</TabsTrigger>
             <TabsTrigger value="emergency">Emergency Requests</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
-            <TabsTrigger value="staff">Staff Management</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="activity" className="space-y-4">
+            <ActivityDashboard />
+          </TabsContent>
+
+          <TabsContent value="physicians" className="space-y-4">
+            <PhysicianManagement />
+          </TabsContent>
 
           <TabsContent value="emergency" className="space-y-4">
             <Card>
@@ -307,50 +317,7 @@ const HospitalDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="staff" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Staff Management</CardTitle>
-                <CardDescription>Manage physicians, nurses, and hospital staff</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Active Staff</h4>
-                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">Add Staff</Button>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                        <h3 className="font-semibold">Physicians</h3>
-                        <p className="text-2xl font-bold text-blue-600">127</p>
-                        <p className="text-sm text-gray-600">+3 this month</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <Users className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                        <h3 className="font-semibold">Nurses</h3>
-                        <p className="text-2xl font-bold text-green-600">284</p>
-                        <p className="text-sm text-gray-600">+8 this month</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-4 text-center">
-                        <Users className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                        <h3 className="font-semibold">Support Staff</h3>
-                        <p className="text-2xl font-bold text-purple-600">156</p>
-                        <p className="text-sm text-gray-600">+2 this month</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4">
+          <TabsContent value="performance" className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader>
@@ -391,31 +358,27 @@ const HospitalDashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="activity" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest hospital operations and updates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-center justify-between p-3 border rounded">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${
-                          activity.type === 'admission' ? 'bg-blue-500' :
-                          activity.type === 'completion' ? 'bg-green-500' :
-                          activity.type === 'maintenance' ? 'bg-orange-500' :
-                          'bg-purple-500'
-                        }`} />
-                        <span className="text-sm">{activity.action}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{activity.time}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="analytics" className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Monthly Trends</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-purple-500">↗ 15%</div>
+                  <p className="text-sm text-gray-600">Patient volume increase</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Efficiency Score</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-500">88%</div>
+                  <p className="text-sm text-gray-600">Operational efficiency</p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
