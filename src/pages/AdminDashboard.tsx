@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { TestSuite } from '@/components/testing/TestSuite';
 import { TestingGuide } from '@/components/testing/TestingGuide';
+import { Logo } from '@/components/ui/logo';
 
 const AdminDashboard = () => {
   const { signOut, profile } = useAuth();
@@ -34,10 +35,8 @@ const AdminDashboard = () => {
               >
                 ← Back
               </Button>
-              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-red-800">Heala - Admin Portal</h1>
+              <Logo size="md" />
+              <h1 className="text-xl font-bold text-purple-800">Admin Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="outline">Admin</Badge>

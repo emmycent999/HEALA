@@ -1,36 +1,27 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Heart } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
 
 interface AuthLayoutProps {
+  children: React.ReactNode;
   title: string;
   description: string;
-  children: React.ReactNode;
 }
 
-export const AuthLayout: React.FC<AuthLayoutProps> = ({ title, description, children }) => {
+export const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, description }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
-              <Heart className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-purple-800">Heala</h1>
-          </div>
-          <Badge variant="outline" className="text-purple-600 border-purple-200">
-            Healthcare Platform
-          </Badge>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <Logo size="lg" className="mx-auto mb-4" />
+          <h2 className="text-3xl font-extrabold text-gray-900">{title}</h2>
+          <p className="mt-2 text-sm text-gray-600">{description}</p>
         </div>
-
-        {/* Auth Card */}
+        
         <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardHeader>
+            <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </CardHeader>
           <CardContent>
