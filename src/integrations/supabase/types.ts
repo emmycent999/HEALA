@@ -40,7 +40,22 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agent_assisted_patients_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_assisted_patients_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ambulance_requests: {
         Row: {
@@ -149,6 +164,13 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "appointments_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conversations: {
@@ -159,6 +181,7 @@ export type Database = {
           physician_id: string | null
           status: string | null
           title: string | null
+          type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -168,6 +191,7 @@ export type Database = {
           physician_id?: string | null
           status?: string | null
           title?: string | null
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -177,9 +201,25 @@ export type Database = {
           physician_id?: string | null
           status?: string | null
           title?: string | null
+          type?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hospitals: {
         Row: {
@@ -229,6 +269,7 @@ export type Database = {
           conversation_id: string
           created_at: string | null
           id: string
+          message_type: string | null
           metadata: Json | null
           sender_id: string | null
           sender_type: string
@@ -238,6 +279,7 @@ export type Database = {
           conversation_id: string
           created_at?: string | null
           id?: string
+          message_type?: string | null
           metadata?: Json | null
           sender_id?: string | null
           sender_type: string
@@ -247,6 +289,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string | null
           id?: string
+          message_type?: string | null
           metadata?: Json | null
           sender_id?: string | null
           sender_type?: string

@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-interface AssistedPatient {
+interface AssistedPatientDetail {
   id: string;
   patient_id: string;
   assistance_type: string;
@@ -29,7 +29,7 @@ interface AssistedPatient {
 export const PatientAssistance: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [patients, setPatients] = useState<AssistedPatient[]>([]);
+  const [patients, setPatients] = useState<AssistedPatientDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [addPatientDialog, setAddPatientDialog] = useState(false);
   const [newPatient, setNewPatient] = useState({
@@ -48,7 +48,6 @@ export const PatientAssistance: React.FC = () => {
     if (!user) return;
 
     try {
-      // Get assisted patients first
       const { data: assistedData, error: assistedError } = await supabase
         .from('agent_assisted_patients')
         .select('*')
@@ -57,7 +56,6 @@ export const PatientAssistance: React.FC = () => {
 
       if (assistedError) throw assistedError;
 
-      // Then get patient details
       const patientsWithDetails = await Promise.all((assistedData || []).map(async (item) => {
         const { data: patientData } = await supabase
           .from('profiles')
@@ -93,7 +91,6 @@ export const PatientAssistance: React.FC = () => {
     if (!user || !newPatient.patientEmail || !newPatient.assistanceType) return;
 
     try {
-      // First, find the patient by email
       const { data: patientData, error: patientError } = await supabase
         .from('profiles')
         .select('id')

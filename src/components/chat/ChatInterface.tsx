@@ -10,16 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { EnhancedAIBot } from './EnhancedAIBot';
-
-interface Message {
-  id: string;
-  content: string;
-  sender_type: 'patient' | 'physician' | 'ai_bot';
-  sender_id?: string;
-  created_at: string;
-  message_type?: 'text' | 'image' | 'file';
-  metadata?: any;
-}
+import { Message } from './types';
 
 interface ChatInterfaceProps {
   conversation: any;
@@ -36,7 +27,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
   useEffect(() => {
     fetchMessages();
     
-    // Set up real-time subscription
     const channel = supabase
       .channel('chat-messages')
       .on(
@@ -112,7 +102,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversation, onBa
 
       setNewMessage('');
 
-      // If it's an AI conversation, get AI response
       if (conversation.type === 'ai_diagnosis') {
         setTimeout(async () => {
           const aiResponse = EnhancedAIBot.getDiagnosisResponse(newMessage);

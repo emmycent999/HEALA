@@ -1,26 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Bot, User, Plus, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { PhysicianSelector } from './PhysicianSelector';
 import { AIBot } from './AIBot';
-
-interface Conversation {
-  id: string;
-  type: 'ai_diagnosis' | 'physician_consultation';
-  title?: string;
-  status: string;
-  created_at: string;
-  physician?: {
-    first_name: string;
-    last_name: string;
-    specialization: string;
-  };
-}
+import { Conversation } from './types';
+import { ChatListActions } from './ChatListActions';
+import { ConversationItem } from './ConversationItem';
 
 interface ChatListProps {
   onSelectConversation: (conversation: Conversation) => void;
@@ -61,7 +50,17 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setConversations(data || []);
+      
+      const formattedConversations: Conversation[] = (data || []).map(item => ({
+        id: item.id,
+        type: item.type as 'ai_diagnosis' | 'physician_consultation',
+        title: item.title || undefined,
+        status: item.status || 'active',
+        created_at: item.created_at || new Date().toISOString(),
+        physician: item.physician as Conversation['physician']
+      }));
+      
+      setConversations(formattedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast({
@@ -91,7 +90,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
 
       if (error) throw error;
 
-      // Add initial AI greeting
       await supabase
         .from('messages')
         .insert({
@@ -100,9 +98,12 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
           content: AIBot.getGreeting()
         });
 
-      const newConversation = {
-        ...data,
-        type: data.type as 'ai_diagnosis' | 'physician_consultation',
+      const newConversation: Conversation = {
+        id: data.id,
+        type: 'ai_diagnosis',
+        title: 'AI Health Assessment',
+        status: 'active',
+        created_at: data.created_at || new Date().toISOString(),
         physician: undefined
       };
 
@@ -135,7 +136,6 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
 
       if (error) throw error;
 
-      // Add initial message
       await supabase
         .from('messages')
         .insert({
@@ -185,20 +185,10 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="grid gap-2">
-            <Button onClick={startAIChat} className="w-full justify-start">
-              <Bot className="w-4 h-4 mr-2" />
-              Start AI Health Assessment
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPhysicianSelector(true)}
-              className="w-full justify-start"
-            >
-              <User className="w-4 h-4 mr-2" />
-              Consult with Physician
-            </Button>
-          </div>
+          <ChatListActions 
+            onStartAIChat={startAIChat}
+            onStartPhysicianChat={() => setShowPhysicianSelector(true)}
+          />
 
           {conversations.length > 0 && (
             <>
@@ -206,35 +196,11 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
                 <h4 className="font-medium mb-3">Recent Conversations</h4>
                 <div className="space-y-2">
                   {conversations.map((conversation) => (
-                    <div
+                    <ConversationItem
                       key={conversation.id}
-                      className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                      conversation={conversation}
                       onClick={() => onSelectConversation(conversation)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          {conversation.type === 'ai_diagnosis' ? (
-                            <Bot className="w-4 h-4 text-blue-500" />
-                          ) : (
-                            <User className="w-4 h-4 text-green-500" />
-                          )}
-                          <span className="font-medium text-sm">
-                            {conversation.title || 'Untitled Conversation'}
-                          </span>
-                        </div>
-                        <Badge variant={conversation.status === 'active' ? 'default' : 'secondary'}>
-                          {conversation.status}
-                        </Badge>
-                      </div>
-                      {conversation.physician && (
-                        <p className="text-xs text-gray-600">
-                          Dr. {conversation.physician.first_name} {conversation.physician.last_name} - {conversation.physician.specialization}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(conversation.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
+                    />
                   ))}
                 </div>
               </div>
