@@ -45,22 +45,29 @@ export const AssistedPatients: React.FC = () => {
 
   const fetchAssistedPatients = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the assisted patients
+      const { data: assistedData, error: assistedError } = await supabase
         .from('agent_assisted_patients')
-        .select(`
-          *,
-          patient_name:profiles!agent_assisted_patients_patient_id_fkey(first_name, last_name, email)
-        `)
+        .select('*')
         .eq('agent_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (assistedError) throw assistedError;
 
-      const formattedData = data?.map(item => ({
-        ...item,
-        patient_name: `${item.patient_name?.first_name || ''} ${item.patient_name?.last_name || ''}`.trim() || 'Unknown',
-        patient_email: item.patient_name?.email || 'Unknown'
-      })) || [];
+      // Then get the patient details for each assisted patient
+      const formattedData = await Promise.all((assistedData || []).map(async (item) => {
+        const { data: patientData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', item.patient_id)
+          .single();
+
+        return {
+          ...item,
+          patient_name: patientData ? `${patientData.first_name || ''} ${patientData.last_name || ''}`.trim() : 'Unknown',
+          patient_email: patientData?.email || 'Unknown'
+        };
+      }));
 
       setPatients(formattedData);
     } catch (error) {

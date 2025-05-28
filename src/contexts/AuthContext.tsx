@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type UserRole = 'patient' | 'physician' | 'hospital_admin' | 'agent';
+type UserRole = 'patient' | 'physician' | 'hospital_admin' | 'agent' | 'admin';
 type SubscriptionPlan = 'basic' | 'premium' | 'enterprise';
 
 interface UserProfile {
@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (error) throw error;
-      setProfile(data);
+      setProfile(data as UserProfile);
     } catch (error) {
       console.error('Error fetching profile:', error);
     }

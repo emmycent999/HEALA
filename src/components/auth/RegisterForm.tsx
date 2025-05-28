@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,14 +49,10 @@ export const RegisterForm: React.FC = () => {
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone,
-        role: formData.role || 'patient'
+        role: formData.role || 'patient',
+        specialization: formData.specialization,
+        license_number: formData.licenseNumber
       };
-
-      // Only add specialization and license for physicians
-      if (formData.role === 'physician') {
-        userData.specialization = formData.specialization;
-        userData.license_number = formData.licenseNumber;
-      }
 
       console.log('User metadata:', userData);
 

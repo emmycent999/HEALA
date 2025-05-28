@@ -13,7 +13,6 @@ interface Appointment {
   id: string;
   appointment_date: string;
   appointment_time: string;
-  status: string;
   notes?: string;
   physician: {
     first_name: string;
@@ -50,7 +49,6 @@ export const AppointmentList = () => {
           id,
           appointment_date,
           appointment_time,
-          status,
           notes,
           physician:profiles!appointments_physician_id_fkey (
             first_name,
@@ -78,41 +76,6 @@ export const AppointmentList = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const cancelAppointment = async (appointmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('appointments')
-        .update({ status: 'cancelled' })
-        .eq('id', appointmentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Appointment Cancelled",
-        description: "Your appointment has been cancelled successfully.",
-      });
-
-      fetchAppointments();
-    } catch (error) {
-      console.error('Error cancelling appointment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel appointment.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -159,8 +122,8 @@ export const AppointmentList = () => {
                   </h4>
                   <p className="text-sm text-gray-600">{appointment.physician.specialization}</p>
                 </div>
-                <Badge className={getStatusColor(appointment.status)}>
-                  {appointment.status}
+                <Badge className="bg-blue-100 text-blue-800">
+                  Scheduled
                 </Badge>
               </div>
 
@@ -206,18 +169,6 @@ export const AppointmentList = () => {
               {appointment.notes && (
                 <div className="mt-3 p-2 bg-gray-50 rounded text-sm">
                   <strong>Notes:</strong> {appointment.notes}
-                </div>
-              )}
-
-              {appointment.status === 'pending' && (
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => cancelAppointment(appointment.id)}
-                  >
-                    Cancel Appointment
-                  </Button>
                 </div>
               )}
             </div>

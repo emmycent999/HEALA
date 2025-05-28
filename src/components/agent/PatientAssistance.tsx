@@ -48,22 +48,35 @@ export const PatientAssistance: React.FC = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // Get assisted patients first
+      const { data: assistedData, error: assistedError } = await supabase
         .from('agent_assisted_patients')
-        .select(`
-          *,
-          patient:profiles!agent_assisted_patients_patient_id_fkey (
-            first_name,
-            last_name,
-            phone,
-            email
-          )
-        `)
+        .select('*')
         .eq('agent_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPatients(data || []);
+      if (assistedError) throw assistedError;
+
+      // Then get patient details
+      const patientsWithDetails = await Promise.all((assistedData || []).map(async (item) => {
+        const { data: patientData } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, phone, email')
+          .eq('id', item.patient_id)
+          .single();
+
+        return {
+          ...item,
+          patient: patientData || {
+            first_name: 'Unknown',
+            last_name: '',
+            phone: '',
+            email: 'Unknown'
+          }
+        };
+      }));
+
+      setPatients(patientsWithDetails);
     } catch (error) {
       console.error('Error fetching assisted patients:', error);
       toast({

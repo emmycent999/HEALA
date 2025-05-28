@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,12 +97,12 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
         .insert({
           conversation_id: data.id,
           sender_type: 'ai_bot',
-          content: AIBot.getGreeting(),
-          message_type: 'text'
+          content: AIBot.getGreeting()
         });
 
       const newConversation = {
         ...data,
+        type: data.type as 'ai_diagnosis' | 'physician_consultation',
         physician: undefined
       };
 
@@ -142,8 +141,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
         .insert({
           conversation_id: data.id,
           sender_type: 'physician',
-          content: `Hello! I'm ${physicianName}. How can I help you today?`,
-          message_type: 'text'
+          content: `Hello! I'm ${physicianName}. How can I help you today?`
         });
 
       fetchConversations();
