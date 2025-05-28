@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { TestSuite } from '@/components/testing/TestSuite';
 import { TestingGuide } from '@/components/testing/TestingGuide';
+import { VerificationCenter } from '@/components/admin/VerificationCenter';
 import { Logo } from '@/components/ui/logo';
 
 const AdminDashboard = () => {
@@ -54,18 +55,22 @@ const AdminDashboard = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Admin Dashboard
           </h2>
-          <p className="text-gray-600">Manage system registrations and monitor application health</p>
+          <p className="text-gray-600">Manage system registrations, verifications, and monitor application health</p>
         </div>
 
-        <Tabs defaultValue="testing" className="w-full">
+        <Tabs defaultValue="verifications" className="w-full">
           <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="verifications">Verifications</TabsTrigger>
             <TabsTrigger value="testing">Testing</TabsTrigger>
             <TabsTrigger value="automated">Test Suite</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="verifications">Verifications</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="verifications" className="space-y-4">
+            <VerificationCenter />
+          </TabsContent>
 
           <TabsContent value="testing" className="space-y-4">
             <TestingGuide />
@@ -85,20 +90,6 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">User management features will be implemented here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="verifications" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileCheck className="w-5 h-5" />
-                  <span>Registration Verifications</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Registration verification system will be implemented here.</p>
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,118 +1,21 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Calendar, Heart, Settings, Bell, User, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { PhysicianManagement } from "@/components/hospital/PhysicianManagement";
-import { ActivityDashboard } from "@/components/hospital/ActivityDashboard";
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Building2, Users, Calendar, Activity, UserPlus } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Logo } from '@/components/ui/logo';
 
 const HospitalDashboard = () => {
+  const { signOut, profile } = useAuth();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [notifications] = useState(7);
-  const [ambulanceRequests, setAmbulanceRequests] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      fetchAmbulanceRequests();
-      subscribeToAmbulanceRequests();
-    }
-  }, [user]);
-
-  const fetchAmbulanceRequests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('ambulance_requests')
-        .select(`
-          *,
-          patient:profiles!ambulance_requests_patient_id_fkey(first_name, last_name, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      setAmbulanceRequests(data || []);
-    } catch (error) {
-      console.error('Error fetching ambulance requests:', error);
-    }
-  };
-
-  const subscribeToAmbulanceRequests = () => {
-    const channel = supabase
-      .channel('ambulance_requests')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'ambulance_requests'
-      }, (payload) => {
-        toast({
-          title: "New Ambulance Request",
-          description: "A new emergency ambulance request has been received.",
-        });
-        fetchAmbulanceRequests();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const hospitalStats = [
-    { label: "Total Patients", value: "2,847", change: "+15%" },
-    { label: "Active Physicians", value: "127", change: "+3%" },
-    { label: "Today's Appointments", value: "156", change: "+8%" },
-    { label: "Bed Occupancy", value: "78%", change: "-2%" }
-  ];
-
-  const departments = [
-    { name: "Emergency", patients: 23, doctors: 8, status: "busy" },
-    { name: "Cardiology", patients: 45, doctors: 12, status: "normal" },
-    { name: "Pediatrics", patients: 32, doctors: 9, status: "normal" },
-    { name: "Surgery", patients: 18, doctors: 15, status: "busy" },
-    { name: "Oncology", patients: 28, doctors: 7, status: "normal" }
-  ];
-
-  const recentActivity = [
-    { id: 1, action: "New patient admission - Emergency", time: "5 min ago", type: "admission" },
-    { id: 2, action: "Dr. Smith completed surgery", time: "15 min ago", type: "completion" },
-    { id: 3, action: "Equipment maintenance scheduled", time: "1 hour ago", type: "maintenance" },
-    { id: 4, action: "New physician onboarded", time: "2 hours ago", type: "staff" }
-  ];
-
-  const handleAmbulanceAction = async (requestId: string, action: 'dispatch' | 'assign') => {
-    try {
-      const updateData = action === 'dispatch' 
-        ? { status: 'dispatched' }
-        : { status: 'en_route', ambulance_eta: 15 };
-
-      const { error } = await supabase
-        .from('ambulance_requests')
-        .update(updateData)
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Request Updated",
-        description: `Ambulance request has been ${action === 'dispatch' ? 'dispatched' : 'assigned'}.`,
-      });
-
-      fetchAmbulanceRequests();
-    } catch (error) {
-      console.error('Error updating ambulance request:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update ambulance request.",
-        variant: "destructive"
-      });
-    }
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
   };
 
   return (
@@ -130,22 +33,16 @@ const HospitalDashboard = () => {
               >
                 ← Back
               </Button>
-              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-xl font-bold text-purple-800">Heala - Hospital Admin</h1>
+              <Logo size="md" />
+              <h1 className="text-xl font-bold text-purple-800">Hospital Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                {notifications > 0 && (
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                    {notifications}
-                  </Badge>
-                )}
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Settings className="w-5 h-5" />
+              <Badge variant="outline">Hospital Admin</Badge>
+              <span className="text-sm text-gray-600">
+                {profile?.first_name} {profile?.last_name}
+              </span>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                Sign Out
               </Button>
             </div>
           </div>
@@ -155,230 +52,188 @@ const HospitalDashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Hospital Overview</h2>
-          <p className="text-gray-600">Monitor and manage hospital operations in real-time</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Hospital Management Dashboard
+          </h2>
+          <p className="text-gray-600">Manage physicians, monitor activity, and track performance</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          {hospitalStats.map((stat, index) => (
-            <Card key={index}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">{stat.label}</p>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                  </div>
-                  <span className={`text-sm ${stat.change.includes('+') ? 'text-green-600' : stat.change.includes('-') ? 'text-red-600' : 'text-gray-600'}`}>
-                    {stat.change}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <Tabs defaultValue="activity" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="activity">Activity Dashboard</TabsTrigger>
-            <TabsTrigger value="physicians">Physician Management</TabsTrigger>
-            <TabsTrigger value="emergency">Emergency Requests</TabsTrigger>
-            <TabsTrigger value="departments">Departments</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="physicians">Physicians</TabsTrigger>
+            <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="emergency">Emergency</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="activity" className="space-y-4">
-            <ActivityDashboard />
-          </TabsContent>
-
-          <TabsContent value="physicians" className="space-y-4">
-            <PhysicianManagement />
-          </TabsContent>
-
-          <TabsContent value="emergency" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                  <span>Ambulance Requests</span>
-                </CardTitle>
-                <CardDescription>Real-time emergency ambulance requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {ambulanceRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Emergency Requests</h3>
-                    <p className="text-gray-600">All emergency requests have been handled.</p>
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid md:grid-cols-4 gap-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                    <div className="text-2xl font-bold">47</div>
+                    <div className="text-sm text-gray-600">Active Physicians</div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {ambulanceRequests.map((request) => (
-                      <div key={request.id} className="p-4 border rounded-lg bg-red-50 border-red-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                              <AlertTriangle className="w-6 h-6 text-red-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">
-                                {request.patient?.first_name} {request.patient?.last_name}
-                              </h4>
-                              <p className="text-sm text-gray-600">{request.emergency_type}</p>
-                              <p className="text-sm text-gray-600">
-                                Pickup: {request.pickup_address}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {new Date(request.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right space-y-2">
-                            <Badge 
-                              className={`${
-                                request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                request.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
-                                request.status === 'en_route' ? 'bg-green-100 text-green-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {request.status}
-                            </Badge>
-                            <div className="space-x-2">
-                              {request.status === 'pending' && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handleAmbulanceAction(request.id, 'dispatch')}
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                  Dispatch
-                                </Button>
-                              )}
-                              {request.status === 'dispatched' && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => handleAmbulanceAction(request.id, 'assign')}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  En Route
-                                </Button>
-                              )}
-                            </div>
-                          </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <Calendar className="w-8 h-8 mx-auto mb-2 text-green-600" />
+                    <div className="text-2xl font-bold">156</div>
+                    <div className="text-sm text-gray-600">Today's Appointments</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <Activity className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+                    <div className="text-2xl font-bold">94%</div>
+                    <div className="text-sm text-gray-600">Capacity Utilization</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <UserPlus className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+                    <div className="text-2xl font-bold">8</div>
+                    <div className="text-sm text-gray-600">New Patients Today</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Department Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { dept: 'Emergency', patients: 23, status: 'High' },
+                      { dept: 'Cardiology', patients: 15, status: 'Normal' },
+                      { dept: 'Orthopedics', patients: 18, status: 'Normal' },
+                      { dept: 'Pediatrics', patients: 12, status: 'Low' }
+                    ].map((dept, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded">
+                        <div>
+                          <div className="font-medium">{dept.dept}</div>
+                          <div className="text-sm text-gray-600">{dept.patients} patients</div>
                         </div>
-                        {request.description && (
-                          <p className="text-sm text-gray-600 mt-2 ml-16">
-                            {request.description}
-                          </p>
-                        )}
+                        <Badge variant={dept.status === 'High' ? 'destructive' : dept.status === 'Normal' ? 'default' : 'secondary'}>
+                          {dept.status}
+                        </Badge>
                       </div>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
 
-          <TabsContent value="departments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department Overview</CardTitle>
-                <CardDescription>Real-time status of hospital departments</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {departments.map((dept, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Heart className="w-6 h-6 text-purple-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">{dept.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          {dept.patients} patients • {dept.doctors} doctors
-                        </p>
-                      </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Emergency Requests</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="p-3 border rounded border-red-200 bg-red-50">
+                      <div className="font-medium text-red-800">Cardiac Emergency</div>
+                      <div className="text-sm text-red-600">Downtown area - ETA 8 minutes</div>
+                      <Badge variant="destructive" className="mt-1">Active</Badge>
                     </div>
-                    <div className="text-right">
-                      <Badge 
-                        variant={dept.status === 'busy' ? 'destructive' : 'default'}
-                        className={dept.status === 'normal' ? 'bg-green-100 text-green-800' : ''}
-                      >
-                        {dept.status}
-                      </Badge>
-                      <div className="mt-2">
-                        <Button size="sm" variant="outline">Manage</Button>
-                      </div>
+                    <div className="p-3 border rounded">
+                      <div className="font-medium">Medical Transport</div>
+                      <div className="text-sm text-gray-600">Elderly patient - Non-urgent</div>
+                      <Badge variant="secondary" className="mt-1">Scheduled</Badge>
                     </div>
                   </div>
-                ))}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="physicians" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Physician Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    { name: 'Dr. Sarah Johnson', specialty: 'Cardiology', status: 'Active', patients: 23 },
+                    { name: 'Dr. Michael Chen', specialty: 'Emergency Medicine', status: 'On Duty', patients: 15 },
+                    { name: 'Dr. Emily Davis', specialty: 'Pediatrics', status: 'Active', patients: 18 },
+                    { name: 'Dr. Robert Wilson', specialty: 'Orthopedics', status: 'Off Duty', patients: 0 }
+                  ].map((physician, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{physician.name}</div>
+                        <div className="text-sm text-gray-600">{physician.specialty}</div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <div className="font-medium">{physician.patients}</div>
+                          <div className="text-xs text-gray-500">Patients</div>
+                        </div>
+                        <Badge variant={physician.status === 'Active' || physician.status === 'On Duty' ? 'default' : 'secondary'}>
+                          {physician.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="performance" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Patient Satisfaction</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-500">92%</div>
-                  <p className="text-sm text-gray-600">+1.5% from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Average Wait Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-orange-500">18 min</div>
-                  <p className="text-sm text-gray-600">-3 min from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Revenue This Month</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-500">$2.4M</div>
-                  <p className="text-sm text-gray-600">+12% from last month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Emergency Response</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-500">4.2 min</div>
-                  <p className="text-sm text-gray-600">Average response time</p>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="appointments" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Appointment Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Appointment scheduling and management features will be implemented here.</p>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Monthly Trends</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-purple-500">↗ 15%</div>
-                  <p className="text-sm text-gray-600">Patient volume increase</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Efficiency Score</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-500">88%</div>
-                  <p className="text-sm text-gray-600">Operational efficiency</p>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="analytics" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Hospital Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">87%</div>
+                    <div className="text-sm text-gray-600">Patient Satisfaction</div>
+                  </div>
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">1,234</div>
+                    <div className="text-sm text-gray-600">Monthly Patients</div>
+                  </div>
+                  <div className="text-center p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">4.2</div>
+                    <div className="text-sm text-gray-600">Avg. Wait Time (hrs)</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="emergency" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Emergency Services</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">Emergency service coordination features will be implemented here.</p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

@@ -44,21 +44,35 @@ export const RegisterForm: React.FC = () => {
     }
 
     try {
+      console.log('Attempting to register user with role:', formData.role);
+      
       const userData = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone,
-        role: formData.role,
-        specialization: formData.specialization || null,
-        license_number: formData.licenseNumber || null
+        role: formData.role || 'patient'
       };
 
+      // Only add specialization and license for physicians
+      if (formData.role === 'physician') {
+        userData.specialization = formData.specialization;
+        userData.license_number = formData.licenseNumber;
+      }
+
+      console.log('User metadata:', userData);
+
       const { error } = await signUp(formData.email, formData.password, userData);
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
+      }
+      
+      console.log('User registration successful');
       
       // Navigation will be handled by the auth state change
     } catch (error: any) {
-      setError(error.message);
+      console.error('Registration error:', error);
+      setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }

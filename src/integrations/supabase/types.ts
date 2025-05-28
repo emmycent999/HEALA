@@ -40,22 +40,7 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "agent_assisted_patients_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_assisted_patients_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ambulance_requests: {
         Row: {
@@ -120,13 +105,6 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "ambulance_requests_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       appointments: {
@@ -139,7 +117,6 @@ export type Database = {
           notes: string | null
           patient_id: string
           physician_id: string
-          status: Database["public"]["Enums"]["appointment_status"] | null
           updated_at: string | null
         }
         Insert: {
@@ -151,7 +128,6 @@ export type Database = {
           notes?: string | null
           patient_id: string
           physician_id: string
-          status?: Database["public"]["Enums"]["appointment_status"] | null
           updated_at?: string | null
         }
         Update: {
@@ -163,7 +139,6 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           physician_id?: string
-          status?: Database["public"]["Enums"]["appointment_status"] | null
           updated_at?: string | null
         }
         Relationships: [
@@ -172,20 +147,6 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "appointments_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -198,7 +159,6 @@ export type Database = {
           physician_id: string | null
           status: string | null
           title: string | null
-          type: Database["public"]["Enums"]["conversation_type"]
           updated_at: string | null
         }
         Insert: {
@@ -208,7 +168,6 @@ export type Database = {
           physician_id?: string | null
           status?: string | null
           title?: string | null
-          type: Database["public"]["Enums"]["conversation_type"]
           updated_at?: string | null
         }
         Update: {
@@ -218,25 +177,9 @@ export type Database = {
           physician_id?: string | null
           status?: string | null
           title?: string | null
-          type?: Database["public"]["Enums"]["conversation_type"]
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       hospitals: {
         Row: {
@@ -286,7 +229,6 @@ export type Database = {
           conversation_id: string
           created_at: string | null
           id: string
-          message_type: Database["public"]["Enums"]["message_type"] | null
           metadata: Json | null
           sender_id: string | null
           sender_type: string
@@ -296,7 +238,6 @@ export type Database = {
           conversation_id: string
           created_at?: string | null
           id?: string
-          message_type?: Database["public"]["Enums"]["message_type"] | null
           metadata?: Json | null
           sender_id?: string | null
           sender_type: string
@@ -306,7 +247,6 @@ export type Database = {
           conversation_id?: string
           created_at?: string | null
           id?: string
-          message_type?: Database["public"]["Enums"]["message_type"] | null
           metadata?: Json | null
           sender_id?: string | null
           sender_type?: string
@@ -317,13 +257,6 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -356,15 +289,7 @@ export type Database = {
           physician_id?: string
           start_time?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "physician_availability_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       physician_documents: {
         Row: {
@@ -400,22 +325,7 @@ export type Database = {
           verified_at?: string | null
           verified_by?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "physician_documents_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "physician_documents_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -452,7 +362,7 @@ export type Database = {
           location_latitude?: number | null
           location_longitude?: number | null
           phone?: string | null
-          role: Database["public"]["Enums"]["user_role"]
+          role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
           state?: string | null
           subscription_plan?:
@@ -483,10 +393,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_hospital_id_fkey"
-            columns: ["hospital_id"]
-            isOneToOne: false
-            referencedRelation: "hospitals"
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -548,27 +458,34 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "transport_requests_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transport_requests_appointment_id_fkey"
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transport_requests_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -611,7 +528,7 @@ export type Database = {
       conversation_type: "ai_diagnosis" | "physician_consultation"
       message_type: "text" | "image" | "file"
       subscription_plan: "basic" | "premium" | "enterprise"
-      user_role: "patient" | "physician" | "hospital_admin" | "agent"
+      user_role: "patient" | "physician" | "hospital_admin" | "agent" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -731,7 +648,7 @@ export const Constants = {
       conversation_type: ["ai_diagnosis", "physician_consultation"],
       message_type: ["text", "image", "file"],
       subscription_plan: ["basic", "premium", "enterprise"],
-      user_role: ["patient", "physician", "hospital_admin", "agent"],
+      user_role: ["patient", "physician", "hospital_admin", "agent", "admin"],
     },
   },
 } as const
