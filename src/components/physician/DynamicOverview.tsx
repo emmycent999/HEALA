@@ -22,7 +22,7 @@ interface TodayAppointment {
   patient: {
     first_name: string;
     last_name: string;
-  };
+  } | null;
   notes?: string;
 }
 
@@ -89,7 +89,7 @@ export const DynamicOverview: React.FC = () => {
           appointment_time,
           status,
           notes,
-          patient:profiles!appointments_patient_id_fkey (
+          patient:patient_id (
             first_name,
             last_name
           )
@@ -99,7 +99,16 @@ export const DynamicOverview: React.FC = () => {
         .order('appointment_time');
 
       if (error) throw error;
-      setTodayAppointments(data || []);
+      
+      const formattedAppointments: TodayAppointment[] = (data || []).map(item => ({
+        id: item.id,
+        appointment_time: item.appointment_time,
+        status: item.status,
+        notes: item.notes,
+        patient: item.patient as { first_name: string; last_name: string } | null
+      }));
+      
+      setTodayAppointments(formattedAppointments);
     } catch (error) {
       console.error('Error fetching today appointments:', error);
     }
@@ -208,7 +217,10 @@ export const DynamicOverview: React.FC = () => {
                 <div key={appointment.id} className="flex items-center justify-between p-3 border rounded">
                   <div>
                     <div className="font-medium">
-                      {appointment.patient.first_name} {appointment.patient.last_name}
+                      {appointment.patient ? 
+                        `${appointment.patient.first_name} ${appointment.patient.last_name}` : 
+                        'Unknown Patient'
+                      }
                     </div>
                     <div className="text-sm text-gray-600">
                       {appointment.appointment_time} - {appointment.notes || 'No notes'}

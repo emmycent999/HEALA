@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MessageCircle, Ambulance, User, Heart } from 'lucide-react';
+import { Calendar, MessageCircle, Ambulance, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
@@ -20,6 +20,16 @@ const PatientDashboard = () => {
     await signOut();
     navigate('/');
   };
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg">Loading your dashboard...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,7 +51,7 @@ const PatientDashboard = () => {
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                Welcome, {profile?.first_name || 'Patient'}
+                Welcome, {profile.first_name || 'Patient'}
               </span>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 Sign Out
@@ -113,19 +123,19 @@ const PatientDashboard = () => {
                 <div className="space-y-4">
                   <div>
                     <span className="font-medium">Name: </span>
-                    <span>{profile?.first_name} {profile?.last_name}</span>
+                    <span>{profile.first_name} {profile.last_name}</span>
                   </div>
                   <div>
                     <span className="font-medium">Email: </span>
-                    <span>{profile?.email}</span>
+                    <span>{profile.email}</span>
                   </div>
                   <div>
                     <span className="font-medium">Phone: </span>
-                    <span>{profile?.phone || 'Not provided'}</span>
+                    <span>{profile.phone || 'Not provided'}</span>
                   </div>
                   <div>
                     <span className="font-medium">Subscription Plan: </span>
-                    <span className="capitalize">{profile?.subscription_plan || 'Basic'}</span>
+                    <span className="capitalize">{profile.subscription_plan || 'Basic'}</span>
                   </div>
                   <Button variant="outline">Edit Profile</Button>
                 </div>
