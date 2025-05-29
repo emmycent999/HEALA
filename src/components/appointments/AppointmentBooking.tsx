@@ -89,7 +89,7 @@ export const AppointmentBooking = () => {
         patient_lat: demoLat,
         patient_lng: demoLng,
         search_radius_km: searchRadius,
-        specialty_filter: specialty || null
+        specialty_filter: specialty === 'all' ? null : specialty
       });
 
       if (error) throw error;
@@ -204,7 +204,7 @@ export const AppointmentBooking = () => {
                   <SelectValue placeholder="Select specialty" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Specialties</SelectItem>
+                  <SelectItem value="all">All Specialties</SelectItem>
                   {specialties.map((spec) => (
                     <SelectItem key={spec} value={spec}>{spec}</SelectItem>
                   ))}
