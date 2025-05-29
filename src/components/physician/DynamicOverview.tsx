@@ -82,55 +82,40 @@ export const DynamicOverview: React.FC = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
       
+      // Fetch appointments first, then get patient details separately
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          appointment_time,
-          status,
-          notes,
-          patient:profiles!appointments_patient_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('physician_id', user.id)
         .eq('appointment_date', today)
         .order('appointment_time');
 
-      if (error) {
-        console.error('Error fetching today appointments:', error);
-        // Fallback query without joins if foreign keys are not set up
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('physician_id', user.id)
-          .eq('appointment_date', today)
-          .order('appointment_time');
+      if (error) throw error;
+      
+      // Transform the data and fetch patient info separately
+      const appointmentsWithPatients = await Promise.all(
+        (data || []).map(async (appointment) => {
+          let patient = null;
+          if (appointment.patient_id) {
+            const { data: patientData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', appointment.patient_id)
+              .single();
+            patient = patientData;
+          }
 
-        if (fallbackError) throw fallbackError;
-        
-        const formattedAppointments: TodayAppointment[] = (fallbackData || []).map(item => ({
-          id: item.id,
-          appointment_time: item.appointment_time,
-          status: item.status,
-          notes: item.notes,
-          patient: null
-        }));
-        
-        setTodayAppointments(formattedAppointments);
-        return;
-      }
+          return {
+            id: appointment.id,
+            appointment_time: appointment.appointment_time,
+            status: appointment.status,
+            notes: appointment.notes,
+            patient
+          };
+        })
+      );
       
-      const formattedAppointments: TodayAppointment[] = (data || []).map(item => ({
-        id: item.id,
-        appointment_time: item.appointment_time,
-        status: item.status,
-        notes: item.notes,
-        patient: item.patient as TodayAppointment['patient']
-      }));
-      
-      setTodayAppointments(formattedAppointments);
+      setTodayAppointments(appointmentsWithPatients);
     } catch (error) {
       console.error('Error fetching today appointments:', error);
     }

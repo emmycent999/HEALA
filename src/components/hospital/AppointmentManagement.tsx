@@ -49,63 +49,53 @@ export const AppointmentManagement: React.FC = () => {
 
       if (!profile?.hospital_id) return;
 
+      // First try with the basic query without joins
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          status,
-          notes,
-          patient:profiles!appointments_patient_id_fkey (
-            first_name,
-            last_name
-          ),
-          physician:profiles!appointments_physician_id_fkey (
-            first_name,
-            last_name,
-            specialization
-          )
-        `)
+        .select('*')
         .eq('hospital_id', profile.hospital_id)
         .order('appointment_date', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        // Fallback query without joins if foreign keys are not set up
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('hospital_id', profile.hospital_id)
-          .order('appointment_date', { ascending: false });
+      if (error) throw error;
+      
+      // Transform the data and fetch patient/physician info separately
+      const appointmentsWithDetails = await Promise.all(
+        (data || []).map(async (appointment) => {
+          // Fetch patient details
+          let patient = null;
+          if (appointment.patient_id) {
+            const { data: patientData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', appointment.patient_id)
+              .single();
+            patient = patientData;
+          }
 
-        if (fallbackError) throw fallbackError;
-        
-        const formattedAppointments: Appointment[] = (fallbackData || []).map(appointment => ({
-          id: appointment.id,
-          appointment_date: appointment.appointment_date,
-          appointment_time: appointment.appointment_time,
-          status: appointment.status,
-          notes: appointment.notes,
-          patient: null,
-          physician: null
-        }));
-        
-        setAppointments(formattedAppointments);
-        return;
-      }
+          // Fetch physician details
+          let physician = null;
+          if (appointment.physician_id) {
+            const { data: physicianData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, specialization')
+              .eq('id', appointment.physician_id)
+              .single();
+            physician = physicianData;
+          }
+
+          return {
+            id: appointment.id,
+            appointment_date: appointment.appointment_date,
+            appointment_time: appointment.appointment_time,
+            status: appointment.status,
+            notes: appointment.notes,
+            patient,
+            physician
+          };
+        })
+      );
       
-      const formattedAppointments: Appointment[] = (data || []).map(appointment => ({
-        id: appointment.id,
-        appointment_date: appointment.appointment_date,
-        appointment_time: appointment.appointment_time,
-        status: appointment.status,
-        notes: appointment.notes,
-        patient: appointment.patient as Appointment['patient'],
-        physician: appointment.physician as Appointment['physician']
-      }));
-      
-      setAppointments(formattedAppointments);
+      setAppointments(appointmentsWithDetails);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
