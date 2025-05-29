@@ -174,7 +174,7 @@ const Index = () => {
             <span className="text-2xl font-bold">Heala</span>
           </div>
           <p className="text-gray-400">
-            © 2024 Heala. All rights reserved. Your health, our priority.
+            © 2025 Heala. All rights reserved. Your health, our priority.
           </p>
         </div>
       </footer>
