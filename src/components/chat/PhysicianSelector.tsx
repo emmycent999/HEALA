@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { User, Search, ArrowLeft } from 'lucide-react';
+import { User, Search, ArrowLeft, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,6 +14,7 @@ interface Physician {
   last_name: string;
   specialization: string;
   hospital_name: string;
+  is_active: boolean;
 }
 
 interface PhysicianSelectorProps {
@@ -44,11 +45,32 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
 
   const fetchPhysicians = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_available_physicians');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialization,
+          is_active,
+          hospitals!inner(name)
+        `)
+        .eq('role', 'physician')
+        .eq('is_active', true);
 
       if (error) throw error;
-      setPhysicians(data || []);
-      setFilteredPhysicians(data || []);
+
+      const formattedPhysicians = (data || []).map(physician => ({
+        id: physician.id,
+        first_name: physician.first_name || '',
+        last_name: physician.last_name || '',
+        specialization: physician.specialization || 'General Practice',
+        hospital_name: (physician.hospitals as any)?.name || 'Unknown Hospital',
+        is_active: physician.is_active
+      }));
+
+      setPhysicians(formattedPhysicians);
+      setFilteredPhysicians(formattedPhysicians);
     } catch (error) {
       console.error('Error fetching physicians:', error);
       toast({
@@ -62,7 +84,7 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
   };
 
   const handleSelect = (physician: Physician) => {
-    const fullName = `${physician.first_name} ${physician.last_name}`;
+    const fullName = `Dr. ${physician.first_name} ${physician.last_name}`;
     onSelect(physician.id, fullName);
   };
 
@@ -83,7 +105,10 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <CardTitle>Select a Physician</CardTitle>
+          <CardTitle className="flex items-center space-x-2">
+            <MessageSquare className="w-5 h-5" />
+            <span>Select a Physician</span>
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent>
@@ -100,7 +125,7 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
 
           {filteredPhysicians.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No physicians found matching your search.
+              {searchTerm ? 'No physicians found matching your search.' : 'No physicians available at the moment.'}
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -123,7 +148,9 @@ export const PhysicianSelector: React.FC<PhysicianSelectorProps> = ({ onSelect, 
                         <p className="text-xs text-gray-500">{physician.hospital_name}</p>
                       </div>
                     </div>
-                    <Badge variant="outline">Available</Badge>
+                    <Badge variant="outline" className="bg-green-50 text-green-700">
+                      Available
+                    </Badge>
                   </div>
                 </div>
               ))}
