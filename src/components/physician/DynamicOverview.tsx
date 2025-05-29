@@ -89,7 +89,7 @@ export const DynamicOverview: React.FC = () => {
           appointment_time,
           status,
           notes,
-          patient:patient_id (
+          patient:profiles!appointments_patient_id_fkey (
             first_name,
             last_name
           )
@@ -98,14 +98,36 @@ export const DynamicOverview: React.FC = () => {
         .eq('appointment_date', today)
         .order('appointment_time');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching today appointments:', error);
+        // Fallback query without joins if foreign keys are not set up
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('physician_id', user.id)
+          .eq('appointment_date', today)
+          .order('appointment_time');
+
+        if (fallbackError) throw fallbackError;
+        
+        const formattedAppointments: TodayAppointment[] = (fallbackData || []).map(item => ({
+          id: item.id,
+          appointment_time: item.appointment_time,
+          status: item.status,
+          notes: item.notes,
+          patient: null
+        }));
+        
+        setTodayAppointments(formattedAppointments);
+        return;
+      }
       
       const formattedAppointments: TodayAppointment[] = (data || []).map(item => ({
         id: item.id,
         appointment_time: item.appointment_time,
         status: item.status,
         notes: item.notes,
-        patient: item.patient as { first_name: string; last_name: string } | null
+        patient: item.patient as TodayAppointment['patient']
       }));
       
       setTodayAppointments(formattedAppointments);
@@ -219,7 +241,7 @@ export const DynamicOverview: React.FC = () => {
                     <div className="font-medium">
                       {appointment.patient ? 
                         `${appointment.patient.first_name} ${appointment.patient.last_name}` : 
-                        'Unknown Patient'
+                        'Patient Information Unavailable'
                       }
                     </div>
                     <div className="text-sm text-gray-600">

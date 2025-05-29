@@ -17,12 +17,12 @@ interface Appointment {
   patient: {
     first_name: string;
     last_name: string;
-  };
+  } | null;
   physician: {
     first_name: string;
     last_name: string;
     specialization: string;
-  };
+  } | null;
 }
 
 export const AppointmentManagement: React.FC = () => {
@@ -57,11 +57,11 @@ export const AppointmentManagement: React.FC = () => {
           appointment_time,
           status,
           notes,
-          patient:patient_id (
+          patient:profiles!appointments_patient_id_fkey (
             first_name,
             last_name
           ),
-          physician:physician_id (
+          physician:profiles!appointments_physician_id_fkey (
             first_name,
             last_name,
             specialization
@@ -70,8 +70,42 @@ export const AppointmentManagement: React.FC = () => {
         .eq('hospital_id', profile.hospital_id)
         .order('appointment_date', { ascending: false });
 
-      if (error) throw error;
-      setAppointments(data || []);
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        // Fallback query without joins if foreign keys are not set up
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('hospital_id', profile.hospital_id)
+          .order('appointment_date', { ascending: false });
+
+        if (fallbackError) throw fallbackError;
+        
+        const formattedAppointments: Appointment[] = (fallbackData || []).map(appointment => ({
+          id: appointment.id,
+          appointment_date: appointment.appointment_date,
+          appointment_time: appointment.appointment_time,
+          status: appointment.status,
+          notes: appointment.notes,
+          patient: null,
+          physician: null
+        }));
+        
+        setAppointments(formattedAppointments);
+        return;
+      }
+      
+      const formattedAppointments: Appointment[] = (data || []).map(appointment => ({
+        id: appointment.id,
+        appointment_date: appointment.appointment_date,
+        appointment_time: appointment.appointment_time,
+        status: appointment.status,
+        notes: appointment.notes,
+        patient: appointment.patient as Appointment['patient'],
+        physician: appointment.physician as Appointment['physician']
+      }));
+      
+      setAppointments(formattedAppointments);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
@@ -122,10 +156,16 @@ export const AppointmentManagement: React.FC = () => {
                   <div className="flex items-center gap-4">
                     <div>
                       <div className="font-medium">
-                        {appointment.patient?.first_name} {appointment.patient?.last_name}
+                        {appointment.patient ? 
+                          `${appointment.patient.first_name} ${appointment.patient.last_name}` : 
+                          'Patient Information Unavailable'
+                        }
                       </div>
                       <div className="text-sm text-gray-600">
-                        Dr. {appointment.physician?.first_name} {appointment.physician?.last_name}
+                        {appointment.physician ? 
+                          `Dr. ${appointment.physician.first_name} ${appointment.physician.last_name}` :
+                          'Physician Information Unavailable'
+                        }
                       </div>
                     </div>
                     <div className="text-sm text-gray-500">

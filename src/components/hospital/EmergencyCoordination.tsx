@@ -58,11 +58,11 @@ export const EmergencyCoordination: React.FC = () => {
           status,
           description,
           created_at,
-          patient:patient_id (
+          patient:profiles!emergency_requests_patient_id_fkey (
             first_name,
             last_name
           ),
-          assigned_physician:assigned_physician_id (
+          assigned_physician:profiles!emergency_requests_assigned_physician_id_fkey (
             first_name,
             last_name
           )
@@ -70,8 +70,44 @@ export const EmergencyCoordination: React.FC = () => {
         .eq('hospital_id', profile.hospital_id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setEmergencyRequests(data || []);
+      if (error) {
+        console.error('Error fetching emergency requests:', error);
+        // Fallback query without joins if foreign keys are not set up
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('emergency_requests')
+          .select('*')
+          .eq('hospital_id', profile.hospital_id)
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) throw fallbackError;
+        
+        const formattedRequests: EmergencyRequest[] = (fallbackData || []).map(request => ({
+          id: request.id,
+          emergency_type: request.emergency_type,
+          severity: request.severity,
+          status: request.status,
+          description: request.description,
+          created_at: request.created_at,
+          patient: null,
+          assigned_physician: null
+        }));
+        
+        setEmergencyRequests(formattedRequests);
+        return;
+      }
+      
+      const formattedRequests: EmergencyRequest[] = (data || []).map(request => ({
+        id: request.id,
+        emergency_type: request.emergency_type,
+        severity: request.severity,
+        status: request.status,
+        description: request.description,
+        created_at: request.created_at,
+        patient: request.patient as EmergencyRequest['patient'],
+        assigned_physician: request.assigned_physician as EmergencyRequest['assigned_physician']
+      }));
+      
+      setEmergencyRequests(formattedRequests);
     } catch (error) {
       console.error('Error fetching emergency requests:', error);
       toast({
