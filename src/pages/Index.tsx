@@ -19,7 +19,7 @@ const Index = () => {
                 alt="Heala" 
                 className="h-8 w-auto"
               />
-              <span className="text-2xl font-bold text-purple-800">Heala</span>
+              <span className="text-2xl font-bold text-purple-800"></span>
             </div>
             <div className="space-x-4">
               <Button
