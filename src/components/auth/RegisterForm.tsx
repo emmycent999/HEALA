@@ -14,7 +14,7 @@ export const RegisterForm: React.FC = () => {
     firstName: '',
     lastName: '',
     phone: '',
-    role: '',
+    role: 'patient',
     specialization: '',
     licenseNumber: ''
   });
@@ -29,6 +29,7 @@ export const RegisterForm: React.FC = () => {
     setLoading(true);
     setError('');
 
+    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -41,6 +42,12 @@ export const RegisterForm: React.FC = () => {
       return;
     }
 
+    if (!formData.email || !formData.firstName || !formData.lastName) {
+      setError('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('Attempting to register user with role:', formData.role);
       
@@ -48,7 +55,7 @@ export const RegisterForm: React.FC = () => {
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone,
-        role: formData.role || 'patient',
+        role: formData.role,
         ...(formData.role === 'physician' && {
           specialization: formData.specialization,
           license_number: formData.licenseNumber
@@ -60,10 +67,22 @@ export const RegisterForm: React.FC = () => {
       const { error } = await signUp(formData.email, formData.password, userData);
       if (error) {
         console.error('Signup error:', error);
-        throw error;
+        if (error.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please try logging in instead.');
+        } else {
+          setError(error.message);
+        }
+        return;
       }
       
       console.log('User registration successful');
+      
+      // Show success message and redirect
+      navigate('/auth/login', { 
+        state: { 
+          message: 'Registration successful! Please check your email to verify your account, then sign in.' 
+        }
+      });
       
     } catch (error: any) {
       console.error('Registration error:', error);

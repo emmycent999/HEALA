@@ -1,15 +1,18 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Users, FileCheck, Activity, Bug, TestTube } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { TestSuite } from '@/components/testing/TestSuite';
 import { TestingGuide } from '@/components/testing/TestingGuide';
 import { VerificationCenter } from '@/components/admin/VerificationCenter';
+import { UserManagement } from '@/components/admin/UserManagement';
+import { DocumentManagement } from '@/components/admin/DocumentManagement';
+import { SystemAnalytics } from '@/components/admin/SystemAnalytics';
 import { Logo } from '@/components/ui/logo';
 
 const AdminDashboard = () => {
@@ -58,18 +61,30 @@ const AdminDashboard = () => {
           <p className="text-gray-600">Manage system registrations, verifications, and monitor application health</p>
         </div>
 
-        <Tabs defaultValue="verifications" className="w-full">
+        <Tabs defaultValue="analytics" className="w-full">
           <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="verifications">Verifications</TabsTrigger>
-            <TabsTrigger value="testing">Testing</TabsTrigger>
-            <TabsTrigger value="automated">Test Suite</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="testing">Testing</TabsTrigger>
+            <TabsTrigger value="automated">Test Suite</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <SystemAnalytics />
+          </TabsContent>
 
           <TabsContent value="verifications" className="space-y-4">
             <VerificationCenter />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <UserManagement />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4">
+            <DocumentManagement />
           </TabsContent>
 
           <TabsContent value="testing" className="space-y-4">
@@ -78,65 +93,6 @@ const AdminDashboard = () => {
 
           <TabsContent value="automated" className="space-y-4">
             <TestSuite />
-          </TabsContent>
-
-          <TabsContent value="users" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="w-5 h-5" />
-                  <span>User Management</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">User management features will be implemented here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="documents" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileCheck className="w-5 h-5" />
-                  <span>Document Management</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Document verification system will be implemented here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Activity className="w-5 h-5" />
-                  <span>System Analytics</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">0</div>
-                    <div className="text-sm text-gray-600">Active Users</div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">0</div>
-                    <div className="text-sm text-gray-600">Appointments Today</div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-red-600">0</div>
-                    <div className="text-sm text-gray-600">Emergency Requests</div>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">0</div>
-                    <div className="text-sm text-gray-600">System Health</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
