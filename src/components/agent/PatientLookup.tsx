@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Search, User, Phone, Mail } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Search, User, Phone, Mail, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +16,7 @@ interface PatientInfo {
   phone?: string;
   city?: string;
   state?: string;
+  role: string;
 }
 
 interface PatientLookupProps {
@@ -23,17 +24,17 @@ interface PatientLookupProps {
 }
 
 export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
-  const [searchEmail, setSearchEmail] = useState('');
-  const [searchPhone, setSearchPhone] = useState('');
-  const [patient, setPatient] = useState<PatientInfo | null>(null);
-  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [patients, setPatients] = useState<PatientInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
 
-  const searchPatient = async () => {
-    if (!searchEmail && !searchPhone) {
+  const searchPatients = async () => {
+    if (!searchTerm.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter either email or phone number.",
+        title: "Search Required",
+        description: "Please enter a name or email to search for patients.",
         variant: "destructive"
       });
       return;
@@ -41,144 +42,153 @@ export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) 
 
     setLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, phone, city, state')
-        .eq('role', 'patient');
+        .select('id, first_name, last_name, email, phone, city, state, role')
+        .eq('role', 'patient')
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
 
-      if (searchEmail) {
-        query = query.ilike('email', `%${searchEmail.trim()}%`);
-      } else if (searchPhone) {
-        query = query.ilike('phone', `%${searchPhone.trim()}%`);
-      }
+      if (error) throw error;
 
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Search error:', error);
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
+      if (data && data.length > 0) {
+        setPatients(data as PatientInfo[]);
         toast({
-          title: "Patient Not Found",
-          description: "No patient found with the provided information.",
+          title: "Patients Found",
+          description: `Found ${data.length} patient(s) matching your search.`,
+        });
+      } else {
+        setPatients([]);
+        toast({
+          title: "No Patients Found",
+          description: "No patients found matching your search criteria.",
           variant: "destructive"
         });
-        setPatient(null);
-        return;
       }
-
-      // If multiple results, take the first one or let user choose
-      const foundPatient = data[0];
-      setPatient(foundPatient);
-      onPatientFound(foundPatient);
-      
-      toast({
-        title: "Patient Found",
-        description: `Found ${foundPatient.first_name} ${foundPatient.last_name}`,
-      });
-
     } catch (error) {
-      console.error('Error searching patient:', error);
+      console.error('Error searching patients:', error);
       toast({
-        title: "Error",
-        description: "Failed to search for patient. Please try again.",
+        title: "Search Error",
+        description: "Failed to search for patients. Please try again.",
         variant: "destructive"
       });
+      setPatients([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const clearSearch = () => {
-    setSearchEmail('');
-    setSearchPhone('');
-    setPatient(null);
+  const handleSelectPatient = (patient: PatientInfo) => {
+    setSelectedPatient(patient);
+    onPatientFound(patient);
+    toast({
+      title: "Patient Selected",
+      description: `Selected ${patient.first_name} ${patient.last_name} for assistance.`,
+    });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      searchPatients();
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Search className="w-5 h-5" />
-          Patient Lookup
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="email">Search by Email</Label>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="w-5 h-5" />
+            Patient Lookup
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
             <Input
-              id="email"
-              type="email"
-              placeholder="patient@example.com"
-              value={searchEmail}
-              onChange={(e) => {
-                setSearchEmail(e.target.value);
-                setSearchPhone(''); // Clear phone when typing email
-              }}
+              placeholder="Enter patient name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="flex-1"
             />
+            <Button onClick={searchPatients} disabled={loading}>
+              {loading ? "Searching..." : "Search"}
+            </Button>
           </div>
-          <div>
-            <Label htmlFor="phone">Search by Phone</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+234 800 000 0000"
-              value={searchPhone}
-              onChange={(e) => {
-                setSearchPhone(e.target.value);
-                setSearchEmail(''); // Clear email when typing phone
-              }}
-            />
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex gap-2">
-          <Button onClick={searchPatient} disabled={loading}>
-            <Search className="w-4 h-4 mr-2" />
-            {loading ? 'Searching...' : 'Search Patient'}
-          </Button>
-          <Button variant="outline" onClick={clearSearch}>
-            Clear
-          </Button>
-        </div>
-
-        {patient && (
-          <Card className="bg-green-50 border-green-200">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <User className="w-5 h-5 text-green-600" />
-                <h3 className="font-semibold text-green-800">Patient Found</h3>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-gray-500" />
-                  <span>{patient.first_name} {patient.last_name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-gray-500" />
-                  <span>{patient.email}</span>
-                </div>
-                {patient.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-500" />
-                    <span>{patient.phone}</span>
-                  </div>
+      {selectedPatient && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-green-800">Selected Patient</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <User className="w-12 h-12 text-green-600" />
+              <div>
+                <h3 className="font-semibold">{selectedPatient.first_name} {selectedPatient.last_name}</h3>
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <Mail className="w-3 h-3" />
+                  {selectedPatient.email}
+                </p>
+                {selectedPatient.phone && (
+                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <Phone className="w-3 h-3" />
+                    {selectedPatient.phone}
+                  </p>
                 )}
-                {patient.city && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">
-                      {patient.city}, {patient.state}
-                    </span>
-                  </div>
+                {selectedPatient.city && (
+                  <p className="text-sm text-gray-600 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {selectedPatient.city}, {selectedPatient.state}
+                  </p>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {patients.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Search Results ({patients.length} found)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {patients.map((patient) => (
+                <div
+                  key={patient.id}
+                  className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                    selectedPatient?.id === patient.id ? 'border-green-500 bg-green-50' : ''
+                  }`}
+                  onClick={() => handleSelectPatient(patient)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <User className="w-8 h-8 text-gray-400" />
+                      <div>
+                        <h4 className="font-medium">{patient.first_name} {patient.last_name}</h4>
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <Mail className="w-3 h-3" />
+                          {patient.email}
+                        </p>
+                        {patient.phone && (
+                          <p className="text-sm text-gray-600 flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {patient.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="outline">Patient</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };

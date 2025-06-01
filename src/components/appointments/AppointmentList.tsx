@@ -17,8 +17,12 @@ interface Appointment {
   physician: {
     first_name: string;
     last_name: string;
-    specialization: string;
-    phone?: string;
+    specialization?: string;
+  } | null;
+  patient?: {
+    first_name: string;
+    last_name: string;
+    email: string;
   } | null;
 }
 
@@ -38,36 +42,22 @@ export const AppointmentList: React.FC = () => {
     if (!user) return;
 
     try {
-      const { data: appointmentData, error } = await supabase
+      const { data, error } = await supabase
         .from('appointments')
-        .select('*')
-        .eq('patient_id', user.id)
-        .order('appointment_date', { ascending: false });
+        .select(`
+          id,
+          appointment_date,
+          appointment_time,
+          status,
+          notes,
+          physician:profiles!physician_id(first_name, last_name, specialization),
+          patient:profiles!patient_id(first_name, last_name, email)
+        `)
+        .or(`patient_id.eq.${user.id},physician_id.eq.${user.id}`)
+        .order('appointment_date', { ascending: true });
 
       if (error) throw error;
-
-      // Fetch physician details separately
-      const appointmentsWithPhysicians = await Promise.all(
-        (appointmentData || []).map(async (appointment) => {
-          let physician = null;
-          if (appointment.physician_id) {
-            const { data: physicianData } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, specialization, phone')
-              .eq('id', appointment.physician_id)
-              .single();
-            
-            physician = physicianData;
-          }
-
-          return {
-            ...appointment,
-            physician
-          };
-        })
-      );
-
-      setAppointments(appointmentsWithPhysicians);
+      setAppointments(data as Appointment[] || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
@@ -80,12 +70,10 @@ export const AppointmentList: React.FC = () => {
     }
   };
 
-  const canCancelAppointment = (appointmentDate: string, appointmentTime: string) => {
+  const canCancelAppointment = (appointmentDate: string, appointmentTime: string): boolean => {
     const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`);
     const now = new Date();
-    const timeDifference = appointmentDateTime.getTime() - now.getTime();
-    const hoursDifference = timeDifference / (1000 * 3600);
-    
+    const hoursDifference = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
     return hoursDifference >= 24;
   };
 
@@ -116,10 +104,11 @@ export const AppointmentList: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -136,7 +125,10 @@ export const AppointmentList: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>My Appointments</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="w-5 h-5" />
+          My Appointments
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {appointments.length === 0 ? (
@@ -148,36 +140,36 @@ export const AppointmentList: React.FC = () => {
           <div className="space-y-4">
             {appointments.map((appointment) => (
               <div key={appointment.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <div className="font-medium">
-                          {appointment.physician ? 
-                            `Dr. ${appointment.physician.first_name} ${appointment.physician.last_name}` : 
-                            'Physician Information Unavailable'
-                          }
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {appointment.physician?.specialization || 'Specialization not available'}
-                        </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="w-5 h-5 text-gray-400 mt-1" />
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          {new Date(appointment.appointment_date).toLocaleDateString()}
+                        </span>
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        <span>{appointment.appointment_time}</span>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {appointment.appointment_date}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {appointment.appointment_time}
-                        </div>
-                      </div>
+                      {appointment.physician && (
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          Dr. {appointment.physician.first_name} {appointment.physician.last_name}
+                          {appointment.physician.specialization && ` - ${appointment.physician.specialization}`}
+                        </p>
+                      )}
+                      {appointment.patient && (
+                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {appointment.patient.first_name} {appointment.patient.last_name}
+                        </p>
+                      )}
+                      {appointment.notes && (
+                        <p className="text-sm text-gray-600 mt-2">
+                          <strong>Notes:</strong> {appointment.notes}
+                        </p>
+                      )}
                     </div>
-                    {appointment.notes && (
-                      <div className="text-sm text-gray-600 mt-2">
-                        Notes: {appointment.notes}
-                      </div>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className={getStatusColor(appointment.status)}>
@@ -187,15 +179,22 @@ export const AppointmentList: React.FC = () => {
                      canCancelAppointment(appointment.appointment_date, appointment.appointment_time) && (
                       <Button
                         size="sm"
-                        variant="destructive"
+                        variant="outline"
                         onClick={() => cancelAppointment(appointment.id)}
+                        className="text-red-600 hover:text-red-700"
                       >
-                        <X className="w-4 h-4 mr-2" />
+                        <X className="w-4 h-4" />
                         Cancel
                       </Button>
                     )}
                   </div>
                 </div>
+                {appointment.status !== 'cancelled' && appointment.status !== 'completed' && 
+                 !canCancelAppointment(appointment.appointment_date, appointment.appointment_time) && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    * Appointments can only be cancelled 24 hours in advance
+                  </p>
+                )}
               </div>
             ))}
           </div>

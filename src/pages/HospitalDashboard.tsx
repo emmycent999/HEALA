@@ -11,7 +11,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 const HospitalDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader />
+      <DashboardHeader title="Hospital Dashboard" />
       
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
