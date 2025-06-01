@@ -13,7 +13,7 @@ interface User {
   first_name: string;
   last_name: string;
   role: string;
-  verification_status?: string;
+  verification_status: string;
   created_at: string;
 }
 
@@ -35,10 +35,25 @@ export const UserManagement: React.FC = () => {
 
       if (error) throw error;
       
-      const usersWithStatus = (data || []).map(user => ({
-        ...user,
-        verification_status: user.role === 'patient' ? 'verified' : 'pending'
-      }));
+      // Fetch verification status from verification_requests table
+      const usersWithStatus = await Promise.all(
+        (data || []).map(async (user) => {
+          const { data: verificationData } = await supabase
+            .from('verification_requests')
+            .select('status')
+            .eq('user_id', user.id)
+            .order('submitted_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          return {
+            ...user,
+            first_name: user.first_name || 'Unknown',
+            last_name: user.last_name || 'User',
+            verification_status: verificationData?.status || (user.role === 'patient' ? 'verified' : 'pending')
+          };
+        })
+      );
       
       setUsers(usersWithStatus);
     } catch (error) {
@@ -55,13 +70,16 @@ export const UserManagement: React.FC = () => {
 
   const updateVerificationStatus = async (userId: string, status: string) => {
     try {
+      // Update or insert verification request
       const { error } = await supabase
-        .from('profiles')
-        .update({
-          verification_status: status,
-          verified_at: status === 'verified' ? new Date().toISOString() : null
-        })
-        .eq('id', userId);
+        .from('verification_requests')
+        .upsert({
+          user_id: userId,
+          request_type: 'manual_verification',
+          status: status,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: (await supabase.auth.getUser()).data.user?.id
+        });
 
       if (error) throw error;
 
@@ -132,8 +150,8 @@ export const UserManagement: React.FC = () => {
                   <Badge className={getRoleColor(user.role)}>
                     {user.role}
                   </Badge>
-                  <Badge className={getStatusColor(user.verification_status || 'pending')}>
-                    {user.verification_status || 'pending'}
+                  <Badge className={getStatusColor(user.verification_status)}>
+                    {user.verification_status}
                   </Badge>
                 </div>
               </div>

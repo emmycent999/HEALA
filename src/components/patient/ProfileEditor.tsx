@@ -63,19 +63,29 @@ export const ProfileEditor: React.FC = () => {
       }
 
       if (data) {
+        const emergencyContact = data.emergency_contact as unknown;
+        
+        // Safe type checking for emergency contact
+        let parsedEmergencyContact: EmergencyContact = { name: '', phone: '', relation: '' };
+        if (emergencyContact && typeof emergencyContact === 'object' && emergencyContact !== null) {
+          const contact = emergencyContact as Record<string, unknown>;
+          parsedEmergencyContact = {
+            name: typeof contact.name === 'string' ? contact.name : '',
+            phone: typeof contact.phone === 'string' ? contact.phone : '',
+            relation: typeof contact.relation === 'string' ? contact.relation : ''
+          };
+        }
+
         setProfile({
           hobbies: data.hobbies || [],
           health_challenges: data.health_challenges || [],
           medical_history: data.medical_history || {},
-          emergency_contact: data.emergency_contact as EmergencyContact || { name: '', phone: '', relation: '' }
+          emergency_contact: parsedEmergencyContact
         });
 
-        const emergencyContact = data.emergency_contact as EmergencyContact;
-        if (emergencyContact) {
-          setEmergencyName(emergencyContact.name || '');
-          setEmergencyPhone(emergencyContact.phone || '');
-          setEmergencyRelation(emergencyContact.relation || '');
-        }
+        setEmergencyName(parsedEmergencyContact.name);
+        setEmergencyPhone(parsedEmergencyContact.phone);
+        setEmergencyRelation(parsedEmergencyContact.relation);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);

@@ -30,20 +30,39 @@ export const SystemAnalytics: React.FC = () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [usersResult, appointmentsResult, todayAppointmentsResult, verificationsResult, documentsResult] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('appointments').select('*', { count: 'exact', head: true }),
-        supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('appointment_date', today),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
-        supabase.from('documents').select('*', { count: 'exact', head: true })
-      ]);
+      // Get total users count
+      const { count: usersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Get total appointments count
+      const { count: appointmentsCount } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true });
+
+      // Get today's appointments count
+      const { count: todayCount } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true })
+        .eq('appointment_date', today);
+
+      // Get pending verifications count
+      const { count: pendingCount } = await supabase
+        .from('verification_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      // Get total documents count
+      const { count: documentsCount } = await supabase
+        .from('documents')
+        .select('*', { count: 'exact', head: true });
 
       setAnalytics({
-        totalUsers: usersResult.count || 0,
-        totalAppointments: appointmentsResult.count || 0,
-        todayAppointments: todayAppointmentsResult.count || 0,
-        pendingVerifications: verificationsResult.count || 0,
-        totalDocuments: documentsResult.count || 0
+        totalUsers: usersCount || 0,
+        totalAppointments: appointmentsCount || 0,
+        todayAppointments: todayCount || 0,
+        pendingVerifications: pendingCount || 0,
+        totalDocuments: documentsCount || 0
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
