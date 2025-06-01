@@ -1,70 +1,134 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Bell, Settings, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bell, Settings, LogOut, User } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { NotificationCenter } from '@/components/shared/NotificationCenter';
+import { SettingsPanel } from '@/components/shared/SettingsPanel';
 
 interface DashboardHeaderProps {
-  title?: string;
-  notifications?: number;
+  title: string;
 }
 
-export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
-  title = "Dashboard", 
-  notifications = 0 
-}) => {
-  const navigate = useNavigate();
-  const { signOut } = useAuth();
+export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+  React.useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+    }
+  }, [user]);
+
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+
+    try {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      if (error) throw error;
+      setUnreadCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account.",
+      });
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate("/")}
-              className="text-purple-600"
-            >
-              ← Back
-            </Button>
-            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-              <Heart className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-xl font-bold text-purple-800">{title}</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="w-5 h-5" />
-              {notifications > 0 && (
-                <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-                  {notifications}
-                </Badge>
+    <>
+      <header className="bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              {user && (
+                <p className="text-sm text-gray-600">
+                  Welcome back, {user.user_metadata?.first_name || user.email}
+                </p>
               )}
-            </Button>
-            <Button variant="ghost" size="sm">
-              <Settings className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="flex items-center space-x-2"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </Button>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Notifications */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNotifications(true)}
+                className="relative"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {/* Settings */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+
+              {/* User Profile */}
+              <Button variant="ghost" size="sm">
+                <User className="w-5 h-5" />
+              </Button>
+
+              {/* Logout */}
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Notification Center */}
+      <NotificationCenter
+        isOpen={showNotifications}
+        onClose={() => {
+          setShowNotifications(false);
+          fetchUnreadCount();
+        }}
+      />
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
+    </>
   );
 };

@@ -6,7 +6,7 @@ import { PatientLookup } from '@/components/agent/PatientLookup';
 import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
 import { TransportBooking } from '@/components/agent/TransportBooking';
 import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
-import { ChatInterface } from '@/components/chat/ChatInterface';
+import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
 import { DashboardHeader } from '@/components/DashboardHeader';
 
 interface PatientInfo {
@@ -29,7 +29,7 @@ const AgentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardHeader />
+      <DashboardHeader title="Agent Dashboard" />
       
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -39,7 +39,7 @@ const AgentDashboard = () => {
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="transport">Transport</TabsTrigger>
             <TabsTrigger value="emergency">Emergency</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
+            <TabsTrigger value="chat">Support Chat</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -85,7 +85,7 @@ const AgentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="chat">
-            <ChatInterface />
+            <AgentChatInterface />
           </TabsContent>
         </Tabs>
       </div>

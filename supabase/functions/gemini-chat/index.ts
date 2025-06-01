@@ -15,9 +15,9 @@ serve(async (req) => {
   try {
     const { message, conversationId } = await req.json();
     
-    const geminiApiKey = Deno.env.get("Gemini Api Key");
-    if (!geminiApiKey) {
-      throw new Error("Gemini API key not configured");
+    const deepseekApiKey = "sk-acbf08689b8c4be984c98b87e8267925";
+    if (!deepseekApiKey) {
+      throw new Error("Deepseek API key not configured");
     }
 
     const supabaseClient = createClient(
@@ -32,32 +32,37 @@ serve(async (req) => {
     
     if (!user) throw new Error("User not authenticated");
 
-    // Call Gemini API
+    // Call Deepseek API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+      "https://api.deepseek.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${deepseekApiKey}`,
         },
         body: JSON.stringify({
-          contents: [
+          model: "deepseek-chat",
+          messages: [
             {
-              parts: [
-                {
-                  text: `You are a helpful medical AI assistant. Please provide helpful, informative responses about health and medical topics. Always remind users to consult with healthcare professionals for serious concerns. User message: ${message}`
-                }
-              ]
+              role: "system",
+              content: "You are a helpful medical AI assistant. Please provide helpful, informative responses about health and medical topics. Always remind users to consult with healthcare professionals for serious concerns."
+            },
+            {
+              role: "user",
+              content: message
             }
-          ]
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
         })
       }
     );
 
     const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+    const aiResponse = data.choices?.[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
 
-    // Save the conversation to database
+    // Save the conversation to database if conversationId is provided
     if (conversationId) {
       await supabaseClient.from("messages").insert([
         {
@@ -84,10 +89,7 @@ serve(async (req) => {
     console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });

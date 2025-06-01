@@ -47,39 +47,43 @@ export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) 
         .eq('role', 'patient');
 
       if (searchEmail) {
-        query = query.eq('email', searchEmail.trim());
+        query = query.ilike('email', `%${searchEmail.trim()}%`);
       } else if (searchPhone) {
-        query = query.eq('phone', searchPhone.trim());
+        query = query.ilike('phone', `%${searchPhone.trim()}%`);
       }
 
-      const { data, error } = await query.single();
+      const { data, error } = await query;
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          toast({
-            title: "Patient Not Found",
-            description: "No patient found with the provided information.",
-            variant: "destructive"
-          });
-        } else {
-          throw error;
-        }
+        console.error('Search error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        toast({
+          title: "Patient Not Found",
+          description: "No patient found with the provided information.",
+          variant: "destructive"
+        });
         setPatient(null);
         return;
       }
 
-      setPatient(data);
-      onPatientFound(data);
+      // If multiple results, take the first one or let user choose
+      const foundPatient = data[0];
+      setPatient(foundPatient);
+      onPatientFound(foundPatient);
+      
       toast({
         title: "Patient Found",
-        description: `Found ${data.first_name} ${data.last_name}`,
+        description: `Found ${foundPatient.first_name} ${foundPatient.last_name}`,
       });
 
     } catch (error) {
       console.error('Error searching patient:', error);
       toast({
         title: "Error",
-        description: "Failed to search for patient.",
+        description: "Failed to search for patient. Please try again.",
         variant: "destructive"
       });
     } finally {

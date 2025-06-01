@@ -48,31 +48,43 @@ export const AddPhysicianForm: React.FC = () => {
       }
 
       // Create the physician user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      const { data: authResponse, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        user_metadata: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone,
-          role: 'physician',
-          specialization: formData.specialization,
-          license_number: formData.licenseNumber
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+            role: 'physician',
+            specialization: formData.specialization,
+            license_number: formData.licenseNumber,
+            hospital_id: adminProfile.hospital_id
+          }
         }
       });
 
       if (authError) throw authError;
 
-      // Update the physician's profile with hospital_id
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          hospital_id: adminProfile.hospital_id,
-          verification_status: 'verified'
-        })
-        .eq('id', authData.user.id);
+      // Update the physician's profile with hospital_id after creation
+      if (authResponse.user) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            hospital_id: adminProfile.hospital_id,
+            role: 'physician',
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+            specialization: formData.specialization,
+            license_number: formData.licenseNumber
+          })
+          .eq('id', authResponse.user.id);
 
-      if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Update error:', updateError);
+        }
+      }
 
       toast({
         title: "Physician Added Successfully",
@@ -90,11 +102,11 @@ export const AddPhysicianForm: React.FC = () => {
         licenseNumber: ''
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding physician:', error);
       toast({
         title: "Error",
-        description: "Failed to add physician. Please try again.",
+        description: error.message || "Failed to add physician. Please try again.",
         variant: "destructive"
       });
     } finally {
