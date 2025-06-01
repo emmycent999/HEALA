@@ -3,89 +3,97 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, XCircle, FileText, User, Building2 } from 'lucide-react';
+import { UserCheck, Check, X, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface VerificationItem {
+interface VerificationRequest {
   id: string;
-  type: 'physician' | 'agent' | 'hospital';
-  name: string;
-  email: string;
+  user_id: string;
+  request_type: string;
   status: string;
-  submittedAt: string;
-  details: any;
+  submitted_at: string;
+  user_email?: string;
+  user_name?: string;
+  user_role?: string;
 }
 
 export const VerificationCenter: React.FC = () => {
-  const { toast } = useToast();
-  const [verifications, setVerifications] = useState<VerificationItem[]>([]);
+  const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchVerifications();
+    fetchVerificationRequests();
   }, []);
 
-  const fetchVerifications = async () => {
+  const fetchVerificationRequests = async () => {
     try {
-      // Fetch physician registrations
-      const { data: physicians, error: physError } = await supabase
-        .from('profiles')
+      // Fetch verification requests
+      const { data: verificationData, error: verificationError } = await supabase
+        .from('verification_requests')
         .select('*')
-        .eq('role', 'physician')
-        .eq('is_active', false);
+        .order('submitted_at', { ascending: false });
 
-      // Fetch agent registrations
-      const { data: agents, error: agentError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'agent')
-        .eq('is_active', false);
-
-      // Fetch hospital registrations
-      const { data: hospitals, error: hospError } = await supabase
-        .from('hospitals')
-        .select('*')
-        .eq('is_active', false);
-
-      if (physError || agentError || hospError) {
-        throw new Error('Failed to fetch verifications');
+      if (verificationError) {
+        console.error('Error fetching verification requests:', verificationError);
       }
 
-      const allVerifications: VerificationItem[] = [
-        ...(physicians || []).map(p => ({
-          id: p.id,
-          type: 'physician' as const,
-          name: `${p.first_name} ${p.last_name}`,
-          email: p.email,
-          status: 'pending',
-          submittedAt: p.created_at,
-          details: p
+      // Also fetch users who need verification based on their role and status
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, role, created_at')
+        .in('role', ['physician', 'hospital_admin', 'agent'])
+        .order('created_at', { ascending: false });
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Combine verification requests with profiles that need verification
+      const allRequests = [
+        ...(verificationData || []).map(req => ({
+          id: req.id,
+          user_id: req.user_id,
+          request_type: req.request_type,
+          status: req.status,
+          submitted_at: req.submitted_at
         })),
-        ...(agents || []).map(a => ({
-          id: a.id,
-          type: 'agent' as const,
-          name: `${a.first_name} ${a.last_name}`,
-          email: a.email,
+        ...(profilesData || []).map(profile => ({
+          id: `profile-${profile.id}`,
+          user_id: profile.id,
+          request_type: `${profile.role}_verification`,
           status: 'pending',
-          submittedAt: a.created_at,
-          details: a
-        })),
-        ...(hospitals || []).map(h => ({
-          id: h.id,
-          type: 'hospital' as const,
-          name: h.name,
-          email: h.email,
-          status: 'pending',
-          submittedAt: h.created_at,
-          details: h
+          submitted_at: profile.created_at
         }))
       ];
 
-      setVerifications(allVerifications);
+      // Fetch user details
+      const requestsWithUserInfo = await Promise.all(
+        allRequests.map(async (request) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, first_name, last_name, role')
+            .eq('id', request.user_id)
+            .single();
+
+          return {
+            ...request,
+            user_email: profile?.email,
+            user_name: profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown',
+            user_role: profile?.role
+          };
+        })
+      );
+
+      // Remove duplicates based on user_id
+      const uniqueRequests = requestsWithUserInfo.filter((request, index, self) =>
+        index === self.findIndex(r => r.user_id === request.user_id)
+      );
+
+      setRequests(uniqueRequests);
     } catch (error) {
-      console.error('Error fetching verifications:', error);
+      console.error('Error fetching verification requests:', error);
       toast({
         title: "Error",
         description: "Failed to load verification requests.",
@@ -96,28 +104,28 @@ export const VerificationCenter: React.FC = () => {
     }
   };
 
-  const handleVerification = async (item: VerificationItem, approved: boolean) => {
+  const updateVerificationStatus = async (userId: string, status: string) => {
     try {
-      if (item.type === 'hospital') {
-        const { error } = await supabase
-          .from('hospitals')
-          .update({ is_active: approved })
-          .eq('id', item.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ is_active: approved })
-          .eq('id', item.id);
-        if (error) throw error;
+      // Create or update verification request
+      const { error: requestError } = await supabase
+        .from('verification_requests')
+        .upsert({
+          user_id: userId,
+          request_type: 'profile_verification',
+          status: status,
+          reviewed_at: new Date().toISOString()
+        });
+
+      if (requestError) {
+        console.error('Error updating verification request:', requestError);
       }
 
       toast({
-        title: approved ? "Approved" : "Rejected",
-        description: `${item.name} has been ${approved ? 'approved' : 'rejected'}.`,
+        title: "Success",
+        description: `User ${status} successfully.`,
       });
 
-      fetchVerifications();
+      fetchVerificationRequests();
     } catch (error) {
       console.error('Error updating verification:', error);
       toast({
@@ -128,22 +136,16 @@ export const VerificationCenter: React.FC = () => {
     }
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'physician': return <User className="w-5 h-5" />;
-      case 'agent': return <User className="w-5 h-5" />;
-      case 'hospital': return <Building2 className="w-5 h-5" />;
-      default: return <FileText className="w-5 h-5" />;
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'verified': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-yellow-100 text-yellow-800';
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'physician': return 'bg-blue-100 text-blue-800';
-      case 'agent': return 'bg-green-100 text-green-800';
-      case 'hospital': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const getRequestTypeIcon = (type: string) => {
+    return <UserCheck className="w-4 h-4" />;
   };
 
   if (loading) {
@@ -156,166 +158,69 @@ export const VerificationCenter: React.FC = () => {
     );
   }
 
-  const physicianVerifications = verifications.filter(v => v.type === 'physician');
-  const agentVerifications = verifications.filter(v => v.type === 'agent');
-  const hospitalVerifications = verifications.filter(v => v.type === 'hospital');
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Verification Center</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <UserCheck className="w-5 h-5" />
+          Verification Center ({requests.length})
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">All ({verifications.length})</TabsTrigger>
-            <TabsTrigger value="physicians">Physicians ({physicianVerifications.length})</TabsTrigger>
-            <TabsTrigger value="agents">Agents ({agentVerifications.length})</TabsTrigger>
-            <TabsTrigger value="hospitals">Hospitals ({hospitalVerifications.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="space-y-4">
-            {verifications.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No pending verifications</p>
-              </div>
-            ) : (
-              verifications.map((item) => (
-                <div key={item.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {getIcon(item.type)}
-                      <div>
-                        <h4 className="font-semibold">{item.name}</h4>
-                        <p className="text-sm text-gray-600">{item.email}</p>
-                      </div>
-                    </div>
-                    <Badge className={getTypeColor(item.type)}>
-                      {item.type}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
+        <div className="space-y-4">
+          {requests.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No verification requests</p>
+            </div>
+          ) : (
+            requests.map((request) => (
+              <div key={request.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    {getRequestTypeIcon(request.request_type)}
                     <div>
-                      <span className="font-medium">Submitted: </span>
-                      <span className="text-gray-600">
-                        {new Date(item.submittedAt).toLocaleDateString()}
-                      </span>
+                      <h4 className="font-semibold">
+                        {request.user_name || 'Unknown User'}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {request.user_email} | Role: {request.user_role}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Type: {request.request_type} | 
+                        Submitted: {new Date(request.submitted_at).toLocaleDateString()}
+                      </p>
                     </div>
-                    {item.type === 'physician' && item.details.specialization && (
-                      <div>
-                        <span className="font-medium">Specialization: </span>
-                        <span className="text-gray-600">{item.details.specialization}</span>
-                      </div>
-                    )}
-                    {item.type === 'physician' && item.details.license_number && (
-                      <div>
-                        <span className="font-medium">License: </span>
-                        <span className="text-gray-600">{item.details.license_number}</span>
-                      </div>
-                    )}
                   </div>
+                  <Badge className={getStatusColor(request.status)}>
+                    {request.status}
+                  </Badge>
+                </div>
 
+                {request.status === 'pending' && (
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => handleVerification(item, true)}
+                      onClick={() => updateVerificationStatus(request.user_id, 'verified')}
                       className="bg-green-600 hover:bg-green-700"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <Check className="w-4 h-4 mr-2" />
                       Approve
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleVerification(item, false)}
+                      onClick={() => updateVerificationStatus(request.user_id, 'rejected')}
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
+                      <X className="w-4 h-4 mr-2" />
                       Reject
                     </Button>
                   </div>
-                </div>
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="physicians" className="space-y-4">
-            {physicianVerifications.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4">
-                {/* Same content structure as above */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <User className="w-5 h-5" />
-                    <div>
-                      <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-sm text-gray-600">{item.email}</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-blue-100 text-blue-800">Physician</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleVerification(item, true)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleVerification(item, false)}>
-                    Reject
-                  </Button>
-                </div>
+                )}
               </div>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="agents" className="space-y-4">
-            {agentVerifications.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <User className="w-5 h-5" />
-                    <div>
-                      <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-sm text-gray-600">{item.email}</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-green-100 text-green-800">Agent</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleVerification(item, true)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleVerification(item, false)}>
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="hospitals" className="space-y-4">
-            {hospitalVerifications.map((item) => (
-              <div key={item.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <Building2 className="w-5 h-5" />
-                    <div>
-                      <h4 className="font-semibold">{item.name}</h4>
-                      <p className="text-sm text-gray-600">{item.email}</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-purple-100 text-purple-800">Hospital</Badge>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleVerification(item, true)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleVerification(item, false)}>
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </TabsContent>
-        </Tabs>
+            ))
+          )}
+        </div>
       </CardContent>
     </Card>
   );

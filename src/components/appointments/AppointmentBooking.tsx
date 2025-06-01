@@ -1,15 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Badge } from '@/components/ui/badge';
-import { CalendarIcon, MapPin, User, Clock, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, MapPin, Clock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,59 +16,56 @@ interface Physician {
   last_name: string;
   specialization: string;
   hospital_name: string;
-  distance_km: number;
+  distance_km?: number;
 }
 
-export const AppointmentBooking = () => {
+interface AppointmentBookingProps {
+  patientId?: string; // For agent booking
+}
+
+export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientId }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
-  const [searchLocation, setSearchLocation] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [physicians, setPhysicians] = useState<Physician[]>([]);
-  const [selectedPhysician, setSelectedPhysician] = useState<Physician | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>();
-  const [selectedTime, setSelectedTime] = useState('');
   const [loading, setLoading] = useState(false);
-  const [monthlyBookings, setMonthlyBookings] = useState(0);
-  const [searchRadius, setSearchRadius] = useState(50);
-
-  const timeSlots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
-  ];
+  const [physicians, setPhysicians] = useState<Physician[]>([]);
+  const [searchLocation, setSearchLocation] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
+  const [selectedPhysician, setSelectedPhysician] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
+  const [notes, setNotes] = useState('');
 
   const specialties = [
-    'General Practice', 'Cardiology', 'Dermatology', 'Endocrinology',
-    'Gastroenterology', 'Neurology', 'Oncology', 'Orthopedics',
-    'Pediatrics', 'Psychiatry', 'Radiology', 'Surgery'
+    'General Practice', 'Internal Medicine', 'Cardiology', 'Dermatology',
+    'Emergency Medicine', 'Family Medicine', 'Gastroenterology', 'Neurology',
+    'Oncology', 'Orthopedics', 'Pediatrics', 'Psychiatry', 'Radiology', 'Surgery'
   ];
 
   useEffect(() => {
-    if (user) {
-      checkMonthlyBookings();
-    }
-  }, [user]);
+    // Load available physicians on component mount
+    fetchAvailablePhysicians();
+  }, []);
 
-  const checkMonthlyBookings = async () => {
-    if (!user) return;
-    
+  const fetchAvailablePhysicians = async () => {
     try {
-      const { data, error } = await supabase.rpc('check_monthly_booking_limit', {
-        patient_uuid: user.id
-      });
+      const { data, error } = await supabase.rpc('get_available_physicians');
       
-      if (error) throw error;
-      setMonthlyBookings(data || 0);
+      if (error) {
+        console.error('Error fetching physicians:', error);
+        return;
+      }
+
+      setPhysicians(data || []);
     } catch (error) {
-      console.error('Error checking monthly bookings:', error);
+      console.error('Error fetching physicians:', error);
     }
   };
 
   const searchPhysicians = async () => {
-    if (!searchLocation) {
+    if (!searchLocation.trim()) {
       toast({
         title: "Location Required",
-        description: "Please enter your location to search for physicians.",
+        description: "Please enter a location to search for physicians.",
         variant: "destructive"
       });
       return;
@@ -80,32 +73,42 @@ export const AppointmentBooking = () => {
 
     setLoading(true);
     try {
-      // For demo purposes, using fixed coordinates for Los Angeles
-      // In a real app, you'd geocode the search location
-      const demoLat = 34.0522;
-      const demoLng = -118.2437;
+      // For demo purposes, using default coordinates for Lagos, Nigeria
+      const defaultLat = 6.5244;
+      const defaultLng = 3.3792;
 
       const { data, error } = await supabase.rpc('get_nearby_physicians', {
-        patient_lat: demoLat,
-        patient_lng: demoLng,
-        search_radius_km: searchRadius,
-        specialty_filter: specialty === 'all' ? null : specialty
+        patient_lat: defaultLat,
+        patient_lng: defaultLng,
+        search_radius_km: 50,
+        specialty_filter: selectedSpecialty === 'all' ? null : selectedSpecialty
       });
 
-      if (error) throw error;
-      setPhysicians(data || []);
-
-      if (data?.length === 0) {
+      if (error) {
+        console.error('Error searching physicians:', error);
         toast({
-          title: "No physicians found",
-          description: "Try expanding your search radius or removing specialty filters.",
+          title: "Search Error",
+          description: "Failed to search for physicians. Please try again.",
+          variant: "destructive"
         });
+        return;
       }
+
+      setPhysicians(data || []);
+      
+      if (!data || data.length === 0) {
+        toast({
+          title: "No Physicians Found",
+          description: "No physicians found in your area. Showing all available physicians.",
+        });
+        fetchAvailablePhysicians();
+      }
+
     } catch (error) {
       console.error('Error searching physicians:', error);
       toast({
         title: "Search Error",
-        description: "Failed to search for physicians. Please try again.",
+        description: "Failed to search for physicians.",
         variant: "destructive"
       });
     } finally {
@@ -113,21 +116,45 @@ export const AppointmentBooking = () => {
     }
   };
 
+  const checkBookingLimit = async (userId: string) => {
+    if (profile?.subscription_plan !== 'basic') {
+      return true; // No limit for premium/enterprise
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('check_monthly_booking_limit', {
+        patient_uuid: userId
+      });
+
+      if (error) {
+        console.error('Error checking booking limit:', error);
+        return true; // Allow booking if check fails
+      }
+
+      return data < 3; // Basic plan allows 3 bookings per month
+    } catch (error) {
+      console.error('Error checking booking limit:', error);
+      return true;
+    }
+  };
+
   const bookAppointment = async () => {
-    if (!user || !selectedPhysician || !selectedDate || !selectedTime) {
+    const effectiveUserId = patientId || user?.id;
+    
+    if (!effectiveUserId || !selectedPhysician || !appointmentDate || !appointmentTime) {
       toast({
-        title: "Incomplete Information",
-        description: "Please select a physician, date, and time.",
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
         variant: "destructive"
       });
       return;
     }
 
-    // Check monthly limit for basic plan users
-    if (profile?.subscription_plan === 'basic' && monthlyBookings >= 3) {
+    // Check booking limit for patients (not for agent bookings)
+    if (!patientId && !(await checkBookingLimit(effectiveUserId))) {
       toast({
         title: "Booking Limit Reached",
-        description: "You have reached your monthly limit of 3 appointments. Upgrade to premium for unlimited bookings.",
+        description: "You've reached your monthly booking limit. Upgrade to premium for unlimited bookings.",
         variant: "destructive"
       });
       return;
@@ -135,28 +162,58 @@ export const AppointmentBooking = () => {
 
     setLoading(true);
     try {
+      // Get physician's hospital ID
+      const { data: physicianData } = await supabase
+        .from('profiles')
+        .select('hospital_id')
+        .eq('id', selectedPhysician)
+        .single();
+
       const { error } = await supabase
         .from('appointments')
         .insert({
-          patient_id: user.id,
-          physician_id: selectedPhysician.physician_id,
-          appointment_date: format(selectedDate, 'yyyy-MM-dd'),
-          appointment_time: selectedTime,
+          patient_id: effectiveUserId,
+          physician_id: selectedPhysician,
+          hospital_id: physicianData?.hospital_id,
+          appointment_date: appointmentDate,
+          appointment_time: appointmentTime,
+          notes: notes.trim() || null,
           status: 'pending'
         });
 
       if (error) throw error;
 
+      // Create notification for hospital admin if hospital_id exists
+      if (physicianData?.hospital_id) {
+        const { data: hospitalAdmins } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('hospital_id', physicianData.hospital_id)
+          .eq('role', 'hospital_admin');
+
+        if (hospitalAdmins && hospitalAdmins.length > 0) {
+          await supabase.from('notifications').insert(
+            hospitalAdmins.map(admin => ({
+              user_id: admin.id,
+              title: 'New Appointment Booked',
+              message: `A new appointment has been booked at your hospital.`,
+              type: 'appointment'
+            }))
+          );
+        }
+      }
+
       toast({
-        title: "Appointment Booked!",
-        description: `Your appointment with Dr. ${selectedPhysician.first_name} ${selectedPhysician.last_name} is pending confirmation.`,
+        title: "Appointment Booked",
+        description: "Your appointment has been successfully booked.",
       });
 
       // Reset form
-      setSelectedPhysician(null);
-      setSelectedDate(undefined);
-      setSelectedTime('');
-      checkMonthlyBookings();
+      setSelectedPhysician('');
+      setAppointmentDate('');
+      setAppointmentTime('');
+      setNotes('');
+
     } catch (error) {
       console.error('Error booking appointment:', error);
       toast({
@@ -169,182 +226,111 @@ export const AppointmentBooking = () => {
     }
   };
 
-  const canBookMore = profile?.subscription_plan !== 'basic' || monthlyBookings < 3;
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Book Appointment
-          </CardTitle>
-          {profile?.subscription_plan === 'basic' && (
-            <div className="flex items-center gap-2 text-sm text-orange-600">
-              <AlertTriangle className="w-4 h-4" />
-              Basic Plan: {monthlyBookings}/3 appointments used this month
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="w-5 h-5" />
+          Book Appointment
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Search Section */}
+        <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="location">Your Location</Label>
-              <Input
-                id="location"
-                placeholder="Enter your city or ZIP code"
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
-              />
+              <Label htmlFor="location">Search Location</Label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Input
+                  id="location"
+                  placeholder="Enter city or area"
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
             <div>
-              <Label htmlFor="specialty">Specialty (Optional)</Label>
-              <Select value={specialty} onValueChange={setSpecialty}>
+              <Label htmlFor="specialty">Specialty</Label>
+              <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select specialty" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Specialties</SelectItem>
-                  {specialties.map((spec) => (
-                    <SelectItem key={spec} value={spec}>{spec}</SelectItem>
+                  {specialties.map((specialty) => (
+                    <SelectItem key={specialty} value={specialty}>{specialty}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          
-          <div>
-            <Label htmlFor="radius">Search Radius (km)</Label>
-            <Select value={searchRadius.toString()} onValueChange={(value) => setSearchRadius(Number(value))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10 km</SelectItem>
-                <SelectItem value="25">25 km</SelectItem>
-                <SelectItem value="50">50 km</SelectItem>
-                <SelectItem value="100">100 km</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <Button onClick={searchPhysicians} disabled={loading} className="w-full">
             {loading ? 'Searching...' : 'Search Physicians'}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
 
-      {physicians.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Physicians</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+        {/* Physician Selection */}
+        <div>
+          <Label htmlFor="physician">Select Physician</Label>
+          <Select value={selectedPhysician} onValueChange={setSelectedPhysician}>
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a physician" />
+            </SelectTrigger>
+            <SelectContent>
               {physicians.map((physician) => (
-                <div
-                  key={physician.physician_id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedPhysician?.physician_id === physician.physician_id
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedPhysician(physician)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">
-                        Dr. {physician.first_name} {physician.last_name}
-                      </h4>
-                      <p className="text-sm text-gray-600">{physician.specialization}</p>
-                      <p className="text-sm text-gray-500 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {physician.hospital_name}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">{physician.distance_km} km away</Badge>
+                <SelectItem key={physician.physician_id} value={physician.physician_id}>
+                  <div className="flex flex-col">
+                    <span>Dr. {physician.first_name} {physician.last_name}</span>
+                    <span className="text-sm text-gray-500">
+                      {physician.specialization} • {physician.hospital_name}
+                      {physician.distance_km && ` • ${physician.distance_km}km away`}
+                    </span>
                   </div>
-                </div>
+                </SelectItem>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {selectedPhysician && canBookMore && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Date & Time</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Select Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, 'PPP') : 'Pick a date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+        {/* Appointment Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="date">Appointment Date</Label>
+            <Input
+              id="date"
+              type="date"
+              value={appointmentDate}
+              onChange={(e) => setAppointmentDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+          <div>
+            <Label htmlFor="time">Appointment Time</Label>
+            <Input
+              id="time"
+              type="time"
+              value={appointmentTime}
+              onChange={(e) => setAppointmentTime(e.target.value)}
+            />
+          </div>
+        </div>
 
-            <div>
-              <Label>Select Time</Label>
-              <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select time slot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeSlots.map((time) => (
-                    <SelectItem key={time} value={time}>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        {time}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div>
+          <Label htmlFor="notes">Additional Notes (Optional)</Label>
+          <Input
+            id="notes"
+            placeholder="Any specific concerns or requests"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
 
-            <Button 
-              onClick={bookAppointment}
-              disabled={loading || !selectedDate || !selectedTime}
-              className="w-full"
-            >
-              {loading ? 'Booking...' : 'Book Appointment'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedPhysician && !canBookMore && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-orange-600">
-              <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-              <h3 className="font-semibold">Monthly Limit Reached</h3>
-              <p className="text-sm">You have used all 3 appointments for this month. Upgrade to premium for unlimited bookings.</p>
-              <Button className="mt-4" variant="outline">
-                Upgrade Plan
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+        <Button onClick={bookAppointment} disabled={loading} className="w-full">
+          {loading ? 'Booking...' : 'Book Appointment'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 };

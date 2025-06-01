@@ -3,24 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, Check, X } from 'lucide-react';
+import { FileText, Check, X, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface Document {
   id: string;
-  user_id: string;
   document_name: string;
   document_type: string;
   document_url: string;
   verification_status: string;
   upload_date: string;
-  user: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: string;
-  };
+  user_email?: string;
+  user_name?: string;
 }
 
 export const DocumentManagement: React.FC = () => {
@@ -34,21 +29,65 @@ export const DocumentManagement: React.FC = () => {
 
   const fetchDocuments = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch physician documents
+      const { data: physicianDocs, error: physicianError } = await supabase
+        .from('physician_documents')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
+
+      // Fetch regular documents
+      const { data: regularDocs, error: regularError } = await supabase
         .from('documents')
-        .select(`
-          *,
-          user:profiles!documents_user_id_fkey (
-            first_name,
-            last_name,
-            email,
-            role
-          )
-        `)
+        .select('*')
         .order('upload_date', { ascending: false });
 
-      if (error) throw error;
-      setDocuments(data || []);
+      if (physicianError && regularError) {
+        console.error('Errors fetching documents:', { physicianError, regularError });
+      }
+
+      const allDocs = [
+        ...(physicianDocs || []).map(doc => ({
+          id: doc.id,
+          document_name: doc.document_name,
+          document_type: doc.document_type,
+          document_url: doc.document_url,
+          verification_status: doc.verification_status || 'pending',
+          upload_date: doc.uploaded_at || doc.created_at
+        })),
+        ...(regularDocs || []).map(doc => ({
+          id: doc.id,
+          document_name: doc.document_name,
+          document_type: doc.document_type,
+          document_url: doc.document_url,
+          verification_status: doc.verification_status || 'pending',
+          upload_date: doc.upload_date
+        }))
+      ];
+
+      // Fetch user info for each document
+      const docsWithUserInfo = await Promise.all(
+        allDocs.map(async (doc) => {
+          const userId = (physicianDocs || []).find(pd => pd.id === doc.id)?.physician_id ||
+                        (regularDocs || []).find(rd => rd.id === doc.id)?.user_id;
+          
+          if (userId) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email, first_name, last_name')
+              .eq('id', userId)
+              .single();
+            
+            return {
+              ...doc,
+              user_email: profile?.email,
+              user_name: profile ? `${profile.first_name} ${profile.last_name}` : 'Unknown'
+            };
+          }
+          return doc;
+        })
+      );
+
+      setDocuments(docsWithUserInfo);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
@@ -61,17 +100,29 @@ export const DocumentManagement: React.FC = () => {
     }
   };
 
-  const updateDocumentStatus = async (documentId: string, status: string) => {
+  const updateDocumentStatus = async (docId: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('documents')
+      // Try updating physician_documents first
+      const { error: physicianError } = await supabase
+        .from('physician_documents')
         .update({
           verification_status: status,
           verified_at: status === 'verified' ? new Date().toISOString() : null
         })
-        .eq('id', documentId);
+        .eq('id', docId);
 
-      if (error) throw error;
+      // If not found in physician_documents, try documents table
+      if (physicianError) {
+        const { error: docError } = await supabase
+          .from('documents')
+          .update({
+            verification_status: status,
+            verified_at: status === 'verified' ? new Date().toISOString() : null
+          })
+          .eq('id', docId);
+
+        if (docError) throw docError;
+      }
 
       toast({
         title: "Success",
@@ -123,46 +174,57 @@ export const DocumentManagement: React.FC = () => {
               <p className="text-gray-600">No documents uploaded yet</p>
             </div>
           ) : (
-            documents.map((doc) => (
-              <div key={doc.id} className="border rounded-lg p-4">
+            documents.map((document) => (
+              <div key={document.id} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h4 className="font-semibold">{doc.document_name}</h4>
+                    <h4 className="font-semibold">{document.document_name}</h4>
                     <p className="text-sm text-gray-600">
-                      {doc.user.first_name} {doc.user.last_name} ({doc.user.role})
+                      Type: {document.document_type} | 
+                      Uploaded: {new Date(document.upload_date).toLocaleDateString()}
                     </p>
-                    <p className="text-xs text-gray-500">{doc.document_type}</p>
+                    {document.user_email && (
+                      <p className="text-sm text-gray-500">
+                        User: {document.user_name} ({document.user_email})
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(doc.verification_status)}>
-                      {doc.verification_status}
-                    </Badge>
-                    <Button size="sm" variant="outline">
-                      <Download className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Badge className={getStatusColor(document.verification_status)}>
+                    {document.verification_status}
+                  </Badge>
                 </div>
 
-                {doc.verification_status === 'pending' && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => updateDocumentStatus(doc.id, 'verified')}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => updateDocumentStatus(doc.id, 'rejected')}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Reject
-                    </Button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(document.document_url, '_blank')}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    View
+                  </Button>
+                  
+                  {document.verification_status === 'pending' && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => updateDocumentStatus(document.id, 'verified')}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check className="w-4 h-4 mr-2" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => updateDocumentStatus(document.id, 'rejected')}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             ))
           )}

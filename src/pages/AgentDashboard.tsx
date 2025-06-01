@@ -1,87 +1,91 @@
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { AssistedPatients } from '@/components/agent/AssistedPatients';
-import { AppointmentBookingAgent } from '@/components/agent/AppointmentBooking';
-import { TransportBooking } from '@/components/agent/TransportBooking';
 import { DynamicOverview } from '@/components/agent/DynamicOverview';
-import { Logo } from '@/components/ui/logo';
+import { PatientLookup } from '@/components/agent/PatientLookup';
+import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
+import { TransportBooking } from '@/components/agent/TransportBooking';
+import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
+import { ChatInterface } from '@/components/chat/ChatInterface';
+import { DashboardHeader } from '@/components/DashboardHeader';
+
+interface PatientInfo {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+}
 
 const AgentDashboard = () => {
-  const { signOut, profile } = useAuth();
-  const navigate = useNavigate();
+  const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+  const handlePatientFound = (patient: PatientInfo) => {
+    setSelectedPatient(patient);
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate("/")}
-                className="text-purple-600"
-              >
-                ← Back
-              </Button>
-              <Logo size="md" />
-              <h1 className="text-xl font-bold text-purple-800">Agent Portal</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Badge variant="outline">Agent</Badge>
-              <span className="text-sm text-gray-600">
-                {profile?.first_name} {profile?.last_name}
-              </span>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Agent Dashboard
-          </h2>
-          <p className="text-gray-600">Assist patients with appointments, transportation, and healthcare access</p>
-        </div>
-
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+      <DashboardHeader />
+      
+      <div className="container mx-auto px-4 py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="patients">Assisted Patients</TabsTrigger>
+            <TabsTrigger value="lookup">Patient Lookup</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
             <TabsTrigger value="transport">Transport</TabsTrigger>
+            <TabsTrigger value="emergency">Emergency</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview">
             <DynamicOverview />
           </TabsContent>
 
-          <TabsContent value="patients" className="space-y-6">
-            <AssistedPatients />
+          <TabsContent value="lookup">
+            <PatientLookup onPatientFound={handlePatientFound} />
           </TabsContent>
 
           <TabsContent value="appointments" className="space-y-6">
-            <AppointmentBookingAgent />
+            {selectedPatient && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Booking for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong> 
+                  ({selectedPatient.email})
+                </p>
+              </div>
+            )}
+            <AppointmentBooking patientId={selectedPatient?.id} />
           </TabsContent>
 
           <TabsContent value="transport" className="space-y-6">
-            <TransportBooking />
+            {selectedPatient && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Transport for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
+                </p>
+              </div>
+            )}
+            <TransportBooking patientId={selectedPatient?.id} />
+          </TabsContent>
+
+          <TabsContent value="emergency" className="space-y-6">
+            {selectedPatient && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Emergency for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
+                </p>
+              </div>
+            )}
+            <EmergencyRequest patientId={selectedPatient?.id} />
+          </TabsContent>
+
+          <TabsContent value="chat">
+            <ChatInterface />
           </TabsContent>
         </Tabs>
       </div>

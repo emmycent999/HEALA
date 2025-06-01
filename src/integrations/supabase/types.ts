@@ -40,22 +40,7 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "agent_assisted_patients_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_assisted_patients_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ambulance_requests: {
         Row: {
@@ -122,6 +107,41 @@ export type Database = {
           },
         ]
       }
+      analytics_data: {
+        Row: {
+          created_at: string | null
+          hospital_id: string | null
+          id: string
+          metric_date: string | null
+          metric_name: string
+          metric_value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          metric_date?: string | null
+          metric_name: string
+          metric_value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          hospital_id?: string | null
+          id?: string
+          metric_date?: string | null
+          metric_name?: string
+          metric_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_data_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_date: string
@@ -167,13 +187,6 @@ export type Database = {
             referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "appointments_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       conversations: {
@@ -207,22 +220,7 @@ export type Database = {
           type?: string | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       documents: {
         Row: {
@@ -258,15 +256,7 @@ export type Database = {
           verified_at?: string | null
           verified_by?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "documents_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       emergency_requests: {
         Row: {
@@ -313,24 +303,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "emergency_requests_assigned_physician_id_fkey"
-            columns: ["assigned_physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "emergency_requests_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emergency_requests_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -418,6 +394,69 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          title: string
+          type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          title: string
+          type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      patient_profiles: {
+        Row: {
+          created_at: string | null
+          emergency_contact: Json | null
+          health_challenges: string[] | null
+          hobbies: string[] | null
+          id: string
+          medical_history: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          emergency_contact?: Json | null
+          health_challenges?: string[] | null
+          hobbies?: string[] | null
+          id?: string
+          medical_history?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          emergency_contact?: Json | null
+          health_challenges?: string[] | null
+          hobbies?: string[] | null
+          id?: string
+          medical_history?: Json | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       performance_metrics: {
         Row: {
           id: string
@@ -440,15 +479,7 @@ export type Database = {
           recorded_at?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "performance_metrics_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       physician_availability: {
         Row: {
@@ -538,22 +569,34 @@ export type Database = {
           physician_id?: string | null
           status?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "physician_patients_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "physician_patients_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      physicians: {
+        Row: {
+          created_at: string | null
+          first_name: string
+          id: string
+          last_name: string
+          specialization: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          specialization?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          specialization?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -576,9 +619,6 @@ export type Database = {
             | Database["public"]["Enums"]["subscription_plan"]
             | null
           updated_at: string | null
-          verification_status: string | null
-          verified_at: string | null
-          verified_by: string | null
         }
         Insert: {
           city?: string | null
@@ -600,9 +640,6 @@ export type Database = {
             | Database["public"]["Enums"]["subscription_plan"]
             | null
           updated_at?: string | null
-          verification_status?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
         }
         Update: {
           city?: string | null
@@ -624,9 +661,6 @@ export type Database = {
             | Database["public"]["Enums"]["subscription_plan"]
             | null
           updated_at?: string | null
-          verification_status?: string | null
-          verified_at?: string | null
-          verified_by?: string | null
         }
         Relationships: [
           {
@@ -637,6 +671,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscriptions: {
+        Row: {
+          amount: number | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          next_payment_date: string | null
+          paystack_subscription_code: string | null
+          plan_name: string
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          next_payment_date?: string | null
+          paystack_subscription_code?: string | null
+          plan_name: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          next_payment_date?: string | null
+          paystack_subscription_code?: string | null
+          plan_name?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       transport_requests: {
         Row: {
@@ -724,6 +797,39 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_requests: {
+        Row: {
+          id: string
+          notes: string | null
+          request_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          submitted_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          request_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -732,6 +838,10 @@ export type Database = {
       check_monthly_booking_limit: {
         Args: { patient_uuid: string }
         Returns: number
+      }
+      generate_hospital_analytics: {
+        Args: { hospital_uuid: string }
+        Returns: undefined
       }
       get_available_physicians: {
         Args: Record<PropertyKey, never>
