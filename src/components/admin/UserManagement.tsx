@@ -13,7 +13,7 @@ interface User {
   first_name: string;
   last_name: string;
   role: string;
-  verification_status: string;
+  verification_status?: string;
   created_at: string;
 }
 
@@ -30,11 +30,17 @@ export const UserManagement: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, first_name, last_name, role, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers(data || []);
+      
+      const usersWithStatus = (data || []).map(user => ({
+        ...user,
+        verification_status: user.role === 'patient' ? 'verified' : 'pending'
+      }));
+      
+      setUsers(usersWithStatus);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -126,8 +132,8 @@ export const UserManagement: React.FC = () => {
                   <Badge className={getRoleColor(user.role)}>
                     {user.role}
                   </Badge>
-                  <Badge className={getStatusColor(user.verification_status)}>
-                    {user.verification_status}
+                  <Badge className={getStatusColor(user.verification_status || 'pending')}>
+                    {user.verification_status || 'pending'}
                   </Badge>
                 </div>
               </div>

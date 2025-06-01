@@ -34,33 +34,44 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select(`
-          id,
-          type,
-          title,
-          status,
-          created_at,
-          physician:profiles!conversations_physician_id_fkey (
-            first_name,
-            last_name,
-            specialization
-          )
-        `)
+        .select('*')
         .eq('patient_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      const formattedConversations: Conversation[] = (data || []).map(item => ({
-        id: item.id,
-        type: item.type as 'ai_diagnosis' | 'physician_consultation',
-        title: item.title || undefined,
-        status: item.status || 'active',
-        created_at: item.created_at || new Date().toISOString(),
-        physician: item.physician as Conversation['physician']
-      }));
+      // Fetch physician data separately
+      const conversationsWithDetails = await Promise.all(
+        (data || []).map(async (conv) => {
+          let physician = null;
+          if (conv.physician_id) {
+            const { data: physicianData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, specialization')
+              .eq('id', conv.physician_id)
+              .single();
+            
+            if (physicianData) {
+              physician = {
+                first_name: physicianData.first_name || '',
+                last_name: physicianData.last_name || '',
+                specialization: physicianData.specialization || ''
+              };
+            }
+          }
+
+          return {
+            id: conv.id,
+            type: conv.type as 'ai_diagnosis' | 'physician_consultation',
+            title: conv.title || undefined,
+            status: conv.status || 'active',
+            created_at: conv.created_at || new Date().toISOString(),
+            physician
+          };
+        })
+      );
       
-      setConversations(formattedConversations);
+      setConversations(conversationsWithDetails);
     } catch (error) {
       console.error('Error fetching conversations:', error);
       toast({

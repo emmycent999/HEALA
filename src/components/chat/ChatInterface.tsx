@@ -14,12 +14,25 @@ interface ChatInterfaceProps {
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversationId, title }) => {
   const [activeTab, setActiveTab] = useState(conversationId ? "physician" : "ai");
+  const [selectedConversation, setSelectedConversation] = useState<any>(null);
 
   useEffect(() => {
     if (conversationId) {
       setActiveTab("physician");
     }
   }, [conversationId]);
+
+  const handleSelectConversation = (conversation: any) => {
+    setSelectedConversation(conversation);
+  };
+
+  const handlePhysicianSelect = (physicianId: string, physicianName: string) => {
+    console.log('Physician selected:', physicianId, physicianName);
+  };
+
+  const handlePhysicianBack = () => {
+    console.log('Back from physician selector');
+  };
 
   return (
     <div className="space-y-6">
@@ -49,11 +62,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversationId, ti
 
             <TabsContent value="physician" className="mt-6">
               {conversationId ? (
-                <ChatList conversationId={conversationId} />
+                <div className="text-center p-8">
+                  <p>Physician chat interface for conversation: {conversationId}</p>
+                </div>
               ) : (
                 <div className="space-y-6">
-                  <PhysicianSelector />
-                  <ChatList />
+                  <PhysicianSelector 
+                    onSelect={handlePhysicianSelect}
+                    onBack={handlePhysicianBack}
+                  />
+                  <ChatList onSelectConversation={handleSelectConversation} />
                 </div>
               )}
             </TabsContent>

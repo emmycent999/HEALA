@@ -51,63 +51,123 @@ export const EmergencyCoordination: React.FC = () => {
 
       const { data, error } = await supabase
         .from('emergency_requests')
-        .select(`
-          id,
-          emergency_type,
-          severity,
-          status,
-          description,
-          created_at,
-          patient:profiles!emergency_requests_patient_id_fkey (
-            first_name,
-            last_name
-          ),
-          assigned_physician:profiles!emergency_requests_assigned_physician_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('hospital_id', profile.hospital_id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching emergency requests:', error);
-        // Fallback query without joins if foreign keys are not set up
+        // Fallback to get all emergency requests without hospital filter
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('emergency_requests')
           .select('*')
-          .eq('hospital_id', profile.hospital_id)
           .order('created_at', { ascending: false });
 
         if (fallbackError) throw fallbackError;
         
-        const formattedRequests: EmergencyRequest[] = (fallbackData || []).map(request => ({
-          id: request.id,
-          emergency_type: request.emergency_type,
-          severity: request.severity,
-          status: request.status,
-          description: request.description,
-          created_at: request.created_at,
-          patient: null,
-          assigned_physician: null
-        }));
+        // Fetch patient and physician data separately
+        const requestsWithDetails = await Promise.all(
+          (fallbackData || []).map(async (request) => {
+            let patient = null;
+            let assigned_physician = null;
+
+            if (request.patient_id) {
+              const { data: patientData } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', request.patient_id)
+                .single();
+              
+              if (patientData) {
+                patient = {
+                  first_name: patientData.first_name || 'Unknown',
+                  last_name: patientData.last_name || 'Patient'
+                };
+              }
+            }
+
+            if (request.assigned_physician_id) {
+              const { data: physicianData } = await supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', request.assigned_physician_id)
+                .single();
+              
+              if (physicianData) {
+                assigned_physician = {
+                  first_name: physicianData.first_name || 'Unknown',
+                  last_name: physicianData.last_name || 'Physician'
+                };
+              }
+            }
+
+            return {
+              id: request.id,
+              emergency_type: request.emergency_type,
+              severity: request.severity,
+              status: request.status,
+              description: request.description,
+              created_at: request.created_at,
+              patient,
+              assigned_physician
+            };
+          })
+        );
         
-        setEmergencyRequests(formattedRequests);
+        setEmergencyRequests(requestsWithDetails);
         return;
       }
       
-      const formattedRequests: EmergencyRequest[] = (data || []).map(request => ({
-        id: request.id,
-        emergency_type: request.emergency_type,
-        severity: request.severity,
-        status: request.status,
-        description: request.description,
-        created_at: request.created_at,
-        patient: request.patient as EmergencyRequest['patient'],
-        assigned_physician: request.assigned_physician as EmergencyRequest['assigned_physician']
-      }));
+      // Fetch patient and physician data separately for successful query
+      const requestsWithDetails = await Promise.all(
+        (data || []).map(async (request) => {
+          let patient = null;
+          let assigned_physician = null;
+
+          if (request.patient_id) {
+            const { data: patientData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', request.patient_id)
+              .single();
+            
+            if (patientData) {
+              patient = {
+                first_name: patientData.first_name || 'Unknown',
+                last_name: patientData.last_name || 'Patient'
+              };
+            }
+          }
+
+          if (request.assigned_physician_id) {
+            const { data: physicianData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', request.assigned_physician_id)
+              .single();
+            
+            if (physicianData) {
+              assigned_physician = {
+                first_name: physicianData.first_name || 'Unknown',
+                last_name: physicianData.last_name || 'Physician'
+              };
+            }
+          }
+
+          return {
+            id: request.id,
+            emergency_type: request.emergency_type,
+            severity: request.severity,
+            status: request.status,
+            description: request.description,
+            created_at: request.created_at,
+            patient,
+            assigned_physician
+          };
+        })
+      );
       
-      setEmergencyRequests(formattedRequests);
+      setEmergencyRequests(requestsWithDetails);
     } catch (error) {
       console.error('Error fetching emergency requests:', error);
       toast({
@@ -122,7 +182,6 @@ export const EmergencyCoordination: React.FC = () => {
 
   const assignPhysician = async (requestId: string) => {
     try {
-      // Get available physicians from the hospital
       const { data: profile } = await supabase
         .from('profiles')
         .select('hospital_id')

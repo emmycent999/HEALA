@@ -1,79 +1,96 @@
 
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Ambulance, Phone, MapPin, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MapPin, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-export const EmergencyRequest: React.FC = () => {
+interface EmergencyRequestProps {
+  patientId?: string;
+}
+
+export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    emergencyType: '',
-    pickupAddress: '',
-    destinationAddress: '',
-    contactPhone: '',
-    description: ''
-  });
+  const [emergencyType, setEmergencyType] = useState('');
+  const [severity, setSeverity] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
 
   const emergencyTypes = [
     'Medical Emergency',
+    'Accident',
     'Cardiac Event',
-    'Respiratory Distress',
-    'Trauma/Injury',
     'Stroke',
-    'Overdose',
-    'Psychiatric Emergency',
+    'Difficulty Breathing',
+    'Severe Allergic Reaction',
+    'Mental Health Crisis',
     'Other'
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
+  const severityLevels = ['Low', 'Medium', 'High', 'Critical'];
+
+  const submitEmergencyRequest = async () => {
+    const effectivePatientId = patientId || user?.id;
+    
+    if (!effectivePatientId || !emergencyType || !severity || !description || !location) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('ambulance_requests')
+        .from('emergency_requests')
         .insert({
-          patient_id: user.id,
-          emergency_type: formData.emergencyType,
-          pickup_address: formData.pickupAddress,
-          destination_address: formData.destinationAddress,
-          contact_phone: formData.contactPhone,
-          description: formData.description,
+          patient_id: effectivePatientId,
+          emergency_type: emergencyType,
+          severity: severity.toLowerCase(),
+          description: description,
           status: 'pending'
         });
 
       if (error) throw error;
 
+      // Create ambulance request
+      await supabase
+        .from('ambulance_requests')
+        .insert({
+          patient_id: effectivePatientId,
+          emergency_type: emergencyType,
+          pickup_address: location,
+          status: 'pending',
+          contact_phone: user?.phone || '',
+          description: description
+        });
+
       toast({
         title: "Emergency Request Submitted",
-        description: "Help is on the way! You will be contacted shortly.",
+        description: "Your emergency request has been submitted. Help is on the way!",
       });
 
       // Reset form
-      setFormData({
-        emergencyType: '',
-        pickupAddress: '',
-        destinationAddress: '',
-        contactPhone: '',
-        description: ''
-      });
+      setEmergencyType('');
+      setSeverity('');
+      setDescription('');
+      setLocation('');
 
     } catch (error) {
       console.error('Error submitting emergency request:', error);
       toast({
-        title: "Error",
-        description: "Failed to submit emergency request. Please call 911 directly.",
+        title: "Request Failed",
+        description: "Failed to submit emergency request. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -82,110 +99,87 @@ export const EmergencyRequest: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>For life-threatening emergencies, call 911 immediately.</strong> This service is for non-critical emergency transport requests.
-        </AlertDescription>
-      </Alert>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-red-600">
+          <AlertTriangle className="w-5 h-5" />
+          Emergency Request
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 text-sm">
+            <strong>For life-threatening emergencies, call 911 immediately!</strong>
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Ambulance className="w-5 h-5" />
-            Request Emergency Transport
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="emergencyType">Emergency Type</Label>
-              <Select 
-                value={formData.emergencyType} 
-                onValueChange={(value) => setFormData({ ...formData, emergencyType: value })}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select emergency type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {emergencyTypes.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div>
+          <Label htmlFor="emergency-type">Emergency Type</Label>
+          <Select value={emergencyType} onValueChange={setEmergencyType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select emergency type" />
+            </SelectTrigger>
+            <SelectContent>
+              {emergencyTypes.map((type) => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div>
-              <Label htmlFor="pickupAddress">Pickup Address</Label>
-              <Input
-                id="pickupAddress"
-                placeholder="Enter full pickup address"
-                value={formData.pickupAddress}
-                onChange={(e) => setFormData({ ...formData, pickupAddress: e.target.value })}
-                required
-                className="mt-1"
-              />
-            </div>
+        <div>
+          <Label htmlFor="severity">Severity Level</Label>
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select severity level" />
+            </SelectTrigger>
+            <SelectContent>
+              {severityLevels.map((level) => (
+                <SelectItem key={level} value={level}>{level}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div>
-              <Label htmlFor="destinationAddress">Destination (Hospital/Medical Facility)</Label>
-              <Input
-                id="destinationAddress"
-                placeholder="Preferred hospital or leave blank for nearest"
-                value={formData.destinationAddress}
-                onChange={(e) => setFormData({ ...formData, destinationAddress: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="contactPhone">Contact Phone</Label>
-              <Input
-                id="contactPhone"
-                type="tel"
-                placeholder="Phone number for emergency contact"
-                value={formData.contactPhone}
-                onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                required
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe the emergency situation, symptoms, or special requirements"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1"
-                rows={3}
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={loading || !formData.emergencyType || !formData.pickupAddress || !formData.contactPhone}
-              className="w-full bg-red-600 hover:bg-red-700"
-            >
-              {loading ? 'Submitting Request...' : 'Request Emergency Transport'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-2">
-            <Phone className="w-8 h-8 mx-auto text-red-600" />
-            <h3 className="font-semibold text-red-600">Emergency Contacts</h3>
-            <p className="text-sm text-gray-600">Emergency Services: 911</p>
-            <p className="text-sm text-gray-600">Poison Control: 1-800-222-1222</p>
-            <p className="text-sm text-gray-600">Mental Health Crisis: 988</p>
+        <div>
+          <Label htmlFor="location">Current Location</Label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+            <Input
+              id="location"
+              placeholder="Enter your current location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+
+        <div>
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            placeholder="Describe the emergency situation in detail"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
+        </div>
+
+        <Button 
+          onClick={submitEmergencyRequest} 
+          disabled={loading} 
+          className="w-full bg-red-600 hover:bg-red-700"
+        >
+          {loading ? 'Submitting...' : 'Submit Emergency Request'}
+        </Button>
+
+        {patientId && (
+          <p className="text-sm text-gray-500 text-center">
+            Emergency request will be submitted for the selected patient
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 };

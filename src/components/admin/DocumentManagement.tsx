@@ -52,7 +52,7 @@ export const DocumentManagement: React.FC = () => {
           document_type: doc.document_type,
           document_url: doc.document_url,
           verification_status: doc.verification_status || 'pending',
-          upload_date: doc.uploaded_at || doc.created_at
+          upload_date: doc.uploaded_at || new Date().toISOString()
         })),
         ...(regularDocs || []).map(doc => ({
           id: doc.id,
@@ -60,7 +60,7 @@ export const DocumentManagement: React.FC = () => {
           document_type: doc.document_type,
           document_url: doc.document_url,
           verification_status: doc.verification_status || 'pending',
-          upload_date: doc.upload_date
+          upload_date: doc.upload_date || new Date().toISOString()
         }))
       ];
 

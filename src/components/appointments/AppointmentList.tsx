@@ -26,38 +26,68 @@ export const AppointmentList = () => {
     try {
       const { data, error } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          notes,
-          physician:profiles!appointments_physician_id_fkey (
-            first_name,
-            last_name,
-            specialization,
-            phone
-          ),
-          hospital:hospitals (
-            name,
-            address,
-            phone
-          )
-        `)
+        .select('*')
         .eq('patient_id', user.id)
         .order('appointment_date', { ascending: true });
 
       if (error) throw error;
       
-      const formattedAppointments: Appointment[] = (data || []).map(item => ({
-        id: item.id,
-        appointment_date: item.appointment_date,
-        appointment_time: item.appointment_time,
-        notes: item.notes,
-        physician: item.physician as Appointment['physician'],
-        hospital: item.hospital as Appointment['hospital']
-      }));
+      // Fetch related data separately
+      const appointmentsWithDetails = await Promise.all(
+        (data || []).map(async (appointment) => {
+          // Fetch physician details
+          let physician = null;
+          if (appointment.physician_id) {
+            const { data: physicianData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, specialization, phone')
+              .eq('id', appointment.physician_id)
+              .single();
+            
+            if (physicianData) {
+              physician = {
+                first_name: physicianData.first_name || '',
+                last_name: physicianData.last_name || '',
+                specialization: physicianData.specialization || '',
+                phone: physicianData.phone
+              };
+            }
+          }
+
+          // Fetch hospital details
+          let hospital = null;
+          if (appointment.hospital_id) {
+            const { data: hospitalData } = await supabase
+              .from('hospitals')
+              .select('name, address, phone')
+              .eq('id', appointment.hospital_id)
+              .single();
+            
+            if (hospitalData) {
+              hospital = {
+                name: hospitalData.name || '',
+                address: hospitalData.address,
+                phone: hospitalData.phone
+              };
+            }
+          }
+
+          return {
+            id: appointment.id,
+            appointment_date: appointment.appointment_date,
+            appointment_time: appointment.appointment_time,
+            notes: appointment.notes,
+            physician: physician || {
+              first_name: 'Unknown',
+              last_name: 'Physician',
+              specialization: 'General Practice'
+            },
+            hospital
+          };
+        })
+      );
       
-      setAppointments(formattedAppointments);
+      setAppointments(appointmentsWithDetails);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({

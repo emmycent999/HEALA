@@ -7,12 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardHeaderProps {
-  title: string;
+  title?: string;
   notifications?: number;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ 
-  title, 
+  title = "Dashboard", 
   notifications = 0 
 }) => {
   const navigate = useNavigate();

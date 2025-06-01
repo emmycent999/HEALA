@@ -20,7 +20,7 @@ interface Physician {
 }
 
 interface AppointmentBookingProps {
-  patientId?: string; // For agent booking
+  patientId?: string;
 }
 
 export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientId }) => {
@@ -42,7 +42,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
   ];
 
   useEffect(() => {
-    // Load available physicians on component mount
     fetchAvailablePhysicians();
   }, []);
 
@@ -55,7 +54,16 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
         return;
       }
 
-      setPhysicians(data || []);
+      // Map the data to match our interface
+      const mappedPhysicians = (data || []).map(physician => ({
+        physician_id: physician.id,
+        first_name: physician.first_name,
+        last_name: physician.last_name,
+        specialization: physician.specialization,
+        hospital_name: physician.hospital_name || 'Unknown Hospital'
+      }));
+
+      setPhysicians(mappedPhysicians);
     } catch (error) {
       console.error('Error fetching physicians:', error);
     }
@@ -73,7 +81,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
     setLoading(true);
     try {
-      // For demo purposes, using default coordinates for Lagos, Nigeria
       const defaultLat = 6.5244;
       const defaultLng = 3.3792;
 
@@ -94,7 +101,16 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
         return;
       }
 
-      setPhysicians(data || []);
+      const mappedPhysicians = (data || []).map(physician => ({
+        physician_id: physician.physician_id,
+        first_name: physician.first_name,
+        last_name: physician.last_name,
+        specialization: physician.specialization,
+        hospital_name: physician.hospital_name,
+        distance_km: physician.distance_km
+      }));
+
+      setPhysicians(mappedPhysicians);
       
       if (!data || data.length === 0) {
         toast({
@@ -118,7 +134,7 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
   const checkBookingLimit = async (userId: string) => {
     if (profile?.subscription_plan !== 'basic') {
-      return true; // No limit for premium/enterprise
+      return true;
     }
 
     try {
@@ -128,10 +144,10 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
       if (error) {
         console.error('Error checking booking limit:', error);
-        return true; // Allow booking if check fails
+        return true;
       }
 
-      return data < 3; // Basic plan allows 3 bookings per month
+      return data < 3;
     } catch (error) {
       console.error('Error checking booking limit:', error);
       return true;
@@ -150,7 +166,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
       return;
     }
 
-    // Check booking limit for patients (not for agent bookings)
     if (!patientId && !(await checkBookingLimit(effectiveUserId))) {
       toast({
         title: "Booking Limit Reached",
@@ -162,7 +177,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
     setLoading(true);
     try {
-      // Get physician's hospital ID
       const { data: physicianData } = await supabase
         .from('profiles')
         .select('hospital_id')
@@ -183,7 +197,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
       if (error) throw error;
 
-      // Create notification for hospital admin if hospital_id exists
       if (physicianData?.hospital_id) {
         const { data: hospitalAdmins } = await supabase
           .from('profiles')
@@ -208,7 +221,6 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
         description: "Your appointment has been successfully booked.",
       });
 
-      // Reset form
       setSelectedPhysician('');
       setAppointmentDate('');
       setAppointmentTime('');

@@ -11,11 +11,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+interface EmergencyContact {
+  name: string;
+  phone: string;
+  relation: string;
+}
+
 interface PatientProfile {
   hobbies: string[];
   health_challenges: string[];
   medical_history: any;
-  emergency_contact: any;
+  emergency_contact: EmergencyContact;
 }
 
 export const ProfileEditor: React.FC = () => {
@@ -26,7 +32,7 @@ export const ProfileEditor: React.FC = () => {
     hobbies: [],
     health_challenges: [],
     medical_history: {},
-    emergency_contact: {}
+    emergency_contact: { name: '', phone: '', relation: '' }
   });
 
   const [newHobby, setNewHobby] = useState('');
@@ -61,13 +67,14 @@ export const ProfileEditor: React.FC = () => {
           hobbies: data.hobbies || [],
           health_challenges: data.health_challenges || [],
           medical_history: data.medical_history || {},
-          emergency_contact: data.emergency_contact || {}
+          emergency_contact: data.emergency_contact as EmergencyContact || { name: '', phone: '', relation: '' }
         });
 
-        if (data.emergency_contact) {
-          setEmergencyName(data.emergency_contact.name || '');
-          setEmergencyPhone(data.emergency_contact.phone || '');
-          setEmergencyRelation(data.emergency_contact.relation || '');
+        const emergencyContact = data.emergency_contact as EmergencyContact;
+        if (emergencyContact) {
+          setEmergencyName(emergencyContact.name || '');
+          setEmergencyPhone(emergencyContact.phone || '');
+          setEmergencyRelation(emergencyContact.relation || '');
         }
       }
     } catch (error) {
