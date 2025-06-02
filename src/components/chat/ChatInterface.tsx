@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SimpleAIBot } from './SimpleAIBot';
+import { WorkingAIBot } from './WorkingAIBot';
 import { ChatList } from './ChatList';
 import { PhysicianSelector } from './PhysicianSelector';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,7 +57,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ conversationId, ti
             </TabsList>
 
             <TabsContent value="ai" className="mt-6">
-              <SimpleAIBot />
+              <WorkingAIBot />
             </TabsContent>
 
             <TabsContent value="physician" className="mt-6">

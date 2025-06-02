@@ -12,12 +12,15 @@ import { TransportManagement } from '@/components/patient/TransportManagement';
 import { EmergencyManagement } from '@/components/patient/EmergencyManagement';
 import { SubscriptionUpgrade } from '@/components/patient/SubscriptionUpgrade';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { useSearchParams } from 'react-router-dom';
 
 const PatientDashboard = () => {
-  const [activeTab, setActiveTab] = useState("appointments");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'appointments';
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <DashboardHeader title="Patient Dashboard" />
       
       <div className="container mx-auto px-4 py-6">
@@ -35,11 +38,11 @@ const PatientDashboard = () => {
           <TabsContent value="appointments" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold mb-4">Book New Appointment</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Book New Appointment</h3>
                 <AppointmentBooking />
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-4">My Appointments</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">My Appointments</h3>
                 <AppointmentList />
               </div>
             </div>
@@ -52,11 +55,11 @@ const PatientDashboard = () => {
           <TabsContent value="emergency" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold mb-4">Request Emergency</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Request Emergency</h3>
                 <EmergencyRequest />
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-4">My Emergency Requests</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">My Emergency Requests</h3>
                 <EmergencyManagement />
               </div>
             </div>
@@ -65,11 +68,11 @@ const PatientDashboard = () => {
           <TabsContent value="profile" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold mb-4">Basic Profile</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Basic Profile</h3>
                 <PatientProfile />
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-4">Extended Profile</h3>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Extended Profile</h3>
                 <ProfileEditor />
               </div>
             </div>

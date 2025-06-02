@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DynamicOverview } from '@/components/physician/DynamicOverview';
 import { PatientManagement } from '@/components/physician/PatientManagement';
 import { PhysicianProfile } from '@/components/physician/PhysicianProfile';
-import { ChatInterface } from '@/components/chat/ChatInterface';
+import { PhysicianChatInterface } from '@/components/physician/PhysicianChatInterface';
 import { AppointmentList } from '@/components/appointments/AppointmentList';
 import { DashboardHeader } from '@/components/DashboardHeader';
 
@@ -18,7 +18,7 @@ const PhysicianDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <DashboardHeader title="Physician Dashboard" />
       
       <div className="container mx-auto px-4 py-6">
@@ -27,7 +27,7 @@ const PhysicianDashboard = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="patients">My Patients</TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
-            <TabsTrigger value="chat">Patient Chat</TabsTrigger>
+            <TabsTrigger value="chat">Communication</TabsTrigger>
             <TabsTrigger value="profile">My Profile</TabsTrigger>
           </TabsList>
 
@@ -44,10 +44,7 @@ const PhysicianDashboard = () => {
           </TabsContent>
 
           <TabsContent value="chat">
-            <ChatInterface 
-              conversationId={selectedConversation || undefined}
-              title="Patient Consultation Chat"
-            />
+            <PhysicianChatInterface />
           </TabsContent>
 
           <TabsContent value="profile">

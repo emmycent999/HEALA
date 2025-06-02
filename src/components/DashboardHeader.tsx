@@ -6,6 +6,7 @@ import { Bell, Settings, LogOut, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { NotificationCenter } from '@/components/shared/NotificationCenter';
 import { SettingsPanel } from '@/components/shared/SettingsPanel';
 
@@ -14,10 +15,12 @@ interface DashboardHeaderProps {
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   React.useEffect(() => {
@@ -52,6 +55,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
         title: "Logged out successfully",
         description: "You have been logged out of your account.",
       });
+      
+      navigate('/');
     } catch (error) {
       console.error('Error logging out:', error);
       toast({
@@ -62,16 +67,31 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
     }
   };
 
+  const handleProfileClick = () => {
+    // Navigate based on user role
+    if (profile?.role === 'patient') {
+      navigate('/patient?tab=profile');
+    } else if (profile?.role === 'physician') {
+      navigate('/physician?tab=profile');
+    } else if (profile?.role === 'agent') {
+      navigate('/agent');
+    } else if (profile?.role === 'hospital_admin') {
+      navigate('/hospital');
+    } else {
+      navigate('/admin');
+    }
+  };
+
   return (
     <>
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
               {user && (
-                <p className="text-sm text-gray-600">
-                  Welcome back, {user.user_metadata?.first_name || user.email}
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Welcome back, {profile?.first_name || user.email}
                 </p>
               )}
             </div>
@@ -102,7 +122,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
               </Button>
 
               {/* User Profile */}
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleProfileClick}
+              >
                 <User className="w-5 h-5" />
               </Button>
 
