@@ -42,22 +42,66 @@ export const AppointmentList: React.FC = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First get the appointments
+      const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          status,
-          notes,
-          physician:profiles!physician_id(first_name, last_name, specialization),
-          patient:profiles!patient_id(first_name, last_name, email)
-        `)
+        .select('*')
         .or(`patient_id.eq.${user.id},physician_id.eq.${user.id}`)
         .order('appointment_date', { ascending: true });
 
-      if (error) throw error;
-      setAppointments(data as Appointment[] || []);
+      if (appointmentsError) throw appointmentsError;
+
+      if (!appointmentsData || appointmentsData.length === 0) {
+        setAppointments([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique physician and patient IDs
+      const physicianIds = [...new Set(appointmentsData.map(a => a.physician_id).filter(Boolean))];
+      const patientIds = [...new Set(appointmentsData.map(a => a.patient_id).filter(Boolean))];
+
+      // Fetch physician profiles
+      const { data: physicians, error: physicianError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, specialization')
+        .in('id', physicianIds);
+
+      if (physicianError) {
+        console.error('Error fetching physicians:', physicianError);
+      }
+
+      // Fetch patient profiles
+      const { data: patients, error: patientError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', patientIds);
+
+      if (patientError) {
+        console.error('Error fetching patients:', patientError);
+      }
+
+      // Combine the data
+      const enrichedAppointments = appointmentsData.map(appointment => {
+        const physician = physicians?.find(p => p.id === appointment.physician_id) || null;
+        const patient = patients?.find(p => p.id === appointment.patient_id) || null;
+
+        return {
+          ...appointment,
+          physician: physician ? {
+            first_name: physician.first_name || '',
+            last_name: physician.last_name || '',
+            specialization: physician.specialization || undefined
+          } : null,
+          patient: patient ? {
+            first_name: patient.first_name || '',
+            last_name: patient.last_name || '',
+            email: patient.email || ''
+          } : null
+        };
+      });
+
+      setAppointments(enrichedAppointments);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       toast({
