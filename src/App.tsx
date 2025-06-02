@@ -36,7 +36,7 @@ const App = () => (
               
               {/* Protected Routes */}
               <Route 
-                path="/patient-dashboard" 
+                path="/patient" 
                 element={
                   <ProtectedRoute allowedRoles={['patient']}>
                     <PatientDashboard />
@@ -44,7 +44,7 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/physician-dashboard" 
+                path="/physician" 
                 element={
                   <ProtectedRoute allowedRoles={['physician']}>
                     <PhysicianDashboard />
@@ -52,7 +52,7 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/hospital-dashboard" 
+                path="/hospital" 
                 element={
                   <ProtectedRoute allowedRoles={['hospital_admin']}>
                     <HospitalDashboard />
@@ -60,7 +60,7 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/agent-dashboard" 
+                path="/agent" 
                 element={
                   <ProtectedRoute allowedRoles={['agent']}>
                     <AgentDashboard />
@@ -68,7 +68,7 @@ const App = () => (
                 } 
               />
               <Route 
-                path="/admin-dashboard" 
+                path="/admin" 
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminDashboard />
@@ -76,7 +76,13 @@ const App = () => (
                 } 
               />
               
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              {/* Legacy routes for backward compatibility */}
+              <Route path="/patient-dashboard" element={<PatientDashboard />} />
+              <Route path="/physician-dashboard" element={<PhysicianDashboard />} />
+              <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
+              <Route path="/agent-dashboard" element={<AgentDashboard />} />
+              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DynamicOverview } from '@/components/agent/DynamicOverview';
 import { PatientLookup } from '@/components/agent/PatientLookup';
 import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
 import { TransportBooking } from '@/components/agent/TransportBooking';
 import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
 import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
-import { DashboardHeader } from '@/components/DashboardHeader';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { useSearchParams } from 'react-router-dom';
 
 interface PatientInfo {
   id: string;
@@ -20,37 +20,23 @@ interface PatientInfo {
 }
 
 const AgentDashboard = () => {
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
   const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
 
   const handlePatientFound = (patient: PatientInfo) => {
     setSelectedPatient(patient);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardHeader title="Agent Dashboard" />
-      
-      <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="lookup">Patient Lookup</TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
-            <TabsTrigger value="transport">Transport</TabsTrigger>
-            <TabsTrigger value="emergency">Emergency</TabsTrigger>
-            <TabsTrigger value="chat">Support Chat</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <DynamicOverview />
-          </TabsContent>
-
-          <TabsContent value="lookup">
-            <PatientLookup onPatientFound={handlePatientFound} />
-          </TabsContent>
-
-          <TabsContent value="appointments" className="space-y-6">
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <DynamicOverview />;
+      case 'lookup':
+        return <PatientLookup onPatientFound={handlePatientFound} />;
+      case 'appointments':
+        return (
+          <div className="space-y-6">
             {selectedPatient && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -60,9 +46,11 @@ const AgentDashboard = () => {
               </div>
             )}
             <AppointmentBooking patientId={selectedPatient?.id} />
-          </TabsContent>
-
-          <TabsContent value="transport" className="space-y-6">
+          </div>
+        );
+      case 'transport':
+        return (
+          <div className="space-y-6">
             {selectedPatient && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -71,9 +59,11 @@ const AgentDashboard = () => {
               </div>
             )}
             <TransportBooking patientId={selectedPatient?.id} />
-          </TabsContent>
-
-          <TabsContent value="emergency" className="space-y-6">
+          </div>
+        );
+      case 'emergency':
+        return (
+          <div className="space-y-6">
             {selectedPatient && (
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
@@ -82,14 +72,19 @@ const AgentDashboard = () => {
               </div>
             )}
             <EmergencyRequest patientId={selectedPatient?.id} />
-          </TabsContent>
+          </div>
+        );
+      case 'chat':
+        return <AgentChatInterface />;
+      default:
+        return <div>Content not found</div>;
+    }
+  };
 
-          <TabsContent value="chat">
-            <AgentChatInterface />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+  return (
+    <DashboardLayout title="Agent Dashboard">
+      {renderContent()}
+    </DashboardLayout>
   );
 };
 

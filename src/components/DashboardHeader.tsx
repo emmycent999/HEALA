@@ -20,7 +20,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   React.useEffect(() => {
@@ -84,60 +83,45 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
 
   return (
     <>
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
-              {user && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Welcome back, {profile?.first_name || user.email}
-                </p>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Notifications */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowNotifications(true)}
-                className="relative"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Badge>
-                )}
-              </Button>
+      <div className="flex items-center gap-2">
+        {/* Notifications */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowNotifications(true)}
+          className="relative"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
 
-              {/* Settings */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSettings(true)}
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
+        {/* Settings */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowSettings(true)}
+        >
+          <Settings className="w-4 h-4" />
+        </Button>
 
-              {/* User Profile */}
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleProfileClick}
-              >
-                <User className="w-5 h-5" />
-              </Button>
+        {/* User Profile */}
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={handleProfileClick}
+        >
+          <User className="w-4 h-4" />
+        </Button>
 
-              {/* Logout */}
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+        {/* Logout */}
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <LogOut className="w-4 h-4" />
+        </Button>
+      </div>
 
       {/* Notification Center */}
       <NotificationCenter
