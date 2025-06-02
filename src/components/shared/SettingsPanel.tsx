@@ -21,6 +21,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
     // Check if dark mode is already enabled
     const isDarkMode = document.documentElement.classList.contains('dark');
     setDarkMode(isDarkMode);
+    
+    // Check saved preferences
+    const savedTheme = localStorage.getItem('theme');
+    const savedLanguage = localStorage.getItem('language');
+    const savedNotifications = localStorage.getItem('notifications');
+    
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
+    if (savedLanguage) {
+      setLanguage(savedLanguage);
+    }
+    if (savedNotifications) {
+      setNotifications(savedNotifications === 'true');
+    }
   }, []);
 
   const toggleDarkMode = (enabled: boolean) => {
@@ -37,7 +53,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
   const handleLanguageChange = (newLanguage: string) => {
     setLanguage(newLanguage);
     localStorage.setItem('language', newLanguage);
-    // You can implement actual language switching logic here
   };
 
   const handleNotificationToggle = (enabled: boolean) => {
@@ -49,23 +64,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-md mx-4 bg-white dark:bg-gray-800">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
+      <Card className="w-full max-w-md mx-4 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-200 dark:border-gray-700">
+          <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
             <Settings className="w-5 h-5" />
             Settings
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClose}
+            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          >
             <X className="w-4 h-4" />
           </Button>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 p-6">
           {/* Dark Mode Toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {darkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              <Label htmlFor="dark-mode">Dark Mode</Label>
+              {darkMode ? 
+                <Moon className="w-4 h-4 text-gray-600 dark:text-gray-300" /> : 
+                <Sun className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              }
+              <Label htmlFor="dark-mode" className="text-gray-900 dark:text-white">Dark Mode</Label>
             </div>
             <Switch
               id="dark-mode"
@@ -76,23 +99,23 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
 
           {/* Language Selection */}
           <div className="space-y-2">
-            <Label>Language</Label>
+            <Label className="text-gray-900 dark:text-white">Language</Label>
             <Select value={language} onValueChange={handleLanguageChange}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                 <SelectValue placeholder="Select language" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-                <SelectItem value="de">German</SelectItem>
+              <SelectContent className="bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <SelectItem value="en" className="text-gray-900 dark:text-white">English</SelectItem>
+                <SelectItem value="es" className="text-gray-900 dark:text-white">Spanish</SelectItem>
+                <SelectItem value="fr" className="text-gray-900 dark:text-white">French</SelectItem>
+                <SelectItem value="de" className="text-gray-900 dark:text-white">German</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Notifications Toggle */}
           <div className="flex items-center justify-between">
-            <Label htmlFor="notifications">Push Notifications</Label>
+            <Label htmlFor="notifications" className="text-gray-900 dark:text-white">Push Notifications</Label>
             <Switch
               id="notifications"
               checked={notifications}
@@ -101,7 +124,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
           </div>
 
           {/* Save Button */}
-          <Button onClick={onClose} className="w-full">
+          <Button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
             Save Settings
           </Button>
         </CardContent>

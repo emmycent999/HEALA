@@ -17,7 +17,8 @@ import {
   Home,
   UserPlus,
   Shield,
-  FileText
+  FileText,
+  Search
 } from 'lucide-react';
 import {
   Sidebar,
@@ -67,7 +68,7 @@ const sidebarItems: SidebarItem[] = [
 
   // Agent items
   { title: 'Overview', url: '/agent?tab=overview', icon: Home, roles: ['agent'] },
-  { title: 'Patient Lookup', url: '/agent?tab=lookup', icon: Users, roles: ['agent'] },
+  { title: 'Patient Lookup', url: '/agent?tab=lookup', icon: Search, roles: ['agent'] },
   { title: 'Appointments', url: '/agent?tab=appointments', icon: Calendar, roles: ['agent'] },
   { title: 'Transport', url: '/agent?tab=transport', icon: Car, roles: ['agent'] },
   { title: 'Emergency', url: '/agent?tab=emergency', icon: AlertTriangle, roles: ['agent'] },
@@ -95,25 +96,34 @@ export const AppSidebar: React.FC = () => {
   };
 
   return (
-    <Sidebar className="border-r border-gray-200 dark:border-gray-700">
-      <SidebarHeader className="p-4">
+    <Sidebar className="border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <SidebarHeader className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <Logo size="sm" />
-          <span className="font-semibold text-lg capitalize">{userRole} Portal</span>
+          <span className="font-semibold text-lg capitalize text-gray-900 dark:text-white">
+            {userRole === 'hospital_admin' ? 'Hospital' : userRole} Portal
+          </span>
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="bg-white dark:bg-gray-800">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-gray-600 dark:text-gray-400">Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink to={item.url} className="flex items-center gap-2 w-full">
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
+                    <NavLink 
+                      to={item.url} 
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-md transition-colors ${
+                        isActive(item.url) 
+                          ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -123,10 +133,10 @@ export const AppSidebar: React.FC = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="text-sm text-gray-500 dark:text-gray-400">
           {profile?.first_name && (
-            <p>Welcome, {profile.first_name}!</p>
+            <p>Welcome, <span className="text-gray-900 dark:text-white font-medium">{profile.first_name}</span>!</p>
           )}
         </div>
       </SidebarFooter>

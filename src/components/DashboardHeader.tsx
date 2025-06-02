@@ -89,11 +89,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
           variant="ghost"
           size="sm"
           onClick={() => setShowNotifications(true)}
-          className="relative"
+          className="relative text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs">
+            <Badge className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs p-0 flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
@@ -104,6 +104,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
           variant="ghost"
           size="sm"
           onClick={() => setShowSettings(true)}
+          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
         >
           <Settings className="w-4 h-4" />
         </Button>
@@ -113,12 +114,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
           variant="ghost" 
           size="sm"
           onClick={handleProfileClick}
+          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
         >
           <User className="w-4 h-4" />
         </Button>
 
         {/* Logout */}
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleLogout}
+          className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+        >
           <LogOut className="w-4 h-4" />
         </Button>
       </div>
