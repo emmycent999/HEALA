@@ -89,29 +89,38 @@ export const PhysicianChatInterface: React.FC = () => {
 
   const fetchConversations = async () => {
     try {
-      const { data, error } = await supabase
+      // First get conversations
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          profiles!conversations_patient_id_fkey (first_name, last_name)
-        `)
+        .select('*')
         .eq('physician_id', user?.id)
         .eq('type', 'physician_consultation')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (conversationsError) throw conversationsError;
 
-      const formattedConversations = (data || []).map(conv => ({
-        id: conv.id,
-        patient_id: conv.patient_id,
-        physician_id: conv.physician_id,
-        title: conv.title,
-        status: conv.status,
-        created_at: conv.created_at,
-        patient_name: conv.profiles ? `${conv.profiles.first_name} ${conv.profiles.last_name}` : 'Unknown Patient'
-      }));
+      // Then get patient details for each conversation
+      const conversationsWithPatients = await Promise.all(
+        (conversationsData || []).map(async (conv) => {
+          const { data: patientData } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', conv.patient_id)
+            .single();
 
-      setConversations(formattedConversations);
+          return {
+            id: conv.id,
+            patient_id: conv.patient_id,
+            physician_id: conv.physician_id,
+            title: conv.title,
+            status: conv.status,
+            created_at: conv.created_at,
+            patient_name: patientData ? `${patientData.first_name} ${patientData.last_name}` : 'Unknown Patient'
+          };
+        })
+      );
+
+      setConversations(conversationsWithPatients);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     }

@@ -73,7 +73,7 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
       if (convError) throw convError;
       setConversation(convData);
 
-      // Fetch physician details
+      // Fetch physician details separately
       if (convData.physician_id) {
         const { data: physicianData, error: physicianError } = await supabase
           .from('profiles')
@@ -98,27 +98,46 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
     if (!conversationId) return;
 
     try {
-      const { data, error } = await supabase
+      // First get the messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          profiles!messages_sender_id_fkey (first_name, last_name)
-        `)
+        .select('*')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (messagesError) throw messagesError;
 
-      const formattedMessages = data.map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        sender_type: msg.sender_type,
-        sender_id: msg.sender_id,
-        created_at: msg.created_at,
-        sender_name: msg.profiles ? `${msg.profiles.first_name} ${msg.profiles.last_name}` : 'Unknown'
-      }));
+      // Then get sender details for each message
+      const messagesWithSenders = await Promise.all(
+        (messagesData || []).map(async (msg) => {
+          if (msg.sender_id) {
+            const { data: senderData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', msg.sender_id)
+              .single();
 
-      setMessages(formattedMessages);
+            return {
+              id: msg.id,
+              content: msg.content,
+              sender_type: msg.sender_type as 'patient' | 'physician',
+              sender_id: msg.sender_id,
+              created_at: msg.created_at,
+              sender_name: senderData ? `${senderData.first_name} ${senderData.last_name}` : 'Unknown'
+            };
+          }
+          return {
+            id: msg.id,
+            content: msg.content,
+            sender_type: msg.sender_type as 'patient' | 'physician',
+            sender_id: msg.sender_id || '',
+            created_at: msg.created_at,
+            sender_name: 'Unknown'
+          };
+        })
+      );
+
+      setMessages(messagesWithSenders);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
