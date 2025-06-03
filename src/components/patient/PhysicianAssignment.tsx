@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,12 +33,7 @@ export const PhysicianAssignment: React.FC = () => {
     try {
       const { data: assignment, error } = await supabase
         .from('physician_patients')
-        .select(`
-          physician_id,
-          profiles!physician_patients_physician_id_fkey (
-            id, first_name, last_name, specialization
-          )
-        `)
+        .select('physician_id')
         .eq('patient_id', user?.id)
         .eq('status', 'active')
         .single();
@@ -47,7 +41,36 @@ export const PhysicianAssignment: React.FC = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (assignment) {
-        setAssignedPhysician(assignment.profiles as any);
+        // Fetch physician details separately
+        const { data: physicianData, error: physicianError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, specialization, hospital_id')
+          .eq('id', assignment.physician_id)
+          .single();
+
+        if (physicianError) throw physicianError;
+
+        // Fetch hospital name if physician has hospital_id
+        let hospitalName = undefined;
+        if (physicianData.hospital_id) {
+          const { data: hospitalData, error: hospitalError } = await supabase
+            .from('hospitals')
+            .select('name')
+            .eq('id', physicianData.hospital_id)
+            .single();
+
+          if (!hospitalError && hospitalData) {
+            hospitalName = hospitalData.name;
+          }
+        }
+
+        setAssignedPhysician({
+          id: physicianData.id,
+          first_name: physicianData.first_name || 'Unknown',
+          last_name: physicianData.last_name || '',
+          specialization: physicianData.specialization || 'General',
+          hospital_name: hospitalName
+        });
       }
     } catch (error) {
       console.error('Error fetching assigned physician:', error);
@@ -58,25 +81,40 @@ export const PhysicianAssignment: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
-          id, first_name, last_name, specialization,
-          hospitals!profiles_hospital_id_fkey (name)
-        `)
+        .select('id, first_name, last_name, specialization, hospital_id')
         .eq('role', 'physician')
         .eq('is_active', true)
         .limit(10);
 
       if (error) throw error;
 
-      const formattedPhysicians = (data || []).map(physician => ({
-        id: physician.id,
-        first_name: physician.first_name || 'Unknown',
-        last_name: physician.last_name || '',
-        specialization: physician.specialization || 'General',
-        hospital_name: physician.hospitals?.name
-      }));
+      // Fetch hospital names for each physician
+      const physiciansWithHospitals = await Promise.all(
+        (data || []).map(async (physician) => {
+          let hospitalName = undefined;
+          if (physician.hospital_id) {
+            const { data: hospitalData } = await supabase
+              .from('hospitals')
+              .select('name')
+              .eq('id', physician.hospital_id)
+              .single();
 
-      setPhysicians(formattedPhysicians);
+            if (hospitalData) {
+              hospitalName = hospitalData.name;
+            }
+          }
+
+          return {
+            id: physician.id,
+            first_name: physician.first_name || 'Unknown',
+            last_name: physician.last_name || '',
+            specialization: physician.specialization || 'General',
+            hospital_name: hospitalName
+          };
+        })
+      );
+
+      setPhysicians(physiciansWithHospitals);
     } catch (error) {
       console.error('Error fetching physicians:', error);
     } finally {
