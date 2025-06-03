@@ -10,6 +10,8 @@ import { PatientProfile } from '@/components/patient/PatientProfile';
 import { TransportManagement } from '@/components/patient/TransportManagement';
 import { EmergencyManagement } from '@/components/patient/EmergencyManagement';
 import { SubscriptionUpgrade } from '@/components/patient/SubscriptionUpgrade';
+import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
+import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -39,6 +41,10 @@ const PatientDashboard = () => {
         );
       case 'chat':
         return <ChatInterface />;
+      case 'ai-assistant':
+        return <UniversalBotpress />;
+      case 'physician':
+        return <PhysicianAssignment />;
       case 'emergency':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

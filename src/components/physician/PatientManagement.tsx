@@ -38,26 +38,27 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     if (!user) return;
 
     try {
-      // Get patients who have appointments with this physician
-      const { data: appointments, error: appointmentsError } = await supabase
-        .from('appointments')
-        .select('patient_id, appointment_date, created_at')
+      // Get patients assigned to this physician through physician_patients table
+      const { data: assignedPatients, error: assignmentError } = await supabase
+        .from('physician_patients')
+        .select('patient_id')
         .eq('physician_id', user.id)
-        .order('appointment_date', { ascending: false });
+        .eq('status', 'active');
 
-      if (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-        return;
-      }
-
-      // Get unique patient IDs
-      const patientIds = [...new Set(appointments?.map(apt => apt.patient_id) || [])];
-
-      if (patientIds.length === 0) {
+      if (assignmentError) {
+        console.error('Error fetching patient assignments:', assignmentError);
         setPatients([]);
         setLoading(false);
         return;
       }
+
+      if (!assignedPatients || assignedPatients.length === 0) {
+        setPatients([]);
+        setLoading(false);
+        return;
+      }
+
+      const patientIds = assignedPatients.map(p => p.patient_id);
 
       // Fetch patient profiles
       const { data: profiles, error: profilesError } = await supabase
@@ -68,24 +69,35 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
+        setPatients([]);
+        setLoading(false);
         return;
       }
 
-      // Combine patient data with appointment info
-      const patientsWithStats = (profiles || []).map(profile => {
-        const patientAppointments = appointments?.filter(apt => apt.patient_id === profile.id) || [];
-        const lastAppointment = patientAppointments[0]; // Most recent due to ordering
+      // Get appointment statistics for each patient
+      const patientsWithStats = await Promise.all(
+        (profiles || []).map(async (profile) => {
+          const { data: appointments } = await supabase
+            .from('appointments')
+            .select('appointment_date, created_at')
+            .eq('patient_id', profile.id)
+            .eq('physician_id', user.id)
+            .order('appointment_date', { ascending: false });
 
-        return {
-          id: profile.id,
-          first_name: profile.first_name || 'Unknown',
-          last_name: profile.last_name || '',
-          email: profile.email,
-          phone: profile.phone,
-          last_appointment: lastAppointment?.appointment_date,
-          total_appointments: patientAppointments.length
-        };
-      });
+          const lastAppointment = appointments?.[0]?.appointment_date;
+          const totalAppointments = appointments?.length || 0;
+
+          return {
+            id: profile.id,
+            first_name: profile.first_name || 'Unknown',
+            last_name: profile.last_name || '',
+            email: profile.email,
+            phone: profile.phone,
+            last_appointment: lastAppointment,
+            total_appointments: totalAppointments
+          };
+        })
+      );
 
       setPatients(patientsWithStats);
     } catch (error) {
@@ -174,6 +186,9 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
           <div className="text-center py-8">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No patients assigned yet</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Patients can request assignment to you from their dashboard
+            </p>
           </div>
         ) : (
           <div className="space-y-4">

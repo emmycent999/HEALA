@@ -1,14 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Send, User, ArrowLeft } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ChatHeader } from './ChatHeader';
+import { MessageList } from './MessageList';
+import { MessageInput } from './MessageInput';
 
 interface Message {
   id: string;
@@ -98,7 +96,6 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
     if (!conversationId) return;
 
     try {
-      // First get the messages
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
@@ -107,7 +104,6 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
 
       if (messagesError) throw messagesError;
 
-      // Then get sender details for each message
       const messagesWithSenders = await Promise.all(
         (messagesData || []).map(async (msg) => {
           if (msg.sender_id) {
@@ -162,7 +158,7 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          fetchMessages(); // Refresh messages when new one arrives
+          fetchMessages();
         }
       )
       .subscribe();
@@ -172,8 +168,8 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
     };
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !conversationId || !user) return;
+  const sendMessage = async (messageContent: string) => {
+    if (!conversationId || !user) return;
 
     setLoading(true);
     try {
@@ -183,12 +179,11 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
           conversation_id: conversationId,
           sender_id: user.id,
           sender_type: profile?.role === 'physician' ? 'physician' : 'patient',
-          content: newMessage.trim()
+          content: messageContent
         });
 
       if (error) throw error;
 
-      setNewMessage('');
       toast({
         title: "Message sent",
         description: "Your message has been delivered.",
@@ -202,13 +197,6 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
     }
   };
 
@@ -226,83 +214,11 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <CardHeader className="flex-shrink-0 border-b">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          )}
-          <Avatar className="w-8 h-8">
-            <AvatarFallback>
-              {physician ? `${physician.first_name[0]}${physician.last_name[0]}` : 'DR'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <CardTitle className="text-lg">
-              {physician ? `Dr. ${physician.first_name} ${physician.last_name}` : 'Physician'}
-            </CardTitle>
-            {physician?.specialization && (
-              <Badge variant="outline" className="text-xs">
-                {physician.specialization}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-
+      <ChatHeader physician={physician} onBack={onBack} />
       <CardContent className="flex-1 flex flex-col p-0">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 mt-8">
-              <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p>Start a conversation</p>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.sender_id === user?.id ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.sender_id === user?.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className="text-xs opacity-75 mt-1">
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="flex-shrink-0 p-4 border-t">
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              onKeyPress={handleKeyPress}
-              disabled={loading}
-              className="flex-1"
-            />
-            <Button 
-              onClick={sendMessage} 
-              disabled={!newMessage.trim() || loading}
-              size="sm"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+        <MessageList messages={messages} currentUserId={user?.id} />
+        <MessageInput onSendMessage={sendMessage} loading={loading} />
+        <div ref={messagesEndRef} />
       </CardContent>
     </Card>
   );

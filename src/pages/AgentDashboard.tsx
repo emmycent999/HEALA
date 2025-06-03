@@ -6,6 +6,7 @@ import { AppointmentBooking } from '@/components/appointments/AppointmentBooking
 import { TransportBooking } from '@/components/agent/TransportBooking';
 import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
 import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
+import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -76,6 +77,8 @@ const AgentDashboard = () => {
         );
       case 'chat':
         return <AgentChatInterface />;
+      case 'ai-assistant':
+        return <UniversalBotpress />;
       default:
         return <div>Content not found</div>;
     }

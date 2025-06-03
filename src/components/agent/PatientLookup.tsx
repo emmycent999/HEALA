@@ -51,10 +51,21 @@ export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setPatients(data as PatientInfo[]);
+        const formattedPatients = data.map(patient => ({
+          id: patient.id,
+          first_name: patient.first_name || 'Unknown',
+          last_name: patient.last_name || '',
+          email: patient.email,
+          phone: patient.phone,
+          city: patient.city,
+          state: patient.state,
+          role: patient.role
+        }));
+
+        setPatients(formattedPatients);
         toast({
           title: "Patients Found",
-          description: `Found ${data.length} patient(s) matching your search.`,
+          description: `Found ${formattedPatients.length} patient(s) matching your search.`,
         });
       } else {
         setPatients([]);

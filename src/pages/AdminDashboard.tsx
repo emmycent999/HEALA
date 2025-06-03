@@ -6,6 +6,7 @@ import { VerificationCenter } from '@/components/admin/VerificationCenter';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { DocumentManagement } from '@/components/admin/DocumentManagement';
 import { SystemAnalytics } from '@/components/admin/SystemAnalytics';
+import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -27,6 +28,8 @@ const AdminDashboard = () => {
         return <TestingGuide />;
       case 'automated':
         return <TestSuite />;
+      case 'ai-assistant':
+        return <UniversalBotpress />;
       default:
         return <div>Content not found</div>;
     }

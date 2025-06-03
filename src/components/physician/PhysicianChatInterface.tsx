@@ -1,29 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Send, User, Users, Bot } from 'lucide-react';
+import { MessageCircle, User, Users, Bot } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { WorkingAIBot } from '@/components/chat/WorkingAIBot';
 import { PatientPhysicianChat } from '@/components/chat/PatientPhysicianChat';
+import { ConversationList } from '@/components/chat/ConversationList';
+import { PatientList } from './PatientList';
 
 interface Patient {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
-}
-
-interface Physician {
-  id: string;
-  first_name: string;
-  last_name: string;
-  specialization: string;
 }
 
 interface Conversation {
@@ -40,27 +32,40 @@ export const PhysicianChatInterface: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [physicians, setPhysicians] = useState<Physician[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [selectedPhysician, setSelectedPhysician] = useState<string | null>(null);
-  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('patients');
 
   useEffect(() => {
     fetchPatients();
-    fetchPhysicians();
     fetchConversations();
   }, []);
 
   const fetchPatients = async () => {
     try {
+      // Get patients assigned to this physician
+      const { data: assignedPatients, error: assignmentError } = await supabase
+        .from('physician_patients')
+        .select('patient_id')
+        .eq('physician_id', user?.id)
+        .eq('status', 'active');
+
+      if (assignmentError) throw assignmentError;
+
+      if (!assignedPatients || assignedPatients.length === 0) {
+        setPatients([]);
+        setLoading(false);
+        return;
+      }
+
+      const patientIds = assignedPatients.map(p => p.patient_id);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
-        .eq('role', 'patient')
-        .limit(10);
+        .in('id', patientIds)
+        .eq('role', 'patient');
 
       if (error) throw error;
       setPatients(data || []);
@@ -71,25 +76,8 @@ export const PhysicianChatInterface: React.FC = () => {
     }
   };
 
-  const fetchPhysicians = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, specialization')
-        .eq('role', 'physician')
-        .neq('id', user?.id)
-        .limit(10);
-
-      if (error) throw error;
-      setPhysicians(data || []);
-    } catch (error) {
-      console.error('Error fetching physicians:', error);
-    }
-  };
-
   const fetchConversations = async () => {
     try {
-      // First get conversations
       const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
         .select('*')
@@ -99,7 +87,6 @@ export const PhysicianChatInterface: React.FC = () => {
 
       if (conversationsError) throw conversationsError;
 
-      // Then get patient details for each conversation
       const conversationsWithPatients = await Promise.all(
         (conversationsData || []).map(async (conv) => {
           const { data: patientData } = await supabase
@@ -208,63 +195,17 @@ export const PhysicianChatInterface: React.FC = () => {
 
             <TabsContent value="patients" className="mt-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>My Patients & Conversations</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-medium text-sm mb-2">Active Conversations</h4>
-                        {conversations.length === 0 ? (
-                          <p className="text-sm text-gray-600">No active conversations</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {conversations.map((conversation) => (
-                              <div
-                                key={conversation.id}
-                                className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                                  selectedConversation === conversation.id ? 'bg-blue-50 border-blue-200' : ''
-                                }`}
-                                onClick={() => setSelectedConversation(conversation.id)}
-                              >
-                                <div className="font-medium text-sm">{conversation.patient_name}</div>
-                                <div className="text-xs text-gray-500">
-                                  {new Date(conversation.created_at).toLocaleDateString()}
-                                </div>
-                                <Badge variant="outline" className="text-xs mt-1">
-                                  {conversation.status}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium text-sm mb-2">Start New Conversation</h4>
-                        {patients.length === 0 ? (
-                          <p className="text-sm text-gray-600">No patients available</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {patients.map((patient) => (
-                              <div
-                                key={patient.id}
-                                className="p-2 border rounded cursor-pointer hover:bg-gray-50"
-                                onClick={() => startNewConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
-                              >
-                                <div className="font-medium text-sm">
-                                  {patient.first_name} {patient.last_name}
-                                </div>
-                                <div className="text-xs text-gray-600">{patient.email}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="space-y-4">
+                  <ConversationList 
+                    conversations={conversations}
+                    selectedConversation={selectedConversation}
+                    onSelectConversation={setSelectedConversation}
+                  />
+                  <PatientList 
+                    patients={patients}
+                    onStartConversation={startNewConversation}
+                  />
+                </div>
 
                 <div className="lg:col-span-2">
                   <PatientPhysicianChat conversationId={selectedConversation || undefined} />
