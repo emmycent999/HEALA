@@ -10,7 +10,7 @@ import { useSearchParams } from 'react-router-dom';
 
 const PhysicianDashboard = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'overview';
+  const activeTab = searchParams.get('tab') || 'overview';
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
 
   const handleStartChat = (conversationId: string, patientName: string) => {
@@ -18,7 +18,7 @@ const PhysicianDashboard = () => {
   };
 
   const renderContent = () => {
-    switch (initialTab) {
+    switch (activeTab) {
       case 'overview':
         return <DynamicOverview />;
       case 'patients':

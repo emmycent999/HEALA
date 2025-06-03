@@ -1,9 +1,5 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { TestSuite } from '@/components/testing/TestSuite';
 import { TestingGuide } from '@/components/testing/TestingGuide';
 import { VerificationCenter } from '@/components/admin/VerificationCenter';

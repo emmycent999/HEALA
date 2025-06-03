@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Calendar, 
   MessageCircle, 
@@ -86,6 +86,7 @@ const sidebarItems: SidebarItem[] = [
 export const AppSidebar: React.FC = () => {
   const { profile } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const userRole = profile?.role || 'patient';
   const filteredItems = sidebarItems.filter(item => item.roles.includes(userRole));
@@ -93,6 +94,10 @@ export const AppSidebar: React.FC = () => {
   const isActive = (url: string) => {
     const currentUrl = `${location.pathname}${location.search}`;
     return currentUrl === url || currentUrl.startsWith(url.split('?')[0]);
+  };
+
+  const handleNavigation = (url: string) => {
+    navigate(url);
   };
 
   return (
@@ -114,9 +119,9 @@ export const AppSidebar: React.FC = () => {
               {filteredItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink 
-                      to={item.url} 
-                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-md transition-colors ${
+                    <button 
+                      onClick={() => handleNavigation(item.url)}
+                      className={`flex items-center gap-3 w-full px-3 py-2 rounded-md transition-colors text-left ${
                         isActive(item.url) 
                           ? 'bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' 
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -124,7 +129,7 @@ export const AppSidebar: React.FC = () => {
                     >
                       <item.icon className="w-5 h-5" />
                       <span className="font-medium">{item.title}</span>
-                    </NavLink>
+                    </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

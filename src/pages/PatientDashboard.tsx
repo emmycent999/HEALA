@@ -1,6 +1,5 @@
 
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from 'react';
 import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
 import { AppointmentList } from '@/components/appointments/AppointmentList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
@@ -16,8 +15,7 @@ import { useSearchParams } from 'react-router-dom';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'appointments';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const activeTab = searchParams.get('tab') || 'appointments';
 
   const renderContent = () => {
     switch (activeTab) {
