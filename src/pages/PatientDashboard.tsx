@@ -15,7 +15,12 @@ import { useSearchParams } from 'react-router-dom';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'appointments';
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'appointments');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'appointments';
+    setActiveTab(tab);
+  }, [searchParams]);
 
   const renderContent = () => {
     switch (activeTab) {

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { WorkingAIBot } from '@/components/chat/WorkingAIBot';
+import { PatientPhysicianChat } from '@/components/chat/PatientPhysicianChat';
 
 interface Patient {
   id: string;
@@ -25,12 +26,14 @@ interface Physician {
   specialization: string;
 }
 
-interface Message {
+interface Conversation {
   id: string;
-  content: string;
-  sender_type: string;
+  patient_id: string;
+  physician_id: string;
+  title: string;
+  status: string;
   created_at: string;
-  sender_id: string;
+  patient_name: string;
 }
 
 export const PhysicianChatInterface: React.FC = () => {
@@ -38,9 +41,9 @@ export const PhysicianChatInterface: React.FC = () => {
   const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [physicians, setPhysicians] = useState<Physician[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [selectedPhysician, setSelectedPhysician] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('patients');
@@ -48,19 +51,8 @@ export const PhysicianChatInterface: React.FC = () => {
   useEffect(() => {
     fetchPatients();
     fetchPhysicians();
+    fetchConversations();
   }, []);
-
-  useEffect(() => {
-    if (selectedPatient) {
-      fetchPatientMessages(selectedPatient);
-    }
-  }, [selectedPatient]);
-
-  useEffect(() => {
-    if (selectedPhysician) {
-      fetchPhysicianMessages(selectedPhysician);
-    }
-  }, [selectedPhysician]);
 
   const fetchPatients = async () => {
     try {
@@ -95,39 +87,75 @@ export const PhysicianChatInterface: React.FC = () => {
     }
   };
 
-  const fetchPatientMessages = async (patientId: string) => {
+  const fetchConversations = async () => {
     try {
-      // This is a simplified version - you would need to implement conversation logic
-      setMessages([]);
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          profiles!conversations_patient_id_fkey (first_name, last_name)
+        `)
+        .eq('physician_id', user?.id)
+        .eq('type', 'physician_consultation')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedConversations = (data || []).map(conv => ({
+        id: conv.id,
+        patient_id: conv.patient_id,
+        physician_id: conv.physician_id,
+        title: conv.title,
+        status: conv.status,
+        created_at: conv.created_at,
+        patient_name: conv.profiles ? `${conv.profiles.first_name} ${conv.profiles.last_name}` : 'Unknown Patient'
+      }));
+
+      setConversations(formattedConversations);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error fetching conversations:', error);
     }
   };
 
-  const fetchPhysicianMessages = async (physicianId: string) => {
-    try {
-      // This is a simplified version - you would need to implement conversation logic
-      setMessages([]);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!newMessage.trim() || (!selectedPatient && !selectedPhysician) || !user) return;
+  const startNewConversation = async (patientId: string, patientName: string) => {
+    if (!user) return;
 
     try {
-      // This would be where you implement the actual message sending logic
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert({
+          patient_id: patientId,
+          physician_id: user.id,
+          type: 'physician_consultation',
+          title: `Consultation with Dr. ${user.user_metadata?.first_name || 'Physician'}`,
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await supabase
+        .from('messages')
+        .insert({
+          conversation_id: data.id,
+          sender_type: 'physician',
+          sender_id: user.id,
+          content: `Hello ${patientName}! I'm ready to help you with your health concerns. How can I assist you today?`
+        });
+
+      setSelectedConversation(data.id);
+      fetchConversations();
+      
       toast({
-        title: "Message Sent",
-        description: "Your message has been sent successfully.",
+        title: "Conversation Started",
+        description: `New consultation started with ${patientName}`,
       });
-      setNewMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error starting conversation:', error);
       toast({
         title: "Error",
-        description: "Failed to send message.",
+        description: "Failed to start conversation.",
         variant: "destructive"
       });
     }
@@ -171,168 +199,73 @@ export const PhysicianChatInterface: React.FC = () => {
 
             <TabsContent value="patients" className="mt-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Patient List */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>My Patients</CardTitle>
+                    <CardTitle>My Patients & Conversations</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {patients.length === 0 ? (
-                      <div className="text-center py-4">
-                        <User className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-600">No patients assigned</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {patients.map((patient) => (
-                          <div
-                            key={patient.id}
-                            className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                              selectedPatient === patient.id ? 'bg-blue-50 border-blue-200' : ''
-                            }`}
-                            onClick={() => setSelectedPatient(patient.id)}
-                          >
-                            <div className="font-medium">
-                              {patient.first_name} {patient.last_name}
-                            </div>
-                            <div className="text-sm text-gray-600">{patient.email}</div>
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-medium text-sm mb-2">Active Conversations</h4>
+                        {conversations.length === 0 ? (
+                          <p className="text-sm text-gray-600">No active conversations</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {conversations.map((conversation) => (
+                              <div
+                                key={conversation.id}
+                                className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
+                                  selectedConversation === conversation.id ? 'bg-blue-50 border-blue-200' : ''
+                                }`}
+                                onClick={() => setSelectedConversation(conversation.id)}
+                              >
+                                <div className="font-medium text-sm">{conversation.patient_name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {new Date(conversation.created_at).toLocaleDateString()}
+                                </div>
+                                <Badge variant="outline" className="text-xs mt-1">
+                                  {conversation.status}
+                                </Badge>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
+
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-sm mb-2">Start New Conversation</h4>
+                        {patients.length === 0 ? (
+                          <p className="text-sm text-gray-600">No patients available</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {patients.map((patient) => (
+                              <div
+                                key={patient.id}
+                                className="p-2 border rounded cursor-pointer hover:bg-gray-50"
+                                onClick={() => startNewConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
+                              >
+                                <div className="font-medium text-sm">
+                                  {patient.first_name} {patient.last_name}
+                                </div>
+                                <div className="text-xs text-gray-600">{patient.email}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Chat Interface */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Patient Consultation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-96 flex flex-col">
-                    {selectedPatient ? (
-                      <>
-                        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-                          {messages.length === 0 ? (
-                            <div className="text-center text-gray-500 mt-8">
-                              Start a conversation with your patient
-                            </div>
-                          ) : (
-                            messages.map((message) => (
-                              <div
-                                key={message.id}
-                                className={`flex ${message.sender_type === 'physician' ? 'justify-end' : 'justify-start'}`}
-                              >
-                                <div
-                                  className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
-                                    message.sender_type === 'physician'
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-gray-100 text-gray-800'
-                                  }`}
-                                >
-                                  <p className="text-sm">{message.content}</p>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Type your message to the patient..."
-                            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                            className="flex-1"
-                          />
-                          <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center">
-                          <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600">Select a patient to start chatting</p>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <div className="lg:col-span-2">
+                  <PatientPhysicianChat conversationId={selectedConversation || undefined} />
+                </div>
               </div>
             </TabsContent>
 
             <TabsContent value="physicians" className="mt-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Physician List */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Other Physicians</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {physicians.length === 0 ? (
-                      <div className="text-center py-4">
-                        <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-600">No other physicians available</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {physicians.map((physician) => (
-                          <div
-                            key={physician.id}
-                            className={`p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
-                              selectedPhysician === physician.id ? 'bg-blue-50 border-blue-200' : ''
-                            }`}
-                            onClick={() => setSelectedPhysician(physician.id)}
-                          >
-                            <div className="font-medium">
-                              Dr. {physician.first_name} {physician.last_name}
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {physician.specialization}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Physician Chat */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Physician Consultation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-96 flex flex-col">
-                    {selectedPhysician ? (
-                      <>
-                        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-                          <div className="text-center text-gray-500 mt-8">
-                            Start a professional discussion
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Type your message to colleague..."
-                            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                            className="flex-1"
-                          />
-                          <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center">
-                          <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600">Select a physician to start consulting</p>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              <div className="text-center py-8 text-gray-500">
+                Physician-to-physician chat coming soon
               </div>
             </TabsContent>
 
