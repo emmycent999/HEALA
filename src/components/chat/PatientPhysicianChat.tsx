@@ -1,20 +1,21 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState, useEffect } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { ChatHeader } from './ChatHeader';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
   content: string;
-  sender_type: 'patient' | 'physician';
+  sender_type: string;
   sender_id: string;
   created_at: string;
-  sender_name?: string;
 }
 
 interface Physician {
@@ -24,170 +25,139 @@ interface Physician {
   specialization: string;
 }
 
-interface PatientPhysicianChatProps {
-  conversationId?: string;
-  onBack?: () => void;
-}
-
-export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({ 
-  conversationId, 
-  onBack 
-}) => {
-  const { user, profile } = useAuth();
+export const PatientPhysicianChat: React.FC = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
   const [physician, setPhysician] = useState<Physician | null>(null);
-  const [conversation, setConversation] = useState<any>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
-    if (conversationId) {
-      fetchConversationDetails();
-      fetchMessages();
-      subscribeToMessages();
+    if (user) {
+      initializeChat();
     }
-  }, [conversationId]);
+  }, [user]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const fetchConversationDetails = async () => {
-    if (!conversationId) return;
+  const initializeChat = async () => {
+    if (!user) return;
 
     try {
-      const { data: convData, error: convError } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('id', conversationId)
+      // First, get the assigned physician
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('physician_patients')
+        .select('physician_id')
+        .eq('patient_id', user.id)
+        .eq('status', 'active')
         .single();
 
-      if (convError) throw convError;
-      setConversation(convData);
+      if (assignmentError) {
+        if (assignmentError.code === 'PGRST116') {
+          toast({
+            title: "No Physician Assigned",
+            description: "Please request a physician assignment first.",
+            variant: "destructive"
+          });
+        } else {
+          throw assignmentError;
+        }
+        setLoading(false);
+        return;
+      }
 
-      // Fetch physician details separately
-      if (convData.physician_id) {
-        const { data: physicianData, error: physicianError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, specialization')
-          .eq('id', convData.physician_id)
+      // Get physician details
+      const { data: physicianData, error: physicianError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, specialization')
+        .eq('id', assignment.physician_id)
+        .single();
+
+      if (physicianError) throw physicianError;
+
+      setPhysician({
+        id: physicianData.id,
+        first_name: physicianData.first_name || 'Unknown',
+        last_name: physicianData.last_name || '',
+        specialization: physicianData.specialization || 'General'
+      });
+
+      // Get or create conversation
+      const { data: existingConversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('patient_id', user.id)
+        .eq('physician_id', assignment.physician_id)
+        .eq('type', 'physician_consultation')
+        .single();
+
+      let currentConversationId;
+
+      if (conversationError && conversationError.code === 'PGRST116') {
+        // Create new conversation
+        const { data: newConversation, error: createError } = await supabase
+          .from('conversations')
+          .insert({
+            patient_id: user.id,
+            physician_id: assignment.physician_id,
+            type: 'physician_consultation',
+            title: `Consultation with Dr. ${physicianData.first_name} ${physicianData.last_name}`,
+            status: 'active'
+          })
+          .select('id')
           .single();
 
-        if (physicianError) throw physicianError;
-        setPhysician(physicianData);
+        if (createError) throw createError;
+        currentConversationId = newConversation.id;
+      } else if (conversationError) {
+        throw conversationError;
+      } else {
+        currentConversationId = existingConversation.id;
       }
-    } catch (error) {
-      console.error('Error fetching conversation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load conversation details.",
-        variant: "destructive"
-      });
-    }
-  };
 
-  const fetchMessages = async () => {
-    if (!conversationId) return;
+      setConversationId(currentConversationId);
 
-    try {
+      // Load messages
       const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', conversationId)
+        .eq('conversation_id', currentConversationId)
         .order('created_at', { ascending: true });
 
       if (messagesError) throw messagesError;
+      setMessages(messagesData || []);
 
-      const messagesWithSenders = await Promise.all(
-        (messagesData || []).map(async (msg) => {
-          if (msg.sender_id) {
-            const { data: senderData } = await supabase
-              .from('profiles')
-              .select('first_name, last_name')
-              .eq('id', msg.sender_id)
-              .single();
-
-            return {
-              id: msg.id,
-              content: msg.content,
-              sender_type: msg.sender_type as 'patient' | 'physician',
-              sender_id: msg.sender_id,
-              created_at: msg.created_at,
-              sender_name: senderData ? `${senderData.first_name} ${senderData.last_name}` : 'Unknown'
-            };
-          }
-          return {
-            id: msg.id,
-            content: msg.content,
-            sender_type: msg.sender_type as 'patient' | 'physician',
-            sender_id: msg.sender_id || '',
-            created_at: msg.created_at,
-            sender_name: 'Unknown'
-          };
-        })
-      );
-
-      setMessages(messagesWithSenders);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error initializing chat:', error);
       toast({
         title: "Error",
-        description: "Failed to load messages.",
+        description: "Failed to load physician chat.",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const subscribeToMessages = () => {
-    if (!conversationId) return;
+  const sendMessage = async (content: string) => {
+    if (!user || !conversationId || !content.trim()) return;
 
-    const channel = supabase
-      .channel(`conversation_${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        (payload) => {
-          fetchMessages();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const sendMessage = async (messageContent: string) => {
-    if (!conversationId || !user) return;
-
-    setLoading(true);
+    setSendingMessage(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          sender_type: profile?.role === 'physician' ? 'physician' : 'patient',
-          content: messageContent
-        });
+          sender_type: 'patient',
+          content: content.trim()
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast({
-        title: "Message sent",
-        description: "Your message has been delivered.",
-      });
+      setMessages(prev => [...prev, data]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -196,30 +166,44 @@ export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setSendingMessage(false);
     }
   };
 
-  if (!conversationId) {
+  if (loading) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center text-gray-500">
-            Select a conversation to start chatting
-          </div>
-        </CardContent>
+      <Card className="h-[600px] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading chat...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!physician || !conversationId) {
+    return (
+      <Card className="h-[600px] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">No physician assigned for chat</p>
+          <p className="text-sm text-gray-500">Please request a physician assignment first</p>
+        </div>
       </Card>
     );
   }
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <ChatHeader physician={physician} onBack={onBack} />
-      <CardContent className="flex-1 flex flex-col p-0">
+      <ChatHeader physician={physician} />
+      
+      <div className="flex-1 overflow-hidden">
         <MessageList messages={messages} currentUserId={user?.id} />
-        <MessageInput onSendMessage={sendMessage} loading={loading} />
-        <div ref={messagesEndRef} />
-      </CardContent>
+      </div>
+      
+      <MessageInput 
+        onSendMessage={sendMessage} 
+        loading={sendingMessage}
+      />
     </Card>
   );
 };
