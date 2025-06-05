@@ -8,7 +8,6 @@ interface Message {
   sender_type: 'patient' | 'physician';
   sender_id: string;
   created_at: string;
-  sender_name?: string;
 }
 
 interface MessageListProps {

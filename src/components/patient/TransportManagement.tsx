@@ -20,15 +20,13 @@ interface TransportRequest {
   transport_type: string;
   cancelled_at?: string;
   cancellation_reason?: string;
-  amount?: number;
-  payment_status?: string;
+  agent_id?: string;
 }
 
 export const TransportManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<TransportRequest[]>([]);
-  const [bookings, setBookings] = useState<TransportRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancellationReason, setCancellationReason] = useState('');
@@ -43,7 +41,7 @@ export const TransportManagement: React.FC = () => {
     if (!user) return;
 
     try {
-      // Fetch existing transport requests (from agent bookings)
+      // Fetch transport requests
       const { data: requestsData, error: requestsError } = await supabase
         .from('transport_requests')
         .select('*')
@@ -52,17 +50,7 @@ export const TransportManagement: React.FC = () => {
 
       if (requestsError) throw requestsError;
 
-      // Fetch transport bookings (self-booked)
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('transport_bookings')
-        .select('*')
-        .eq('patient_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (bookingsError) throw bookingsError;
-
       setRequests(requestsData || []);
-      setBookings(bookingsData || []);
     } catch (error) {
       console.error('Error fetching transport data:', error);
     } finally {
@@ -70,10 +58,10 @@ export const TransportManagement: React.FC = () => {
     }
   };
 
-  const cancelTransport = async (requestId: string, table: 'transport_requests' | 'transport_bookings') => {
+  const cancelTransport = async (requestId: string) => {
     try {
       const { error } = await supabase
-        .from(table)
+        .from('transport_requests')
         .update({ 
           status: 'cancelled',
           cancelled_at: new Date().toISOString(),
@@ -111,7 +99,7 @@ export const TransportManagement: React.FC = () => {
     }
   };
 
-  const renderTransportList = (transports: TransportRequest[], tableName: 'transport_requests' | 'transport_bookings') => {
+  const renderTransportList = (transports: TransportRequest[]) => {
     const activeTransports = transports.filter(t => !['cancelled', 'completed'].includes(t.status));
 
     if (activeTransports.length === 0) {
@@ -143,9 +131,9 @@ export const TransportManagement: React.FC = () => {
                     <Clock className="w-4 h-4" />
                     {new Date(transport.scheduled_time).toLocaleString()}
                   </div>
-                  {transport.amount && (
-                    <div className="text-green-600 font-medium">
-                      ₦{transport.amount.toLocaleString()}
+                  {transport.agent_id && (
+                    <div className="text-blue-600 text-xs">
+                      Booked by agent
                     </div>
                   )}
                 </div>
@@ -169,7 +157,7 @@ export const TransportManagement: React.FC = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => cancelTransport(transport.id, tableName)}
+                            onClick={() => cancelTransport(transport.id)}
                           >
                             Confirm
                           </Button>
@@ -225,13 +213,12 @@ export const TransportManagement: React.FC = () => {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="book" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="book">
               <Plus className="w-4 h-4 mr-2" />
               Book Transport
             </TabsTrigger>
             <TabsTrigger value="requests">My Requests</TabsTrigger>
-            <TabsTrigger value="bookings">My Bookings</TabsTrigger>
           </TabsList>
           
           <TabsContent value="book" className="mt-6">
@@ -240,15 +227,8 @@ export const TransportManagement: React.FC = () => {
           
           <TabsContent value="requests" className="mt-6">
             <div className="space-y-4">
-              <h3 className="font-semibold">Agent Booked Transports</h3>
-              {renderTransportList(requests, 'transport_requests')}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="bookings" className="mt-6">
-            <div className="space-y-4">
-              <h3 className="font-semibold">Self Booked Transports</h3>
-              {renderTransportList(bookings, 'transport_bookings')}
+              <h3 className="font-semibold">My Transport Requests</h3>
+              {renderTransportList(requests)}
             </div>
           </TabsContent>
         </Tabs>

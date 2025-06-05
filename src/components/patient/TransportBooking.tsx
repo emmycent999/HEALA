@@ -32,15 +32,15 @@ export const TransportBooking: React.FC = () => {
     try {
       const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
       
+      // Insert into transport_requests table (which exists in Supabase)
       const { error } = await supabase
-        .from('transport_bookings')
+        .from('transport_requests')
         .insert({
           patient_id: user.id,
           pickup_address: formData.pickupAddress,
           destination_address: formData.destinationAddress,
           scheduled_time: scheduledDateTime.toISOString(),
           transport_type: formData.transportType,
-          notes: formData.notes || null,
           status: 'pending'
         });
 

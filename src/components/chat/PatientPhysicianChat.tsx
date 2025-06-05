@@ -10,10 +10,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-interface Message {
+interface ChatMessage {
   id: string;
   content: string;
-  sender_type: string;
+  sender_type: 'patient' | 'physician';
   sender_id: string;
   created_at: string;
 }
@@ -25,20 +25,90 @@ interface Physician {
   specialization: string;
 }
 
-export const PatientPhysicianChat: React.FC = () => {
+interface PatientPhysicianChatProps {
+  conversationId?: string;
+  onBack?: () => void;
+}
+
+export const PatientPhysicianChat: React.FC<PatientPhysicianChatProps> = ({ 
+  conversationId: propConversationId, 
+  onBack 
+}) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [physician, setPhysician] = useState<Physician | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(propConversationId || null);
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     if (user) {
-      initializeChat();
+      if (propConversationId) {
+        setConversationId(propConversationId);
+        loadConversationData(propConversationId);
+      } else {
+        initializeChat();
+      }
     }
-  }, [user]);
+  }, [user, propConversationId]);
+
+  const loadConversationData = async (convId: string) => {
+    try {
+      // Get conversation details
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', convId)
+        .single();
+
+      if (convError) throw convError;
+
+      // Get physician details
+      const { data: physicianData, error: physicianError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, specialization')
+        .eq('id', conversation.physician_id)
+        .single();
+
+      if (physicianError) throw physicianError;
+
+      setPhysician({
+        id: physicianData.id,
+        first_name: physicianData.first_name || 'Unknown',
+        last_name: physicianData.last_name || '',
+        specialization: physicianData.specialization || 'General'
+      });
+
+      // Load messages
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true });
+
+      if (messagesError) throw messagesError;
+      
+      const formattedMessages: ChatMessage[] = (messagesData || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_type: msg.sender_type as 'patient' | 'physician',
+        sender_id: msg.sender_id || '',
+        created_at: msg.created_at
+      }));
+      
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversation.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const initializeChat = async () => {
     if (!user) return;
@@ -125,7 +195,16 @@ export const PatientPhysicianChat: React.FC = () => {
         .order('created_at', { ascending: true });
 
       if (messagesError) throw messagesError;
-      setMessages(messagesData || []);
+      
+      const formattedMessages: ChatMessage[] = (messagesData || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender_type: msg.sender_type as 'patient' | 'physician',
+        sender_id: msg.sender_id || '',
+        created_at: msg.created_at
+      }));
+      
+      setMessages(formattedMessages);
 
     } catch (error) {
       console.error('Error initializing chat:', error);
@@ -157,7 +236,15 @@ export const PatientPhysicianChat: React.FC = () => {
 
       if (error) throw error;
 
-      setMessages(prev => [...prev, data]);
+      const newMessage: ChatMessage = {
+        id: data.id,
+        content: data.content,
+        sender_type: 'patient',
+        sender_id: data.sender_id || '',
+        created_at: data.created_at
+      };
+
+      setMessages(prev => [...prev, newMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -194,7 +281,7 @@ export const PatientPhysicianChat: React.FC = () => {
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <ChatHeader physician={physician} />
+      <ChatHeader physician={physician} onBack={onBack} />
       
       <div className="flex-1 overflow-hidden">
         <MessageList messages={messages} currentUserId={user?.id} />
