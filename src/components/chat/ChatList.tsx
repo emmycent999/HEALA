@@ -1,26 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, Bot, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { PhysicianSelector } from './PhysicianSelector';
-import { AIBot } from './AIBot';
-import { Conversation } from './types';
-import { ChatListActions } from './ChatListActions';
 import { ConversationItem } from './ConversationItem';
+import { Conversation } from './types';
 
 interface ChatListProps {
   onSelectConversation: (conversation: Conversation) => void;
+  onStartAIAssessment?: () => void;
 }
 
-export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
+export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, onStartAIAssessment }) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showPhysicianSelector, setShowPhysicianSelector] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -29,195 +25,74 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation }) => {
   }, [user]);
 
   const fetchConversations = async () => {
-    if (!user) return;
-
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select('*')
-        .eq('patient_id', user.id)
-        .order('created_at', { ascending: false });
+        .select(`
+          *,
+          profiles!conversations_patient_id_fkey(first_name, last_name),
+          physician:profiles!conversations_physician_id_fkey(first_name, last_name)
+        `)
+        .eq('patient_id', user?.id)
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Fetch physician data separately
-      const conversationsWithDetails = await Promise.all(
-        (data || []).map(async (conv) => {
-          let physician = null;
-          if (conv.physician_id) {
-            const { data: physicianData } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, specialization')
-              .eq('id', conv.physician_id)
-              .single();
-            
-            if (physicianData) {
-              physician = {
-                first_name: physicianData.first_name || '',
-                last_name: physicianData.last_name || '',
-                specialization: physicianData.specialization || ''
-              };
-            }
-          }
 
-          return {
-            id: conv.id,
-            type: conv.type as 'ai_diagnosis' | 'physician_consultation',
-            title: conv.title || undefined,
-            status: conv.status || 'active',
-            created_at: conv.created_at || new Date().toISOString(),
-            physician
-          };
-        })
-      );
-      
-      setConversations(conversationsWithDetails);
+      const formattedConversations: Conversation[] = data?.map(conv => ({
+        id: conv.id,
+        type: conv.type as 'physician_consultation' | 'ai_chat',
+        patient_name: `${conv.profiles?.first_name || ''} ${conv.profiles?.last_name || ''}`.trim(),
+        physician_name: conv.physician ? `${conv.physician.first_name || ''} ${conv.physician.last_name || ''}`.trim() : undefined,
+        last_message: conv.last_message,
+        last_message_time: conv.updated_at,
+        status: conv.status as 'active' | 'closed',
+        unread_count: 0
+      })) || [];
+
+      setConversations(formattedConversations);
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load conversations.",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
   };
 
-  const startAIChat = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .insert({
-          patient_id: user.id,
-          type: 'ai_diagnosis',
-          title: 'AI Health Assessment',
-          status: 'active'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: data.id,
-          sender_type: 'ai_bot',
-          content: AIBot.getGreeting()
-        });
-
-      const newConversation: Conversation = {
-        id: data.id,
-        type: 'ai_diagnosis',
-        title: 'AI Health Assessment',
-        status: 'active',
-        created_at: data.created_at || new Date().toISOString(),
-        physician: undefined
-      };
-
-      onSelectConversation(newConversation);
-    } catch (error) {
-      console.error('Error starting AI chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start AI chat.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const startPhysicianChat = async (physicianId: string, physicianName: string) => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .insert({
-          patient_id: user.id,
-          physician_id: physicianId,
-          type: 'physician_consultation',
-          title: `Consultation with ${physicianName}`,
-          status: 'active'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await supabase
-        .from('messages')
-        .insert({
-          conversation_id: data.id,
-          sender_type: 'physician',
-          content: `Hello! I'm ${physicianName}. How can I help you today?`
-        });
-
-      fetchConversations();
-      setShowPhysicianSelector(false);
-    } catch (error) {
-      console.error('Error starting physician chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start physician consultation.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  if (showPhysicianSelector) {
-    return (
-      <PhysicianSelector
-        onSelect={startPhysicianChat}
-        onBack={() => setShowPhysicianSelector(false)}
-      />
-    );
-  }
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center">Loading conversations...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageSquare className="w-5 h-5" />
-          <span>Chat & Consultations</span>
+        <CardTitle className="flex items-center gap-2">
+          <MessageCircle className="w-5 h-5" />
+          Chat
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <ChatListActions 
-            onStartAIChat={startAIChat}
-            onStartPhysicianChat={() => setShowPhysicianSelector(true)}
-          />
-
-          {conversations.length > 0 && (
-            <>
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-3">Recent Conversations</h4>
-                <div className="space-y-2">
-                  {conversations.map((conversation) => (
-                    <ConversationItem
-                      key={conversation.id}
-                      conversation={conversation}
-                      onClick={() => onSelectConversation(conversation)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+      <CardContent className="space-y-4">
+        {onStartAIAssessment && (
+          <Button 
+            onClick={onStartAIAssessment}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Start AI Health Assessment
+          </Button>
+        )}
+        
+        {loading ? (
+          <div className="text-center text-gray-500">Loading conversations...</div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center text-gray-500">
+            No conversations yet. Start by booking an appointment with a physician.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {conversations.map((conversation) => (
+              <ConversationItem
+                key={conversation.id}
+                conversation={conversation}
+                onClick={() => onSelectConversation(conversation)}
+              />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
