@@ -81,7 +81,7 @@ export const SubscriptionUpgrade: React.FC = () => {
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
   // You'll need to set these from your environment or settings
-  const PAYSTACK_PUBLIC_KEY = "pk_test_your_paystack_public_key"; // Replace with your actual public key
+  const PAYSTACK_PUBLIC_KEY = "pk_live_c76c7a3791ff85134ea0478b00dc544aafb99738"; // Replace with your actual public key
 
   useEffect(() => {
     if (user) {
