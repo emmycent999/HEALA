@@ -86,7 +86,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, onStar
           <div className="space-y-2">
             {conversations.map((conversation) => (
               <ConversationItem
-                key={conversation.id}
+                key={conversations.id}
                 conversation={conversation}
                 onClick={() => onSelectConversation(conversation)}
               />
