@@ -1,23 +1,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Activity, Users, Calendar, FileCheck, TrendingUp } from 'lucide-react';
+import { Activity, Users, Calendar, FileCheck, TrendingUp, UserCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Analytics {
   totalUsers: number;
-  totalAppointments: number;
   todayAppointments: number;
   pendingVerifications: number;
+  totalAppointments: number;
   totalDocuments: number;
 }
 
 export const SystemAnalytics: React.FC = () => {
   const [analytics, setAnalytics] = useState<Analytics>({
     totalUsers: 0,
-    totalAppointments: 0,
     todayAppointments: 0,
     pendingVerifications: 0,
+    totalAppointments: 0,
     totalDocuments: 0
   });
   const [loading, setLoading] = useState(true);
@@ -35,11 +35,6 @@ export const SystemAnalytics: React.FC = () => {
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
-      // Get total appointments count
-      const { count: appointmentsCount } = await supabase
-        .from('appointments')
-        .select('*', { count: 'exact', head: true });
-
       // Get today's appointments count
       const { count: todayCount } = await supabase
         .from('appointments')
@@ -52,16 +47,21 @@ export const SystemAnalytics: React.FC = () => {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
 
-      // Get total documents count
+      // Get total appointments count
+      const { count: appointmentsCount } = await supabase
+        .from('appointments')
+        .select('*', { count: 'exact', head: true });
+
+      // Get total physician documents count
       const { count: documentsCount } = await supabase
-        .from('documents')
+        .from('physician_documents')
         .select('*', { count: 'exact', head: true });
 
       setAnalytics({
         totalUsers: usersCount || 0,
-        totalAppointments: appointmentsCount || 0,
         todayAppointments: todayCount || 0,
         pendingVerifications: pendingCount || 0,
+        totalAppointments: appointmentsCount || 0,
         totalDocuments: documentsCount || 0
       });
     } catch (error) {
@@ -102,7 +102,7 @@ export const SystemAnalytics: React.FC = () => {
             <div className="text-sm text-gray-600">Appointments Today</div>
           </div>
           <div className="text-center p-4 border rounded-lg">
-            <FileCheck className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
+            <UserCheck className="w-8 h-8 mx-auto mb-2 text-yellow-600" />
             <div className="text-2xl font-bold text-yellow-600">{analytics.pendingVerifications}</div>
             <div className="text-sm text-gray-600">Pending Verifications</div>
           </div>
@@ -114,7 +114,7 @@ export const SystemAnalytics: React.FC = () => {
           <div className="text-center p-4 border rounded-lg">
             <FileCheck className="w-8 h-8 mx-auto mb-2 text-red-600" />
             <div className="text-2xl font-bold text-red-600">{analytics.totalDocuments}</div>
-            <div className="text-sm text-gray-600">Documents Uploaded</div>
+            <div className="text-sm text-gray-600">Physician Documents</div>
           </div>
         </div>
       </CardContent>

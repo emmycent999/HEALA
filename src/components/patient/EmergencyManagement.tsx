@@ -47,10 +47,19 @@ export const EmergencyManagement: React.FC = () => {
         .eq('patient_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch ambulance requests error:', error);
+        throw error;
+      }
+      
       setRequests(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching ambulance requests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load emergency requests.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -67,21 +76,24 @@ export const EmergencyManagement: React.FC = () => {
         })
         .eq('id', requestId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Cancel ambulance error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
-        description: "Ambulance request cancelled successfully.",
+        description: "Emergency request cancelled successfully.",
       });
 
       setCancellingId(null);
       setCancellationReason('');
       fetchAmbulanceRequests();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error cancelling ambulance:', error);
       toast({
         title: "Error",
-        description: "Failed to cancel ambulance request.",
+        description: error.message || "Failed to cancel emergency request.",
         variant: "destructive"
       });
     }

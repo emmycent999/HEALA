@@ -1,79 +1,83 @@
 
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, MapPin, Clock, User } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar, Clock, User, Stethoscope } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface Physician {
-  physician_id: string;
+  id: string;
   first_name: string;
   last_name: string;
   specialization: string;
   hospital_name: string;
-  distance_km?: number;
 }
 
 interface AppointmentBookingProps {
   patientId?: string;
+  patientName?: string;
+  patientEmail?: string;
 }
 
-export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientId }) => {
-  const { user, profile } = useAuth();
+export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ 
+  patientId, 
+  patientName, 
+  patientEmail 
+}) => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
   const [physicians, setPhysicians] = useState<Physician[]>([]);
-  const [searchLocation, setSearchLocation] = useState('');
-  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
-  const [selectedPhysician, setSelectedPhysician] = useState('');
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentTime, setAppointmentTime] = useState('');
-  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    physicianId: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    notes: ''
+  });
 
-  const specialties = [
-    'General Practice', 'Internal Medicine', 'Cardiology', 'Dermatology',
-    'Emergency Medicine', 'Family Medicine', 'Gastroenterology', 'Neurology',
-    'Oncology', 'Orthopedics', 'Pediatrics', 'Psychiatry', 'Radiology', 'Surgery'
-  ];
+  const effectivePatientId = patientId || user?.id;
 
   useEffect(() => {
-    fetchAvailablePhysicians();
+    fetchPhysicians();
   }, []);
 
-  const fetchAvailablePhysicians = async () => {
+  const fetchPhysicians = async () => {
     try {
       const { data, error } = await supabase.rpc('get_available_physicians');
       
-      if (error) {
-        console.error('Error fetching physicians:', error);
-        return;
-      }
-
-      // Map the data to match our interface
-      const mappedPhysicians = (data || []).map(physician => ({
-        physician_id: physician.id,
-        first_name: physician.first_name,
-        last_name: physician.last_name,
-        specialization: physician.specialization,
+      if (error) throw error;
+      
+      const formattedPhysicians = (data || []).map((physician: any) => ({
+        id: physician.id,
+        first_name: physician.first_name || 'Unknown',
+        last_name: physician.last_name || '',
+        specialization: physician.specialization || 'General',
         hospital_name: physician.hospital_name || 'Unknown Hospital'
       }));
-
-      setPhysicians(mappedPhysicians);
+      
+      setPhysicians(formattedPhysicians);
     } catch (error) {
       console.error('Error fetching physicians:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load physicians.",
+        variant: "destructive"
+      });
     }
   };
 
-  const searchPhysicians = async () => {
-    if (!searchLocation.trim()) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!effectivePatientId) {
       toast({
-        title: "Location Required",
-        description: "Please enter a location to search for physicians.",
+        title: "Error",
+        description: "Patient ID is required to book appointment.",
         variant: "destructive"
       });
       return;
@@ -81,151 +85,31 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
 
     setLoading(true);
     try {
-      const defaultLat = 6.5244;
-      const defaultLng = 3.3792;
-
-      const { data, error } = await supabase.rpc('get_nearby_physicians', {
-        patient_lat: defaultLat,
-        patient_lng: defaultLng,
-        search_radius_km: 50,
-        specialty_filter: selectedSpecialty === 'all' ? null : selectedSpecialty
-      });
-
-      if (error) {
-        console.error('Error searching physicians:', error);
-        toast({
-          title: "Search Error",
-          description: "Failed to search for physicians. Please try again.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const mappedPhysicians = (data || []).map(physician => ({
-        physician_id: physician.physician_id,
-        first_name: physician.first_name,
-        last_name: physician.last_name,
-        specialization: physician.specialization,
-        hospital_name: physician.hospital_name,
-        distance_km: physician.distance_km
-      }));
-
-      setPhysicians(mappedPhysicians);
-      
-      if (!data || data.length === 0) {
-        toast({
-          title: "No Physicians Found",
-          description: "No physicians found in your area. Showing all available physicians.",
-        });
-        fetchAvailablePhysicians();
-      }
-
-    } catch (error) {
-      console.error('Error searching physicians:', error);
-      toast({
-        title: "Search Error",
-        description: "Failed to search for physicians.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkBookingLimit = async (userId: string) => {
-    if (profile?.subscription_plan !== 'basic') {
-      return true;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('check_monthly_booking_limit', {
-        patient_uuid: userId
-      });
-
-      if (error) {
-        console.error('Error checking booking limit:', error);
-        return true;
-      }
-
-      return data < 3;
-    } catch (error) {
-      console.error('Error checking booking limit:', error);
-      return true;
-    }
-  };
-
-  const bookAppointment = async () => {
-    const effectiveUserId = patientId || user?.id;
-    
-    if (!effectiveUserId || !selectedPhysician || !appointmentDate || !appointmentTime) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!patientId && !(await checkBookingLimit(effectiveUserId))) {
-      toast({
-        title: "Booking Limit Reached",
-        description: "You've reached your monthly booking limit. Upgrade to premium for unlimited bookings.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data: physicianData } = await supabase
-        .from('profiles')
-        .select('hospital_id')
-        .eq('id', selectedPhysician)
-        .single();
-
       const { error } = await supabase
         .from('appointments')
         .insert({
-          patient_id: effectiveUserId,
-          physician_id: selectedPhysician,
-          hospital_id: physicianData?.hospital_id,
-          appointment_date: appointmentDate,
-          appointment_time: appointmentTime,
-          notes: notes.trim() || null,
+          patient_id: effectivePatientId,
+          physician_id: formData.physicianId,
+          appointment_date: formData.appointmentDate,
+          appointment_time: formData.appointmentTime,
+          notes: formData.notes,
           status: 'pending'
         });
 
       if (error) throw error;
 
-      if (physicianData?.hospital_id) {
-        const { data: hospitalAdmins } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('hospital_id', physicianData.hospital_id)
-          .eq('role', 'hospital_admin');
-
-        if (hospitalAdmins && hospitalAdmins.length > 0) {
-          await supabase.from('notifications').insert(
-            hospitalAdmins.map(admin => ({
-              user_id: admin.id,
-              title: 'New Appointment Booked',
-              message: `A new appointment has been booked at your hospital.`,
-              type: 'appointment'
-            }))
-          );
-        }
-      }
-
       toast({
         title: "Appointment Booked",
-        description: "Your appointment has been successfully booked.",
+        description: `Appointment has been successfully booked${patientName ? ` for ${patientName}` : ''}.`,
       });
 
-      setSelectedPhysician('');
-      setAppointmentDate('');
-      setAppointmentTime('');
-      setNotes('');
-
+      // Reset form
+      setFormData({
+        physicianId: '',
+        appointmentDate: '',
+        appointmentTime: '',
+        notes: ''
+      });
     } catch (error) {
       console.error('Error booking appointment:', error);
       toast({
@@ -245,103 +129,79 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({ patientI
           <Calendar className="w-5 h-5" />
           Book Appointment
         </CardTitle>
+        {(patientName || patientEmail) && (
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800">
+              <User className="w-4 h-4" />
+              <span className="font-medium">
+                Booking for: {patientName || patientEmail}
+              </span>
+            </div>
+          </div>
+        )}
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search Section */}
-        <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="physician">Select Physician</Label>
+            <Select value={formData.physicianId} onValueChange={(value) => setFormData({ ...formData, physicianId: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a physician" />
+              </SelectTrigger>
+              <SelectContent>
+                {physicians.map((physician) => (
+                  <SelectItem key={physician.id} value={physician.id}>
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="w-4 h-4" />
+                      <span>
+                        Dr. {physician.first_name} {physician.last_name} - {physician.specialization}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="location">Search Location</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                <Input
-                  id="location"
-                  placeholder="Enter city or area"
-                  value={searchLocation}
-                  onChange={(e) => setSearchLocation(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <Label htmlFor="date">Appointment Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.appointmentDate}
+                onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value })}
+                min={new Date().toISOString().split('T')[0]}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="specialty">Specialty</Label>
-              <Select value={selectedSpecialty} onValueChange={setSelectedSpecialty}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select specialty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Specialties</SelectItem>
-                  {specialties.map((specialty) => (
-                    <SelectItem key={specialty} value={specialty}>{specialty}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="time">Appointment Time</Label>
+              <Input
+                id="time"
+                type="time"
+                value={formData.appointmentTime}
+                onChange={(e) => setFormData({ ...formData, appointmentTime: e.target.value })}
+                required
+              />
             </div>
           </div>
-          <Button onClick={searchPhysicians} disabled={loading} className="w-full">
-            {loading ? 'Searching...' : 'Search Physicians'}
+
+          <div>
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Any specific concerns or notes for the physician"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
+            />
+          </div>
+
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? 'Booking...' : 'Book Appointment'}
           </Button>
-        </div>
-
-        {/* Physician Selection */}
-        <div>
-          <Label htmlFor="physician">Select Physician</Label>
-          <Select value={selectedPhysician} onValueChange={setSelectedPhysician}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a physician" />
-            </SelectTrigger>
-            <SelectContent>
-              {physicians.map((physician) => (
-                <SelectItem key={physician.physician_id} value={physician.physician_id}>
-                  <div className="flex flex-col">
-                    <span>Dr. {physician.first_name} {physician.last_name}</span>
-                    <span className="text-sm text-gray-500">
-                      {physician.specialization} • {physician.hospital_name}
-                      {physician.distance_km && ` • ${physician.distance_km}km away`}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Appointment Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="date">Appointment Date</Label>
-            <Input
-              id="date"
-              type="date"
-              value={appointmentDate}
-              onChange={(e) => setAppointmentDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-          <div>
-            <Label htmlFor="time">Appointment Time</Label>
-            <Input
-              id="time"
-              type="time"
-              value={appointmentTime}
-              onChange={(e) => setAppointmentTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="notes">Additional Notes (Optional)</Label>
-          <Input
-            id="notes"
-            placeholder="Any specific concerns or requests"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-
-        <Button onClick={bookAppointment} disabled={loading} className="w-full">
-          {loading ? 'Booking...' : 'Book Appointment'}
-        </Button>
+        </form>
       </CardContent>
     </Card>
   );

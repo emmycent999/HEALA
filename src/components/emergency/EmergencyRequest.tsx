@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertTriangle, MapPin, Phone } from 'lucide-react';
+import { AlertTriangle, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +40,16 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
   const submitEmergencyRequest = async () => {
     const effectivePatientId = patientId || user?.id;
     
-    if (!effectivePatientId || !emergencyType || !severity || !description || !location) {
+    if (!effectivePatientId) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to submit emergency request.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!emergencyType || !severity || !description || !location) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -51,7 +60,8 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      // First create emergency request
+      const { data: emergencyData, error: emergencyError } = await supabase
         .from('emergency_requests')
         .insert({
           patient_id: effectivePatientId,
@@ -59,21 +69,31 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
           severity: severity.toLowerCase(),
           description: description,
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (emergencyError) {
+        console.error('Emergency request error:', emergencyError);
+        throw emergencyError;
+      }
 
-      // Create ambulance request
-      await supabase
+      // Then create ambulance request
+      const { error: ambulanceError } = await supabase
         .from('ambulance_requests')
         .insert({
           patient_id: effectivePatientId,
           emergency_type: emergencyType,
           pickup_address: location,
           status: 'pending',
-          contact_phone: user?.phone || '',
+          contact_phone: user?.phone || user?.user_metadata?.phone || '',
           description: description
         });
+
+      if (ambulanceError) {
+        console.error('Ambulance request error:', ambulanceError);
+        throw ambulanceError;
+      }
 
       toast({
         title: "Emergency Request Submitted",
@@ -86,11 +106,11 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
       setDescription('');
       setLocation('');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting emergency request:', error);
       toast({
         title: "Request Failed",
-        description: "Failed to submit emergency request. Please try again.",
+        description: error.message || "Failed to submit emergency request. Please try again.",
         variant: "destructive"
       });
     } finally {

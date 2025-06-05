@@ -4,6 +4,7 @@ import { DynamicOverview } from '@/components/physician/DynamicOverview';
 import { PatientManagement } from '@/components/physician/PatientManagement';
 import { PhysicianProfile } from '@/components/physician/PhysicianProfile';
 import { PhysicianChatInterface } from '@/components/physician/PhysicianChatInterface';
+import { PhysicianDocumentUpload } from '@/components/physician/PhysicianDocumentUpload';
 import { AppointmentList } from '@/components/appointments/AppointmentList';
 import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -33,6 +34,8 @@ const PhysicianDashboard = () => {
         return <AppointmentList />;
       case 'chat':
         return <PhysicianChatInterface />;
+      case 'documents':
+        return <PhysicianDocumentUpload />;
       case 'ai-assistant':
         return <UniversalBotpress />;
       case 'profile':

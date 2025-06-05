@@ -46,7 +46,11 @@ const AgentDashboard = () => {
                 </p>
               </div>
             )}
-            <AppointmentBooking patientId={selectedPatient?.id} />
+            <AppointmentBooking 
+              patientId={selectedPatient?.id} 
+              patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
+              patientEmail={selectedPatient?.email}
+            />
           </div>
         );
       case 'transport':
@@ -56,10 +60,14 @@ const AgentDashboard = () => {
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
                   Transport for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
+                  ({selectedPatient.email})
                 </p>
               </div>
             )}
-            <TransportBooking patientId={selectedPatient?.id} />
+            <TransportBooking 
+              patientId={selectedPatient?.id}
+              patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
+            />
           </div>
         );
       case 'emergency':
@@ -69,6 +77,7 @@ const AgentDashboard = () => {
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-blue-800">
                   Emergency for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
+                  ({selectedPatient.email})
                 </p>
               </div>
             )}

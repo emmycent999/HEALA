@@ -42,13 +42,19 @@ export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) 
 
     setLoading(true);
     try {
+      // Search in profiles table with better query structure
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email, phone, city, state, role')
         .eq('role', 'patient')
         .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Search error:', error);
+        throw error;
+      }
+
+      console.log('Search results:', data);
 
       if (data && data.length > 0) {
         const formattedPatients = data.map(patient => ({
@@ -71,15 +77,15 @@ export const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) 
         setPatients([]);
         toast({
           title: "No Patients Found",
-          description: "No patients found matching your search criteria.",
+          description: "No patients found matching your search criteria. Try a different search term.",
           variant: "destructive"
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error searching patients:', error);
       toast({
         title: "Search Error",
-        description: "Failed to search for patients. Please try again.",
+        description: error.message || "Failed to search for patients. Please try again.",
         variant: "destructive"
       });
       setPatients([]);
