@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Ambulance, X, MapPin, Clock, Phone } from 'lucide-react';
+import { Ambulance, X, Clock, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -56,11 +56,11 @@ export const EmergencyManagement: React.FC = () => {
     }
   };
 
-  const handleCancelRequest = async (requestId: string) => {
+  const cancelAmbulance = async (requestId: string) => {
     try {
       const { error } = await supabase
         .from('ambulance_requests')
-        .update({
+        .update({ 
           status: 'cancelled',
           cancelled_at: new Date().toISOString(),
           cancellation_reason: cancellationReason || 'No reason provided'
@@ -70,15 +70,15 @@ export const EmergencyManagement: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Request Cancelled",
-        description: "Your ambulance request has been cancelled.",
+        title: "Success",
+        description: "Ambulance request cancelled successfully.",
       });
 
       setCancellingId(null);
       setCancellationReason('');
       fetchAmbulanceRequests();
     } catch (error) {
-      console.error('Error cancelling ambulance request:', error);
+      console.error('Error cancelling ambulance:', error);
       toast({
         title: "Error",
         description: "Failed to cancel ambulance request.",
@@ -89,13 +89,11 @@ export const EmergencyManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'en_route': return 'bg-green-100 text-green-800';
-      case 'arrived': return 'bg-purple-100 text-purple-800';
+      case 'dispatched': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-yellow-100 text-yellow-800';
     }
   };
 
@@ -129,16 +127,12 @@ export const EmergencyManagement: React.FC = () => {
           <div className="space-y-4">
             {activeRequests.map((request) => (
               <div key={request.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
+                <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className={getStatusColor(request.status)}>
-                        {request.status.replace('_', ' ')}
-                      </Badge>
-                      <span className="text-sm font-medium">{request.emergency_type}</span>
+                    <div className="font-medium text-red-600 mb-2">
+                      {request.emergency_type}
                     </div>
-                    
-                    <div className="space-y-1 text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 space-y-1">
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
                         From: {request.pickup_address}
@@ -150,69 +144,65 @@ export const EmergencyManagement: React.FC = () => {
                         </div>
                       )}
                       <div className="flex items-center gap-1">
-                        <Phone className="w-4 h-4" />
-                        Contact: {request.contact_phone}
-                      </div>
-                      <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        Requested: {new Date(request.created_at).toLocaleString()}
+                        {new Date(request.created_at).toLocaleString()}
                       </div>
                       {request.ambulance_eta && (
-                        <div className="flex items-center gap-1 text-green-600 font-medium">
-                          <Clock className="w-4 h-4" />
+                        <div className="text-blue-600 font-medium">
                           ETA: {request.ambulance_eta} minutes
                         </div>
                       )}
                     </div>
-
                     {request.description && (
-                      <p className="text-sm text-gray-700 mt-2 p-2 bg-gray-50 rounded">
-                        {request.description}
-                      </p>
+                      <p className="text-sm text-gray-600 mt-2">{request.description}</p>
                     )}
                   </div>
-
-                  <div className="ml-4">
-                    {cancellingId === request.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          placeholder="Reason for cancellation"
-                          value={cancellationReason}
-                          onChange={(e) => setCancellationReason(e.target.value)}
-                          className="w-64"
-                          rows={2}
-                        />
-                        <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge className={getStatusColor(request.status)}>
+                      {request.status}
+                    </Badge>
+                    {request.status === 'pending' && (
+                      <>
+                        {cancellingId === request.id ? (
+                          <div className="space-y-2">
+                            <Textarea
+                              placeholder="Reason for cancellation"
+                              value={cancellationReason}
+                              onChange={(e) => setCancellationReason(e.target.value)}
+                              className="w-64"
+                              rows={2}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => cancelAmbulance(request.id)}
+                              >
+                                Confirm
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setCancellingId(null);
+                                  setCancellationReason('');
+                                }}
+                              >
+                                Keep
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleCancelRequest(request.id)}
+                            onClick={() => setCancellingId(request.id)}
                           >
-                            Confirm
+                            <X className="w-4 h-4 mr-2" />
+                            Cancel
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setCancellingId(null);
-                              setCancellationReason('');
-                            }}
-                          >
-                            Keep
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      request.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setCancellingId(request.id)}
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Cancel
-                        </Button>
-                      )
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
