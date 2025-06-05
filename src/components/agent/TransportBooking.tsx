@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface TransportBookingProps {
   patientId?: string;
+  patientName?: string;
 }
 
-export const TransportBooking: React.FC<TransportBookingProps> = ({ patientId }) => {
+export const TransportBooking: React.FC<TransportBookingProps> = ({ patientId, patientName }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
