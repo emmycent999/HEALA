@@ -14,16 +14,19 @@ const Register = () => {
       // Redirect based on role
       switch (profile.role) {
         case 'patient':
-          navigate('/patient-dashboard');
+          navigate('/patient');
           break;
         case 'physician':
-          navigate('/physician-dashboard');
+          navigate('/physician');
           break;
         case 'hospital_admin':
-          navigate('/hospital-dashboard');
+          navigate('/hospital');
           break;
         case 'agent':
-          navigate('/agent-dashboard');
+          navigate('/agent');
+          break;
+        case 'admin':
+          navigate('/admin');
           break;
         default:
           navigate('/');

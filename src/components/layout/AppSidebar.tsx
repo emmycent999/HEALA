@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -63,6 +64,7 @@ const adminMenuItems = [
 
 export const AppSidebar: React.FC = () => {
   const { user, profile } = useAuth();
+  const location = useLocation();
 
   const getMenuItems = () => {
     if (!profile) return [];
@@ -100,11 +102,11 @@ export const AppSidebar: React.FC = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                  <SidebarMenuButton asChild isActive={location.search === item.url.split('?')[1]}>
+                    <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
