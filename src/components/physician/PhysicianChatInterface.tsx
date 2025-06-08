@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -208,7 +207,10 @@ export const PhysicianChatInterface: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-2">
-                  <PatientPhysicianChat conversationId={selectedConversation || undefined} />
+                  <PatientPhysicianChat 
+                    conversationId={selectedConversation || undefined} 
+                    onBack={() => setSelectedConversation(null)}
+                  />
                 </div>
               </div>
             </TabsContent>

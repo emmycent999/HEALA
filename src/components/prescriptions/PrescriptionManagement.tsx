@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,28 @@ export const PrescriptionManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPrescriptions(data || []);
+      
+      // Validate data structure
+      const validPrescriptions = (data || []).filter((item: any) => 
+        item && typeof item === 'object' && 'id' in item
+      ).map((item: any) => ({
+        id: item.id,
+        patient_id: item.patient_id,
+        physician_id: item.physician_id,
+        appointment_id: item.appointment_id,
+        prescription_data: item.prescription_data || {},
+        status: item.status || 'pending',
+        pharmacy_id: item.pharmacy_id,
+        dispensed_at: item.dispensed_at,
+        repeat_allowed: Boolean(item.repeat_allowed),
+        repeat_count: item.repeat_count || 0,
+        max_repeats: item.max_repeats || 0,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        pharmacy: item.pharmacy
+      }));
+      
+      setPrescriptions(validPrescriptions as Prescription[]);
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
       toast({

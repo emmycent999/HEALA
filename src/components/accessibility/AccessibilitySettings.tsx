@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,7 +54,7 @@ export const AccessibilitySettings: React.FC = () => {
         throw error;
       }
 
-      if (data && typeof data === 'object' && 'language' in data) {
+      if (data && typeof data === 'object' && data !== null && 'language' in data) {
         setPreferences({
           language: data.language || 'en',
           font_size: data.font_size || 'medium',

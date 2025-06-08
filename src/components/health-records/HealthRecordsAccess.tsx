@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,7 +63,27 @@ export const HealthRecordsAccess: React.FC = () => {
         .order('recorded_date', { ascending: false });
 
       if (error) throw error;
-      setRecords(data || []);
+      
+      // Validate data structure
+      const validRecords = (data || []).filter((item: any) => 
+        item && typeof item === 'object' && 
+        'id' in item && 'title' in item && 'record_type' in item
+      ).map((item: any) => ({
+        id: item.id,
+        patient_id: item.patient_id,
+        record_type: item.record_type,
+        title: item.title,
+        description: item.description,
+        record_data: item.record_data,
+        document_url: item.document_url,
+        recorded_by: item.recorded_by,
+        recorded_date: item.recorded_date,
+        is_sensitive: Boolean(item.is_sensitive),
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
+      
+      setRecords(validRecords as HealthRecord[]);
     } catch (error) {
       console.error('Error fetching health records:', error);
       toast({

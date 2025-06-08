@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,17 @@ export const EmergencyContacts: React.FC = () => {
       const validContacts = (data || []).filter((item: any) => 
         item && typeof item === 'object' && 
         'id' in item && 'name' in item && 'relationship' in item && 'phone' in item
-      );
+      ).map((item: any) => ({
+        id: item.id,
+        patient_id: item.patient_id,
+        name: item.name,
+        relationship: item.relationship,
+        phone: item.phone,
+        email: item.email,
+        is_primary: Boolean(item.is_primary),
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }));
       
       setContacts(validContacts as EmergencyContact[]);
     } catch (error) {

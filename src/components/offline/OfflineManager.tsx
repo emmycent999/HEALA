@@ -1,11 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Wifi, WifiOff, Download, Trash2, HardDrive } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { WifiOff, Wifi, Download, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,19 +12,16 @@ interface CacheData {
   data_type: string;
   cache_key: string;
   cached_data: any;
-  expires_at: string;
-  created_at: string;
+  last_updated: string;
+  user_id: string;
 }
 
 export const OfflineManager: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [offlineEnabled, setOfflineEnabled] = useState(true);
-  const [cacheData, setCacheData] = useState<CacheData[]>([]);
-  const [storageUsed, setStorageUsed] = useState(0);
-  const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [cachedData, setCachedData] = useState<CacheData[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -36,140 +30,116 @@ export const OfflineManager: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    if (user) {
-      fetchCacheData();
-      calculateStorageUsed();
-    }
+    fetchCachedData();
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [user]);
+  }, []);
 
-  const fetchCacheData = async () => {
+  const fetchCachedData = async () => {
     try {
       const { data, error } = await supabase
         .from('offline_cache' as any)
         .select('*')
         .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        .order('last_updated', { ascending: false });
 
       if (error) throw error;
-      setCacheData(data || []);
+      
+      // Validate data structure
+      const validCacheData = (data || []).filter((item: any) => 
+        item && typeof item === 'object' && 'id' in item
+      ).map((item: any) => ({
+        id: item.id,
+        data_type: item.data_type,
+        cache_key: item.cache_key,
+        cached_data: item.cached_data,
+        last_updated: item.last_updated,
+        user_id: item.user_id
+      }));
+      
+      setCachedData(validCacheData as CacheData[]);
     } catch (error) {
-      console.error('Error fetching cache data:', error);
+      console.error('Error fetching cached data:', error);
+    }
+  };
+
+  const cacheEssentialData = async () => {
+    setLoading(true);
+    try {
+      // Cache recent appointments
+      const { data: appointments } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', user?.id)
+        .gte('appointment_date', new Date().toISOString().split('T')[0])
+        .limit(10);
+
+      if (appointments) {
+        await supabase
+          .from('offline_cache' as any)
+          .upsert({
+            user_id: user?.id,
+            data_type: 'appointments',
+            cache_key: 'recent_appointments',
+            cached_data: appointments,
+            last_updated: new Date().toISOString()
+          });
+      }
+
+      // Cache emergency contacts
+      const { data: contacts } = await supabase
+        .from('emergency_contacts' as any)
+        .select('*')
+        .eq('patient_id', user?.id);
+
+      if (contacts) {
+        await supabase
+          .from('offline_cache' as any)
+          .upsert({
+            user_id: user?.id,
+            data_type: 'emergency_contacts',
+            cache_key: 'emergency_contacts',
+            cached_data: contacts,
+            last_updated: new Date().toISOString()
+          });
+      }
+
+      toast({
+        title: "Data Cached",
+        description: "Essential data has been cached for offline access."
+      });
+
+      fetchCachedData();
+    } catch (error) {
+      console.error('Error caching data:', error);
+      toast({
+        title: "Cache Error",
+        description: "Failed to cache data for offline access.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStorageUsed = () => {
-    // Simulate storage calculation
-    const used = Math.floor(Math.random() * 50) + 10; // 10-60 MB
-    setStorageUsed(used);
-  };
-
-  const downloadForOfflineAccess = async () => {
-    setDownloading(true);
+  const clearCache = async () => {
     try {
-      // Download essential data for offline access
-      const dataTypes = ['appointments', 'prescriptions', 'emergency_contacts', 'health_records'];
-      
-      for (const dataType of dataTypes) {
-        let data = [];
-        
-        switch (dataType) {
-          case 'appointments':
-            const { data: appointments } = await supabase
-              .from('appointments')
-              .select('*')
-              .eq('patient_id', user?.id)
-              .gte('appointment_date', new Date().toISOString().split('T')[0]);
-            data = appointments || [];
-            break;
-            
-          case 'prescriptions':
-            const { data: prescriptions } = await supabase
-              .from('prescriptions' as any)
-              .select('*')
-              .eq('patient_id', user?.id)
-              .in('status', ['pending', 'approved', 'dispensed']);
-            data = prescriptions || [];
-            break;
-            
-          case 'emergency_contacts':
-            const { data: contacts } = await supabase
-              .from('emergency_contacts' as any)
-              .select('*')
-              .eq('patient_id', user?.id);
-            data = contacts || [];
-            break;
-            
-          case 'health_records':
-            const { data: records } = await supabase
-              .from('health_records' as any)
-              .select('*')
-              .eq('patient_id', user?.id)
-              .limit(50);
-            data = records || [];
-            break;
-        }
-
-        // Cache the data
-        await supabase
-          .from('offline_cache' as any)
-          .upsert({
-            user_id: user?.id,
-            data_type: dataType,
-            cache_key: `${dataType}_${user?.id}`,
-            cached_data: data,
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-          });
-      }
-
-      toast({
-        title: "Download Complete",
-        description: "Essential data has been cached for offline access."
-      });
-
-      fetchCacheData();
-      calculateStorageUsed();
-    } catch (error) {
-      console.error('Error downloading offline data:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to cache data for offline access.",
-        variant: "destructive"
-      });
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const clearCache = async (dataType?: string) => {
-    try {
-      let query = supabase
+      const { error } = await supabase
         .from('offline_cache' as any)
         .delete()
         .eq('user_id', user?.id);
 
-      if (dataType) {
-        query = query.eq('data_type', dataType);
-      }
-
-      const { error } = await query;
       if (error) throw error;
 
       toast({
         title: "Cache Cleared",
-        description: dataType 
-          ? `${dataType} cache cleared successfully.`
-          : "All cached data cleared successfully."
+        description: "All cached data has been removed."
       });
 
-      fetchCacheData();
-      calculateStorageUsed();
+      setCachedData([]);
     } catch (error) {
       console.error('Error clearing cache:', error);
       toast({
@@ -180,145 +150,63 @@ export const OfflineManager: React.FC = () => {
     }
   };
 
-  const getDataTypeLabel = (dataType: string) => {
-    const labels: { [key: string]: string } = {
-      appointments: 'Appointments',
-      prescriptions: 'Prescriptions',
-      emergency_contacts: 'Emergency Contacts',
-      health_records: 'Health Records'
-    };
-    return labels[dataType] || dataType;
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="text-center">Loading offline settings...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
             {isOnline ? <Wifi className="w-5 h-5" /> : <WifiOff className="w-5 h-5" />}
             Offline Access
           </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="offline-enabled">Enable Offline Access</Label>
-              <p className="text-sm text-gray-600">
-                Download essential data for offline viewing
-              </p>
-            </div>
-            <Switch
-              id="offline-enabled"
-              checked={offlineEnabled}
-              onCheckedChange={setOfflineEnabled}
-            />
+          <Badge variant={isOnline ? "default" : "destructive"}>
+            {isOnline ? "Online" : "Offline"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Button
+            onClick={cacheEssentialData}
+            disabled={loading || !isOnline}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {loading ? 'Caching...' : 'Cache Essential Data'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={clearCache}
+            disabled={cachedData.length === 0}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear Cache
+          </Button>
+        </div>
+
+        {cachedData.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="font-semibold">Cached Data</h4>
+            {cachedData.map((cache) => (
+              <div key={cache.id} className="flex justify-between items-center p-2 border rounded">
+                <div>
+                  <span className="font-medium">{cache.data_type}</span>
+                  <p className="text-sm text-gray-600">
+                    Last updated: {new Date(cache.last_updated).toLocaleString()}
+                  </p>
+                </div>
+                <Badge variant="outline">{cache.cache_key}</Badge>
+              </div>
+            ))}
           </div>
+        )}
 
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Connection Status</span>
-              <div className="flex items-center gap-2">
-                {isOnline ? (
-                  <>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-green-600">Online</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <span className="text-sm text-red-600">Offline</span>
-                  </>
-                )}
-              </div>
-            </div>
+        {!isOnline && cachedData.length === 0 && (
+          <div className="text-center text-gray-500 py-4">
+            No cached data available for offline access
           </div>
-
-          {offlineEnabled && (
-            <>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold">Download Data</h3>
-                    <p className="text-sm text-gray-600">
-                      Download your latest data for offline access
-                    </p>
-                  </div>
-                  <Button
-                    onClick={downloadForOfflineAccess}
-                    disabled={downloading}
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    {downloading ? 'Downloading...' : 'Download'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="w-5 h-5" />
-                    <h3 className="text-lg font-semibold">Storage Usage</h3>
-                  </div>
-                  <span className="text-sm text-gray-600">{storageUsed} MB used</span>
-                </div>
-                <Progress value={(storageUsed / 100) * 100} className="w-full" />
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Cached Data</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => clearCache()}
-                    className="flex items-center gap-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Clear All
-                  </Button>
-                </div>
-
-                {cacheData.length === 0 ? (
-                  <div className="text-center text-gray-500 py-4">
-                    No cached data available
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {cacheData.map((cache) => (
-                      <div key={cache.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <h4 className="font-medium">{getDataTypeLabel(cache.data_type)}</h4>
-                          <p className="text-sm text-gray-600">
-                            Cached: {new Date(cache.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => clearCache(cache.data_type)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };

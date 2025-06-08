@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,22 @@ export const SymptomChecker: React.FC = () => {
         .eq('is_active', true);
 
       if (error) throw error;
-      setSymptomRules(data || []);
+      
+      // Validate data structure
+      const validRules = (data || []).filter((item: any) => 
+        item && typeof item === 'object' && 'id' in item
+      ).map((item: any) => ({
+        id: item.id,
+        symptom_name: item.symptom_name,
+        keywords: Array.isArray(item.keywords) ? item.keywords : [],
+        severity: item.severity || 'medium',
+        advice: item.advice || '',
+        recommended_action: item.recommended_action || '',
+        specialist_required: item.specialist_required,
+        is_active: Boolean(item.is_active)
+      }));
+      
+      setSymptomRules(validRules as SymptomRule[]);
     } catch (error) {
       console.error('Error fetching symptom rules:', error);
     }
