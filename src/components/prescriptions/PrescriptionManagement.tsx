@@ -10,13 +10,18 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Prescription {
   id: string;
+  patient_id: string;
+  physician_id: string;
+  appointment_id?: string;
   prescription_data: any;
   status: 'pending' | 'approved' | 'dispensed' | 'completed' | 'cancelled';
   pharmacy_id?: string;
+  dispensed_at?: string;
   repeat_allowed: boolean;
   repeat_count: number;
   max_repeats: number;
   created_at: string;
+  updated_at: string;
   pharmacy?: {
     name: string;
     address: string;
@@ -39,7 +44,7 @@ export const PrescriptionManagement: React.FC = () => {
   const fetchPrescriptions = async () => {
     try {
       const { data, error } = await supabase
-        .from('prescriptions')
+        .from('prescriptions' as any)
         .select(`
           *,
           pharmacy:healthcare_providers(name, address, phone)
@@ -76,7 +81,7 @@ export const PrescriptionManagement: React.FC = () => {
       }
 
       const { error } = await supabase
-        .from('prescriptions')
+        .from('prescriptions' as any)
         .update({
           repeat_count: prescription.repeat_count + 1,
           status: 'pending'

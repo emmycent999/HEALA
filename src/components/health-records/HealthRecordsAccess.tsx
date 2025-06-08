@@ -3,31 +3,47 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Shield, Calendar, User } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FileText, Search, Calendar, Download, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface HealthRecord {
   id: string;
-  record_type: 'test_result' | 'diagnosis' | 'prescription' | 'vaccination' | 'allergy' | 'procedure';
+  patient_id: string;
+  record_type: string;
   title: string;
   description?: string;
   record_data?: any;
   document_url?: string;
+  recorded_by?: string;
   recorded_date: string;
   is_sensitive: boolean;
-  recorded_by?: string;
   created_at: string;
+  updated_at: string;
 }
 
 export const HealthRecordsAccess: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [records, setRecords] = useState<HealthRecord[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedType, setSelectedType] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+
+  const recordTypes = [
+    { value: 'all', label: 'All Records' },
+    { value: 'test_result', label: 'Test Results' },
+    { value: 'diagnosis', label: 'Diagnoses' },
+    { value: 'prescription', label: 'Prescriptions' },
+    { value: 'vaccination', label: 'Vaccinations' },
+    { value: 'allergy', label: 'Allergies' },
+    { value: 'procedure', label: 'Procedures' }
+  ];
 
   useEffect(() => {
     if (user) {
@@ -35,10 +51,14 @@ export const HealthRecordsAccess: React.FC = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    filterRecords();
+  }, [records, searchTerm, typeFilter, dateFilter]);
+
   const fetchHealthRecords = async () => {
     try {
       const { data, error } = await supabase
-        .from('health_records')
+        .from('health_records' as any)
         .select('*')
         .eq('patient_id', user?.id)
         .order('recorded_date', { ascending: false });
@@ -57,6 +77,49 @@ export const HealthRecordsAccess: React.FC = () => {
     }
   };
 
+  const filterRecords = () => {
+    let filtered = records;
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(record =>
+        record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(record => record.record_type === typeFilter);
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const filterDate = new Date();
+      
+      switch (dateFilter) {
+        case 'last_week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'last_month':
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case 'last_year':
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+      
+      if (dateFilter !== 'all') {
+        filtered = filtered.filter(record => 
+          new Date(record.recorded_date) >= filterDate
+        );
+      }
+    }
+
+    setFilteredRecords(filtered);
+  };
+
   const getRecordTypeColor = (type: string) => {
     switch (type) {
       case 'test_result': return 'bg-blue-100 text-blue-800';
@@ -64,24 +127,31 @@ export const HealthRecordsAccess: React.FC = () => {
       case 'prescription': return 'bg-green-100 text-green-800';
       case 'vaccination': return 'bg-purple-100 text-purple-800';
       case 'allergy': return 'bg-orange-100 text-orange-800';
-      case 'procedure': return 'bg-indigo-100 text-indigo-800';
+      case 'procedure': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const filteredRecords = selectedType === 'all' 
-    ? records 
-    : records.filter(record => record.record_type === selectedType);
+  const viewRecord = (record: HealthRecord) => {
+    // Implementation for viewing record details
+    toast({
+      title: "Record Details",
+      description: `Viewing ${record.title}`,
+    });
+  };
 
-  const recordTypes = [
-    { value: 'all', label: 'All Records' },
-    { value: 'test_result', label: 'Test Results' },
-    { value: 'diagnosis', label: 'Diagnoses' },
-    { value: 'prescription', label: 'Prescriptions' },
-    { value: 'vaccination', label: 'Vaccinations' },
-    { value: 'allergy', label: 'Allergies' },
-    { value: 'procedure', label: 'Procedures' }
-  ];
+  const downloadRecord = (record: HealthRecord) => {
+    if (record.document_url) {
+      // Implementation for downloading record
+      window.open(record.document_url, '_blank');
+    } else {
+      toast({
+        title: "No Document",
+        description: "This record doesn't have a downloadable document.",
+        variant: "destructive"
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -94,92 +164,108 @@ export const HealthRecordsAccess: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Health Records
-            <Shield className="w-4 h-4 text-green-600" />
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={selectedType} onValueChange={setSelectedType}>
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
-              {recordTypes.map((type) => (
-                <TabsTrigger key={type.value} value={type.value} className="text-xs">
-                  {type.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <div className="space-y-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Search records..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {recordTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <div className="mt-6">
-              {filteredRecords.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
-                  {selectedType === 'all' 
-                    ? 'No health records found'
-                    : `No ${recordTypes.find(t => t.value === selectedType)?.label.toLowerCase()} found`
-                  }
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredRecords.map((record) => (
-                    <div key={record.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{record.title}</h4>
-                            {record.is_sensitive && (
-                              <Shield className="w-4 h-4 text-red-500" />
-                            )}
-                          </div>
-                          <Badge className={getRecordTypeColor(record.record_type)}>
-                            {record.record_type.replace('_', ' ').toUpperCase()}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(record.recorded_date).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="last_week">Last Week</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-                      {record.description && (
-                        <p className="text-gray-600 mb-3">{record.description}</p>
-                      )}
-
-                      {record.record_data && (
-                        <div className="bg-gray-50 rounded p-3 mb-3">
-                          <pre className="text-sm whitespace-pre-wrap">
-                            {JSON.stringify(record.record_data, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-500">
-                          {record.recorded_by && (
-                            <div className="flex items-center gap-1">
-                              <User className="w-4 h-4" />
-                              Recorded by healthcare provider
-                            </div>
-                          )}
-                        </div>
-                        
-                        {record.document_url && (
-                          <Button size="sm" variant="outline">
-                            <Download className="w-4 h-4 mr-1" />
-                            Download
-                          </Button>
+          {filteredRecords.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              {records.length === 0 
+                ? "No health records found" 
+                : "No records match your search criteria"
+              }
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredRecords.map((record) => (
+                <div key={record.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-semibold">{record.title}</h4>
+                        <Badge className={getRecordTypeColor(record.record_type)}>
+                          {record.record_type.replace('_', ' ')}
+                        </Badge>
+                        {record.is_sensitive && (
+                          <Badge variant="destructive">Sensitive</Badge>
                         )}
                       </div>
+                      {record.description && (
+                        <p className="text-gray-600 mb-2">{record.description}</p>
+                      )}
+                      <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(record.recorded_date).toLocaleDateString()}
+                      </div>
                     </div>
-                  ))}
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => viewRecord(record)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      {record.document_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadRecord(record)}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-          </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

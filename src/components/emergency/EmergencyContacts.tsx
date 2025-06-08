@@ -13,11 +13,14 @@ import { useToast } from '@/hooks/use-toast';
 
 interface EmergencyContact {
   id: string;
+  patient_id: string;
   name: string;
   relationship: string;
   phone: string;
   email?: string;
   is_primary: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const EmergencyContacts: React.FC = () => {
@@ -44,7 +47,7 @@ export const EmergencyContacts: React.FC = () => {
   const fetchEmergencyContacts = async () => {
     try {
       const { data, error } = await supabase
-        .from('emergency_contacts')
+        .from('emergency_contacts' as any)
         .select('*')
         .eq('patient_id', user?.id)
         .order('is_primary', { ascending: false });
@@ -76,14 +79,14 @@ export const EmergencyContacts: React.FC = () => {
 
       if (editingContact) {
         const { error } = await supabase
-          .from('emergency_contacts')
+          .from('emergency_contacts' as any)
           .update(contactData)
           .eq('id', editingContact.id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('emergency_contacts')
+          .from('emergency_contacts' as any)
           .insert(contactData);
 
         if (error) throw error;
@@ -117,7 +120,7 @@ export const EmergencyContacts: React.FC = () => {
   const deleteContact = async (contactId: string) => {
     try {
       const { error } = await supabase
-        .from('emergency_contacts')
+        .from('emergency_contacts' as any)
         .delete()
         .eq('id', contactId);
 

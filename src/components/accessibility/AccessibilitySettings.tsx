@@ -5,19 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { Settings, Eye, Volume2, Type, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserPreferences {
+  id?: string;
+  user_id?: string;
   language: string;
   font_size: 'small' | 'medium' | 'large' | 'extra_large';
   high_contrast: boolean;
   text_to_speech: boolean;
   biometric_login_enabled: boolean;
   notification_preferences: any;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const AccessibilitySettings: React.FC = () => {
@@ -43,7 +46,7 @@ export const AccessibilitySettings: React.FC = () => {
   const fetchUserPreferences = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_preferences')
+        .from('user_preferences' as any)
         .select('*')
         .eq('user_id', user?.id)
         .single();
@@ -73,7 +76,7 @@ export const AccessibilitySettings: React.FC = () => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('user_preferences')
+        .from('user_preferences' as any)
         .upsert({
           user_id: user?.id,
           ...preferences,
