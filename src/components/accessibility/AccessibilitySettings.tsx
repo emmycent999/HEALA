@@ -55,7 +55,7 @@ export const AccessibilitySettings: React.FC = () => {
         throw error;
       }
 
-      if (data) {
+      if (data && typeof data === 'object' && 'language' in data) {
         setPreferences({
           language: data.language || 'en',
           font_size: data.font_size || 'medium',

@@ -53,7 +53,14 @@ export const EmergencyContacts: React.FC = () => {
         .order('is_primary', { ascending: false });
 
       if (error) throw error;
-      setContacts(data || []);
+      
+      // Validate and filter data to ensure it matches our interface
+      const validContacts = (data || []).filter((item: any) => 
+        item && typeof item === 'object' && 
+        'id' in item && 'name' in item && 'relationship' in item && 'phone' in item
+      );
+      
+      setContacts(validContacts as EmergencyContact[]);
     } catch (error) {
       console.error('Error fetching emergency contacts:', error);
       toast({

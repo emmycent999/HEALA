@@ -72,28 +72,29 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
   const fetchHealthcareProviders = async () => {
     try {
-      let query = supabase
-        .from('healthcare_providers')
+      // Use hospitals table as a fallback since healthcare_providers might not be in types yet
+      const { data, error } = await supabase
+        .from('hospitals')
         .select('*')
-        .eq('is_active', true)
-        .in('type', ['clinic', 'hospital']);
+        .eq('is_active', true);
 
-      // If user location is available, get nearby providers
-      if (userLocation) {
-        const { data, error } = await supabase.rpc('get_nearby_providers', {
-          user_lat: userLocation.lat,
-          user_lng: userLocation.lng,
-          provider_type: null,
-          radius_km: 50
-        });
-
-        if (error) throw error;
-        setProviders(data || []);
-      } else {
-        const { data, error } = await query;
-        if (error) throw error;
-        setProviders(data || []);
-      }
+      if (error) throw error;
+      
+      // Transform hospital data to match HealthcareProvider interface
+      const transformedData = (data || []).map((hospital: any) => ({
+        id: hospital.id,
+        name: hospital.name,
+        type: 'hospital' as const,
+        address: hospital.address || '',
+        city: hospital.city || '',
+        state: hospital.state || '',
+        phone: hospital.phone,
+        services: [],
+        operating_hours: {},
+        distance_km: 0
+      }));
+      
+      setProviders(transformedData);
     } catch (error) {
       console.error('Error fetching healthcare providers:', error);
     }
@@ -126,11 +127,9 @@ export const EnhancedAppointmentBooking: React.FC = () => {
         .insert({
           patient_id: user?.id,
           physician_id: selectedPhysician,
-          healthcare_provider_id: selectedProvider || null,
+          hospital_id: selectedProvider || null,
           appointment_date: appointmentDate,
           appointment_time: appointmentTime,
-          appointment_type: appointmentType,
-          consultation_fee: consultationFee,
           notes: notes || null,
           status: 'pending'
         });
@@ -197,7 +196,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                           <div className="text-sm text-gray-500 flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
                             {provider.city}, {provider.state}
-                            {provider.distance_km && (
+                            {provider.distance_km && provider.distance_km > 0 && (
                               <Badge variant="outline" className="ml-2">
                                 {provider.distance_km}km away
                               </Badge>

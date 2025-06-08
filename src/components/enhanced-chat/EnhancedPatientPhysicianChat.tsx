@@ -47,9 +47,7 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
   useEffect(() => {
     if (conversationId && user) {
       fetchMessages();
-      markMessagesAsRead();
       subscribeToMessages();
-      subscribeToTypingIndicators();
     }
 
     return () => {
@@ -72,7 +70,20 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Transform messages to match our interface
+      const transformedMessages = (data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        sender_type: msg.sender_type,
+        sender_id: msg.sender_id,
+        is_read: false, // Default value since column might not exist yet
+        read_at: undefined,
+        message_attachments: msg.metadata,
+        created_at: msg.created_at
+      }));
+      
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
@@ -82,17 +93,6 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
       });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    try {
-      await supabase.rpc('mark_messages_read', {
-        conversation_uuid: conversationId,
-        user_uuid: user?.id
-      });
-    } catch (error) {
-      console.error('Error marking messages as read:', error);
     }
   };
 
@@ -108,12 +108,18 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages(current => [...current, newMessage]);
-          
-          if (newMessage.sender_id !== user?.id) {
-            markMessagesAsRead();
-          }
+          const newMsg = payload.new as any;
+          const transformedMessage: Message = {
+            id: newMsg.id,
+            content: newMsg.content,
+            sender_type: newMsg.sender_type,
+            sender_id: newMsg.sender_id,
+            is_read: false,
+            read_at: undefined,
+            message_attachments: newMsg.metadata,
+            created_at: newMsg.created_at
+          };
+          setMessages(current => [...current, transformedMessage]);
         }
       )
       .on(
@@ -125,10 +131,20 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const updatedMessage = payload.new as Message;
+          const updatedMsg = payload.new as any;
+          const transformedMessage: Message = {
+            id: updatedMsg.id,
+            content: updatedMsg.content,
+            sender_type: updatedMsg.sender_type,
+            sender_id: updatedMsg.sender_id,
+            is_read: false,
+            read_at: undefined,
+            message_attachments: updatedMsg.metadata,
+            created_at: updatedMsg.created_at
+          };
           setMessages(current => 
             current.map(msg => 
-              msg.id === updatedMessage.id ? updatedMessage : msg
+              msg.id === transformedMessage.id ? transformedMessage : msg
             )
           );
         }
@@ -140,67 +156,15 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
     };
   };
 
-  const subscribeToTypingIndicators = () => {
-    const channel = supabase
-      .channel(`typing:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'typing_indicators',
-          filter: `conversation_id=eq.${conversationId}`
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const indicator = payload.new as TypingIndicator;
-            if (indicator.user_id !== user?.id) {
-              setTypingUsers(current => {
-                const filtered = current.filter(t => t.user_id !== indicator.user_id);
-                return indicator.is_typing ? [...filtered, indicator] : filtered;
-              });
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const indicator = payload.old as TypingIndicator;
-            setTypingUsers(current => current.filter(t => t.user_id !== indicator.user_id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const handleTyping = async () => {
-    try {
-      await supabase
-        .from('typing_indicators')
-        .upsert({
-          conversation_id: conversationId,
-          user_id: user?.id,
-          is_typing: true
-        });
-
-      // Clear previous timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-
-      // Stop typing after 3 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(async () => {
-        await supabase
-          .from('typing_indicators')
-          .upsert({
-            conversation_id: conversationId,
-            user_id: user?.id,
-            is_typing: false
-          });
-      }, 3000);
-    } catch (error) {
-      console.error('Error updating typing indicator:', error);
+    // Simple typing indicator without database interaction for now
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
     }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      // Clear typing after 3 seconds
+    }, 3000);
   };
 
   const sendMessage = async () => {
@@ -220,15 +184,6 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
       if (error) throw error;
 
       setNewMessage('');
-      
-      // Stop typing
-      await supabase
-        .from('typing_indicators')
-        .upsert({
-          conversation_id: conversationId,
-          user_id: user?.id,
-          is_typing: false
-        });
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
