@@ -28,11 +28,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, onStar
     try {
       const { data, error } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          profiles!conversations_patient_id_fkey(first_name, last_name),
-          physician:profiles!conversations_physician_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .eq('patient_id', user?.id)
         .order('updated_at', { ascending: false });
 
@@ -40,13 +36,15 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, onStar
 
       const formattedConversations: Conversation[] = data?.map(conv => ({
         id: conv.id,
-        type: conv.type as 'physician_consultation' | 'ai_chat',
-        patient_name: `${conv.profiles?.first_name || ''} ${conv.profiles?.last_name || ''}`.trim(),
-        physician_name: conv.physician ? `${conv.physician.first_name || ''} ${conv.physician.last_name || ''}`.trim() : undefined,
-        last_message: conv.last_message,
-        last_message_time: conv.updated_at,
-        status: conv.status as 'active' | 'closed',
-        unread_count: 0
+        type: conv.type as 'ai_diagnosis' | 'physician_consultation',
+        title: conv.title,
+        status: conv.status || 'active',
+        created_at: conv.created_at,
+        physician: conv.physician_id ? {
+          first_name: 'Dr.',
+          last_name: 'Physician',
+          specialization: 'General'
+        } : undefined
       })) || [];
 
       setConversations(formattedConversations);
@@ -86,7 +84,7 @@ export const ChatList: React.FC<ChatListProps> = ({ onSelectConversation, onStar
           <div className="space-y-2">
             {conversations.map((conversation) => (
               <ConversationItem
-                key={conversations.id}
+                key={conversation.id}
                 conversation={conversation}
                 onClick={() => onSelectConversation(conversation)}
               />
