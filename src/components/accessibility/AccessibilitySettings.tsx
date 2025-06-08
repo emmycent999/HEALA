@@ -56,13 +56,14 @@ export const AccessibilitySettings: React.FC = () => {
       }
 
       if (data && data !== null && typeof data === 'object' && 'language' in data) {
+        const validData = data as any;
         setPreferences({
-          language: data?.language || 'en',
-          font_size: data?.font_size || 'medium',
-          high_contrast: data?.high_contrast || false,
-          text_to_speech: data?.text_to_speech || false,
-          biometric_login_enabled: data?.biometric_login_enabled || false,
-          notification_preferences: data?.notification_preferences || {}
+          language: validData.language || 'en',
+          font_size: validData.font_size || 'medium',
+          high_contrast: validData.high_contrast || false,
+          text_to_speech: validData.text_to_speech || false,
+          biometric_login_enabled: validData.biometric_login_enabled || false,
+          notification_preferences: validData.notification_preferences || {}
         });
       }
     } catch (error) {
