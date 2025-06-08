@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
 import { AppointmentList } from '@/components/appointments/AppointmentList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
@@ -14,6 +13,15 @@ import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
 import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
+
+// Enhanced components
+import { EnhancedAppointmentBooking } from '@/components/enhanced-appointments/EnhancedAppointmentBooking';
+import { PrescriptionManagement } from '@/components/prescriptions/PrescriptionManagement';
+import { HealthRecordsAccess } from '@/components/health-records/HealthRecordsAccess';
+import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
+import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
+import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
+import { OfflineManager } from '@/components/offline/OfflineManager';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -31,7 +39,7 @@ const PatientDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-semibold mb-4 dark:text-white">Book New Appointment</h3>
-              <AppointmentBooking />
+              <EnhancedAppointmentBooking />
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4 dark:text-white">My Appointments</h3>
@@ -53,6 +61,60 @@ const PatientDashboard = () => {
               </p>
             </div>
             <UniversalBotpress />
+          </div>
+        );
+      case 'prescriptions':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Prescription Management
+            </h2>
+            <PrescriptionManagement />
+          </div>
+        );
+      case 'health-records':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Health Records
+            </h2>
+            <HealthRecordsAccess />
+          </div>
+        );
+      case 'symptom-checker':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Symptom Checker
+            </h2>
+            <SymptomChecker />
+          </div>
+        );
+      case 'emergency-contacts':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Emergency Contacts
+            </h2>
+            <EmergencyContacts />
+          </div>
+        );
+      case 'accessibility':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Accessibility Settings
+            </h2>
+            <AccessibilitySettings />
+          </div>
+        );
+      case 'offline':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Offline Access
+            </h2>
+            <OfflineManager />
           </div>
         );
       case 'physician':
