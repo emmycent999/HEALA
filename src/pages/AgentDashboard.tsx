@@ -4,7 +4,7 @@ import { DynamicOverview } from '@/components/agent/DynamicOverview';
 import { PatientLookup } from '@/components/agent/PatientLookup';
 import { AssistedPatients } from '@/components/agent/AssistedPatients';
 import { TransportBooking } from '@/components/agent/TransportBooking';
-import { AppointmentBooking } from '@/components/agent/AppointmentBooking';
+import { AppointmentBookingAgent } from '@/components/agent/AppointmentBooking';
 import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
@@ -43,9 +43,9 @@ const AgentDashboard = () => {
       case 'assisted-patients':
         return <AssistedPatients />;
       case 'transport-booking':
-        return <TransportBooking selectedPatient={selectedPatient} />;
+        return <TransportBooking patientId={selectedPatient?.id} patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : undefined} />;
       case 'appointment-booking':
-        return <AppointmentBooking selectedPatient={selectedPatient} />;
+        return <AppointmentBookingAgent />;
       case 'chat':
         return <AgentChatInterface selectedPatient={selectedPatient} />;
       default:

@@ -22,7 +22,7 @@ const PhysicianDashboard = () => {
       case 'overview':
         return <DynamicOverview />;
       case 'patients':
-        return <PatientList />;
+        return <PatientList patients={[]} onStartConversation={() => {}} />;
       case 'chat':
         return <PhysicianChatInterface />;
       case 'profile':

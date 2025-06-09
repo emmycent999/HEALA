@@ -11,6 +11,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+interface NotificationPreferences {
+  appointments: boolean;
+  prescriptions: boolean;
+  emergency_alerts: boolean;
+  health_reminders: boolean;
+}
+
 interface UserPreferences {
   id?: string;
   user_id: string;
@@ -19,12 +26,7 @@ interface UserPreferences {
   high_contrast: boolean;
   text_to_speech: boolean;
   biometric_login_enabled: boolean;
-  notification_preferences: {
-    appointments: boolean;
-    prescriptions: boolean;
-    emergency_alerts: boolean;
-    health_reminders: boolean;
-  };
+  notification_preferences: NotificationPreferences;
 }
 
 export const PatientSettings: React.FC = () => {
@@ -59,21 +61,25 @@ export const PatientSettings: React.FC = () => {
         .from('user_preferences')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
       if (data) {
+        const notificationPrefs = typeof data.notification_preferences === 'object' && data.notification_preferences !== null
+          ? data.notification_preferences as NotificationPreferences
+          : {
+              appointments: true,
+              prescriptions: true,
+              emergency_alerts: true,
+              health_reminders: true,
+            };
+
         setPreferences({
           ...data,
-          notification_preferences: data.notification_preferences || {
-            appointments: true,
-            prescriptions: true,
-            emergency_alerts: true,
-            health_reminders: true,
-          }
+          notification_preferences: notificationPrefs
         });
       }
     } catch (error) {
@@ -122,7 +128,7 @@ export const PatientSettings: React.FC = () => {
     }));
   };
 
-  const updateNotificationPreference = (key: string, value: boolean) => {
+  const updateNotificationPreference = (key: keyof NotificationPreferences, value: boolean) => {
     setPreferences(prev => ({
       ...prev,
       notification_preferences: {

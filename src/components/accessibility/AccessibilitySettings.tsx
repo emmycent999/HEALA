@@ -45,10 +45,10 @@ export const AccessibilitySettings: React.FC = () => {
   const fetchUserPreferences = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_preferences' as any)
+        .from('user_preferences')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         throw error;
@@ -75,7 +75,7 @@ export const AccessibilitySettings: React.FC = () => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('user_preferences' as any)
+        .from('user_preferences')
         .upsert({
           user_id: user?.id,
           ...preferences,

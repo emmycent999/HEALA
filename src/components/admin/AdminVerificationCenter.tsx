@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ interface Document {
   upload_date: string;
   verified_at?: string;
   verified_by?: string;
-  profiles?: {
+  user_profile?: {
     first_name: string;
     last_name: string;
     email: string;
@@ -38,7 +37,7 @@ interface VerificationRequest {
   reviewed_at?: string;
   reviewed_by?: string;
   notes?: string;
-  profiles?: {
+  user_profile?: {
     first_name: string;
     last_name: string;
     email: string;
@@ -65,14 +64,43 @@ export const AdminVerificationCenter: React.FC = () => {
       const { data, error } = await supabase
         .from('documents')
         .select(`
-          *,
-          profiles(first_name, last_name, email, role)
+          id,
+          user_id,
+          document_name,
+          document_type,
+          document_url,
+          verification_status,
+          upload_date,
+          verified_at,
+          verified_by
         `)
         .eq('verification_status', 'pending')
         .order('upload_date', { ascending: false });
 
       if (error) throw error;
-      setDocuments(data || []);
+
+      // Fetch user profiles separately
+      const documentsWithProfiles = await Promise.all(
+        (data || []).map(async (doc) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, role')
+            .eq('id', doc.user_id)
+            .single();
+
+          return {
+            ...doc,
+            user_profile: profile || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'unknown@example.com',
+              role: 'patient'
+            }
+          };
+        })
+      );
+
+      setDocuments(documentsWithProfiles);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
@@ -88,14 +116,42 @@ export const AdminVerificationCenter: React.FC = () => {
       const { data, error } = await supabase
         .from('verification_requests')
         .select(`
-          *,
-          profiles(first_name, last_name, email, role)
+          id,
+          user_id,
+          request_type,
+          status,
+          submitted_at,
+          reviewed_at,
+          reviewed_by,
+          notes
         `)
         .eq('status', 'pending')
         .order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      setVerificationRequests(data || []);
+
+      // Fetch user profiles separately
+      const requestsWithProfiles = await Promise.all(
+        (data || []).map(async (req) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, role')
+            .eq('id', req.user_id)
+            .single();
+
+          return {
+            ...req,
+            user_profile: profile || {
+              first_name: 'Unknown',
+              last_name: 'User',
+              email: 'unknown@example.com',
+              role: 'patient'
+            }
+          };
+        })
+      );
+
+      setVerificationRequests(requestsWithProfiles);
     } catch (error) {
       console.error('Error fetching verification requests:', error);
       toast({
@@ -225,7 +281,7 @@ export const AdminVerificationCenter: React.FC = () => {
                             Type: {doc.document_type}
                           </p>
                           <p className="text-sm text-gray-600 mb-1">
-                            Uploaded by: {doc.profiles?.first_name} {doc.profiles?.last_name} ({doc.profiles?.role})
+                            Uploaded by: {doc.user_profile?.first_name} {doc.user_profile?.last_name} ({doc.user_profile?.role})
                           </p>
                           <p className="text-sm text-gray-500">
                             <Clock className="w-4 h-4 inline mr-1" />
@@ -314,7 +370,7 @@ export const AdminVerificationCenter: React.FC = () => {
                         <div className="flex-1">
                           <h4 className="font-semibold">{request.request_type}</h4>
                           <p className="text-sm text-gray-600 mb-1">
-                            Requested by: {request.profiles?.first_name} {request.profiles?.last_name} ({request.profiles?.role})
+                            Requested by: {request.user_profile?.first_name} {request.user_profile?.last_name} ({request.user_profile?.role})
                           </p>
                           <p className="text-sm text-gray-500">
                             <Clock className="w-4 h-4 inline mr-1" />
