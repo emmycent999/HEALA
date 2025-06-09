@@ -67,20 +67,28 @@ export const PatientSettings: React.FC = () => {
       }
 
       if (data) {
-        const notificationPrefs = typeof data.notification_preferences === 'object' && 
-                                 data.notification_preferences !== null &&
-                                 !Array.isArray(data.notification_preferences)
-          ? data.notification_preferences as NotificationPreferences
-          : {
-              appointments: true,
-              prescriptions: true,
-              emergency_alerts: true,
-              health_reminders: true,
+        // Helper function to validate and convert notification preferences
+        const validateNotificationPreferences = (prefs: any): NotificationPreferences => {
+          if (typeof prefs === 'object' && prefs !== null && !Array.isArray(prefs)) {
+            return {
+              appointments: Boolean(prefs.appointments ?? true),
+              prescriptions: Boolean(prefs.prescriptions ?? true),
+              emergency_alerts: Boolean(prefs.emergency_alerts ?? true),
+              health_reminders: Boolean(prefs.health_reminders ?? true),
             };
+          }
+          // Return default values if data is invalid
+          return {
+            appointments: true,
+            prescriptions: true,
+            emergency_alerts: true,
+            health_reminders: true,
+          };
+        };
 
         setPreferences({
           ...data,
-          notification_preferences: notificationPrefs
+          notification_preferences: validateNotificationPreferences(data.notification_preferences)
         });
       }
     } catch (error) {
