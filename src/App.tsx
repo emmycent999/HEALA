@@ -34,7 +34,49 @@ const App = () => (
               <Route path="/auth/register" element={<Register />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes with correct URLs */}
+              <Route 
+                path="/patient-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['patient']}>
+                    <PatientDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/physician-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['physician']}>
+                    <PhysicianDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/hospital-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['hospital_admin']}>
+                    <HospitalDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/agent-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['agent']}>
+                    <AgentDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Updated aliases for the new protected routes */}
               <Route 
                 path="/patient" 
                 element={
@@ -75,13 +117,6 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              
-              {/* Legacy routes for backward compatibility */}
-              <Route path="/patient-dashboard" element={<PatientDashboard />} />
-              <Route path="/physician-dashboard" element={<PhysicianDashboard />} />
-              <Route path="/hospital-dashboard" element={<HospitalDashboard />} />
-              <Route path="/agent-dashboard" element={<AgentDashboard />} />
-              <Route path="/admin-dashboard" element={<AdminDashboard />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

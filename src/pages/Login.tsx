@@ -6,33 +6,45 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Login = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && profile) {
-      // Redirect based on role
+    if (!loading && user && profile) {
+      // Redirect based on role to the correct dashboard routes
       switch (profile.role) {
         case 'patient':
-          navigate('/patient');
+          navigate('/patient-dashboard');
           break;
         case 'physician':
-          navigate('/physician');
+          navigate('/physician-dashboard');
           break;
         case 'hospital_admin':
-          navigate('/hospital');
+          navigate('/hospital-dashboard');
           break;
         case 'agent':
-          navigate('/agent');
+          navigate('/agent-dashboard');
           break;
         case 'admin':
-          navigate('/admin');
+          navigate('/admin-dashboard');
           break;
         default:
           navigate('/');
       }
     }
-  }, [user, profile, navigate]);
+  }, [user, profile, loading, navigate]);
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthLayout
