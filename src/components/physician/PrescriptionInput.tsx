@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,7 @@ interface Medication {
   frequency: string;
   duration: string;
   instructions: string;
+  [key: string]: string; // Index signature for Json compatibility
 }
 
 export const PrescriptionInput: React.FC<PrescriptionInputProps> = ({
@@ -71,8 +71,9 @@ export const PrescriptionInput: React.FC<PrescriptionInputProps> = ({
 
     setLoading(true);
     try {
+      // Convert prescription data to Json-compatible format
       const prescriptionData = {
-        medications,
+        medications: medications as any[], // Type assertion for Json compatibility
         total_medications: medications.length,
         prescribed_date: new Date().toISOString()
       };
