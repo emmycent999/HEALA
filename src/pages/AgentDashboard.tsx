@@ -47,7 +47,7 @@ const AgentDashboard = () => {
       case 'appointment-booking':
         return <AppointmentBookingAgent />;
       case 'chat':
-        return <AgentChatInterface selectedPatient={selectedPatient} />;
+        return <AgentChatInterface />;
       default:
         return <DynamicOverview />;
     }

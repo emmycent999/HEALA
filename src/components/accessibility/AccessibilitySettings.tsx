@@ -57,7 +57,7 @@ export const AccessibilitySettings: React.FC = () => {
       if (data) {
         setPreferences({
           language: data.language || 'en',
-          font_size: data.font_size || 'medium',
+          font_size: (data.font_size as 'small' | 'medium' | 'large' | 'extra_large') || 'medium',
           high_contrast: data.high_contrast || false,
           text_to_speech: data.text_to_speech || false,
           biometric_login_enabled: data.biometric_login_enabled || false,
@@ -203,7 +203,7 @@ export const AccessibilitySettings: React.FC = () => {
               <Label htmlFor="font-size">Font Size</Label>
               <Select 
                 value={preferences.font_size} 
-                onValueChange={(value: any) => setPreferences(prev => ({...prev, font_size: value}))}
+                onValueChange={(value: 'small' | 'medium' | 'large' | 'extra_large') => setPreferences(prev => ({...prev, font_size: value}))}
               >
                 <SelectTrigger>
                   <SelectValue />

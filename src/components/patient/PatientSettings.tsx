@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +67,9 @@ export const PatientSettings: React.FC = () => {
       }
 
       if (data) {
-        const notificationPrefs = typeof data.notification_preferences === 'object' && data.notification_preferences !== null
+        const notificationPrefs = typeof data.notification_preferences === 'object' && 
+                                 data.notification_preferences !== null &&
+                                 !Array.isArray(data.notification_preferences)
           ? data.notification_preferences as NotificationPreferences
           : {
               appointments: true,
@@ -99,7 +100,16 @@ export const PatientSettings: React.FC = () => {
     try {
       const { error } = await supabase
         .from('user_preferences')
-        .upsert(preferences, {
+        .upsert({
+          user_id: preferences.user_id,
+          language: preferences.language,
+          font_size: preferences.font_size,
+          high_contrast: preferences.high_contrast,
+          text_to_speech: preferences.text_to_speech,
+          biometric_login_enabled: preferences.biometric_login_enabled,
+          notification_preferences: preferences.notification_preferences as any,
+          updated_at: new Date().toISOString()
+        }, {
           onConflict: 'user_id'
         });
 
