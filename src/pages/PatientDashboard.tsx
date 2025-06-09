@@ -8,7 +8,7 @@ import { ProfileEditor } from '@/components/patient/ProfileEditor';
 import { PatientProfile } from '@/components/patient/PatientProfile';
 import { TransportManagement } from '@/components/patient/TransportManagement';
 import { EmergencyManagement } from '@/components/patient/EmergencyManagement';
-import { SubscriptionUpgrade } from '@/components/patient/SubscriptionUpgrade';
+import { PatientSettings } from '@/components/patient/PatientSettings';
 import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
 import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -148,7 +148,7 @@ const PatientDashboard = () => {
       case 'transport':
         return <TransportManagement />;
       case 'subscription':
-        return <SubscriptionUpgrade />;
+        return <PatientSettings />;
       case 'ambulance':
         return <AmbulanceStatus />;
       default:

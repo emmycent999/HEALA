@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -32,6 +32,7 @@ const patientMenuItems = [
 ];
 
 const physicianMenuItems = [
+  { title: 'Overview', url: '/physician?tab=overview', icon: Home },
   { title: 'Patients', url: '/physician?tab=patients', icon: Users },
   { title: 'Chat', url: '/physician?tab=chat', icon: MessageCircle },
   { title: 'Profile', url: '/physician?tab=profile', icon: Users },
@@ -47,7 +48,7 @@ const hospitalMenuItems = [
 ];
 
 const agentMenuItems = [
-  { title: 'Overview', url: '/agent?tab=overview', icon: Calendar },
+  { title: 'Overview', url: '/agent?tab=overview', icon: Home },
   { title: 'Patient Lookup', url: '/agent?tab=patient-lookup', icon: Search },
   { title: 'Assisted Patients', url: '/agent?tab=assisted-patients', icon: Users },
   { title: 'Transport Booking', url: '/agent?tab=transport-booking', icon: Map },

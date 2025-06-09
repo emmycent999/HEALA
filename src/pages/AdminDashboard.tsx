@@ -1,42 +1,38 @@
 
-import React from 'react';
-import { TestSuite } from '@/components/testing/TestSuite';
-import { TestingGuide } from '@/components/testing/TestingGuide';
-import { VerificationCenter } from '@/components/admin/VerificationCenter';
+import React, { useState, useEffect } from 'react';
 import { UserManagement } from '@/components/admin/UserManagement';
-import { DocumentManagement } from '@/components/admin/DocumentManagement';
 import { SystemAnalytics } from '@/components/admin/SystemAnalytics';
-import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
+import { AdminVerificationCenter } from '@/components/admin/AdminVerificationCenter';
+import { DocumentManagement } from '@/components/admin/DocumentManagement';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
 const AdminDashboard = () => {
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'analytics';
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'users';
+    setActiveTab(tab);
+  }, [searchParams]);
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'analytics':
-        return <SystemAnalytics />;
-      case 'verifications':
-        return <VerificationCenter />;
       case 'users':
         return <UserManagement />;
+      case 'analytics':
+        return <SystemAnalytics />;
+      case 'verification':
+        return <AdminVerificationCenter />;
       case 'documents':
         return <DocumentManagement />;
-      case 'testing':
-        return <TestingGuide />;
-      case 'automated':
-        return <TestSuite />;
-      case 'ai-assistant':
-        return <UniversalBotpress />;
       default:
-        return <div>Content not found</div>;
+        return <UserManagement />;
     }
   };
 
   return (
-    <DashboardLayout title="Admin Portal">
+    <DashboardLayout title="Admin Dashboard">
       {renderContent()}
     </DashboardLayout>
   );

@@ -1,12 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DynamicOverview } from '@/components/agent/DynamicOverview';
 import { PatientLookup } from '@/components/agent/PatientLookup';
-import { AppointmentBooking } from '@/components/appointments/AppointmentBooking';
+import { AssistedPatients } from '@/components/agent/AssistedPatients';
 import { TransportBooking } from '@/components/agent/TransportBooking';
-import { EmergencyRequest } from '@/components/emergency/EmergencyRequest';
+import { AppointmentBooking } from '@/components/agent/AppointmentBooking';
 import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
-import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -18,12 +17,18 @@ interface PatientInfo {
   phone?: string;
   city?: string;
   state?: string;
+  role: string;
 }
 
 const AgentDashboard = () => {
   const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
   const [selectedPatient, setSelectedPatient] = useState<PatientInfo | null>(null);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'overview';
+    setActiveTab(tab);
+  }, [searchParams]);
 
   const handlePatientFound = (patient: PatientInfo) => {
     setSelectedPatient(patient);
@@ -33,63 +38,18 @@ const AgentDashboard = () => {
     switch (activeTab) {
       case 'overview':
         return <DynamicOverview />;
-      case 'lookup':
+      case 'patient-lookup':
         return <PatientLookup onPatientFound={handlePatientFound} />;
-      case 'appointments':
-        return (
-          <div className="space-y-6">
-            {selectedPatient && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  Booking for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong> 
-                  ({selectedPatient.email})
-                </p>
-              </div>
-            )}
-            <AppointmentBooking 
-              patientId={selectedPatient?.id} 
-              patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
-              patientEmail={selectedPatient?.email}
-            />
-          </div>
-        );
-      case 'transport':
-        return (
-          <div className="space-y-6">
-            {selectedPatient && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  Transport for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
-                  ({selectedPatient.email})
-                </p>
-              </div>
-            )}
-            <TransportBooking 
-              patientId={selectedPatient?.id}
-              patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
-            />
-          </div>
-        );
-      case 'emergency':
-        return (
-          <div className="space-y-6">
-            {selectedPatient && (
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  Emergency for: <strong>{selectedPatient.first_name} {selectedPatient.last_name}</strong>
-                  ({selectedPatient.email})
-                </p>
-              </div>
-            )}
-            <EmergencyRequest patientId={selectedPatient?.id} />
-          </div>
-        );
+      case 'assisted-patients':
+        return <AssistedPatients />;
+      case 'transport-booking':
+        return <TransportBooking selectedPatient={selectedPatient} />;
+      case 'appointment-booking':
+        return <AppointmentBooking selectedPatient={selectedPatient} />;
       case 'chat':
-        return <AgentChatInterface />;
-      case 'ai-assistant':
-        return <UniversalBotpress />;
+        return <AgentChatInterface selectedPatient={selectedPatient} />;
       default:
-        return <div>Content not found</div>;
+        return <DynamicOverview />;
     }
   };
 

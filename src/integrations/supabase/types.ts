@@ -258,6 +258,45 @@ export type Database = {
         }
         Relationships: []
       }
+      emergency_contacts: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_primary: boolean | null
+          name: string
+          patient_id: string
+          phone: string
+          relationship: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name: string
+          patient_id: string
+          phone: string
+          relationship: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean | null
+          name?: string
+          patient_id?: string
+          phone?: string
+          relationship?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       emergency_requests: {
         Row: {
           assigned_physician_id: string | null
@@ -310,6 +349,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      health_records: {
+        Row: {
+          created_at: string
+          description: string | null
+          document_url: string | null
+          id: string
+          is_sensitive: boolean | null
+          patient_id: string
+          record_data: Json | null
+          record_type: string
+          recorded_by: string | null
+          recorded_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          document_url?: string | null
+          id?: string
+          is_sensitive?: boolean | null
+          patient_id: string
+          record_data?: Json | null
+          record_type: string
+          recorded_by?: string | null
+          recorded_date?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          document_url?: string | null
+          id?: string
+          is_sensitive?: boolean | null
+          patient_id?: string
+          record_data?: Json | null
+          record_type?: string
+          recorded_by?: string | null
+          recorded_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      healthcare_providers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          type: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          phone?: string | null
+          type?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          phone?: string | null
+          type?: string
+        }
+        Relationships: []
       }
       hospitals: {
         Row: {
@@ -598,6 +721,62 @@ export type Database = {
         }
         Relationships: []
       }
+      prescriptions: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          dispensed_at: string | null
+          id: string
+          max_repeats: number | null
+          patient_id: string
+          pharmacy_id: string | null
+          physician_id: string
+          prescription_data: Json
+          repeat_allowed: boolean | null
+          repeat_count: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          dispensed_at?: string | null
+          id?: string
+          max_repeats?: number | null
+          patient_id: string
+          pharmacy_id?: string | null
+          physician_id: string
+          prescription_data?: Json
+          repeat_allowed?: boolean | null
+          repeat_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          dispensed_at?: string | null
+          id?: string
+          max_repeats?: number | null
+          patient_id?: string
+          pharmacy_id?: string | null
+          physician_id?: string
+          prescription_data?: Json
+          repeat_allowed?: boolean | null
+          repeat_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           city: string | null
@@ -711,6 +890,36 @@ export type Database = {
         }
         Relationships: []
       }
+      symptom_assessments: {
+        Row: {
+          assessment_data: Json | null
+          created_at: string
+          id: string
+          patient_id: string
+          recommendations: string | null
+          risk_level: string | null
+          symptoms: Json
+        }
+        Insert: {
+          assessment_data?: Json | null
+          created_at?: string
+          id?: string
+          patient_id: string
+          recommendations?: string | null
+          risk_level?: string | null
+          symptoms?: Json
+        }
+        Update: {
+          assessment_data?: Json | null
+          created_at?: string
+          id?: string
+          patient_id?: string
+          recommendations?: string | null
+          risk_level?: string | null
+          symptoms?: Json
+        }
+        Relationships: []
+      }
       transport_requests: {
         Row: {
           agent_id: string | null
@@ -775,6 +984,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          biometric_login_enabled: boolean | null
+          created_at: string
+          font_size: string | null
+          high_contrast: boolean | null
+          id: string
+          language: string | null
+          notification_preferences: Json | null
+          text_to_speech: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          biometric_login_enabled?: boolean | null
+          created_at?: string
+          font_size?: string | null
+          high_contrast?: boolean | null
+          id?: string
+          language?: string | null
+          notification_preferences?: Json | null
+          text_to_speech?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          biometric_login_enabled?: boolean | null
+          created_at?: string
+          font_size?: string | null
+          high_contrast?: boolean | null
+          id?: string
+          language?: string | null
+          notification_preferences?: Json | null
+          text_to_speech?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {
