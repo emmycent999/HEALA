@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, User } from 'lucide-react';
+import { User, MessageCircle } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -14,29 +14,53 @@ interface Patient {
 interface PatientListProps {
   patients: Patient[];
   onStartConversation: (patientId: string, patientName: string) => void;
+  actionLabel?: string;
 }
 
-export const PatientList: React.FC<PatientListProps> = ({ patients, onStartConversation }) => {
+export const PatientList: React.FC<PatientListProps> = ({ 
+  patients, 
+  onStartConversation,
+  actionLabel = "Start Chat"
+}) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Start New Conversation</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <User className="w-5 h-5" />
+          My Patients
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {patients.length === 0 ? (
-          <p className="text-sm text-gray-600">No patients available</p>
+          <div className="text-center py-4">
+            <User className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-600">No patients assigned</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {patients.map((patient) => (
               <div
                 key={patient.id}
-                className="p-2 border rounded cursor-pointer hover:bg-gray-50"
-                onClick={() => onStartConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
+                className="p-3 border rounded-lg hover:bg-gray-50"
               >
-                <div className="font-medium text-sm">
-                  {patient.first_name} {patient.last_name}
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">
+                      {patient.first_name} {patient.last_name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {patient.email}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => onStartConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
+                    className="flex items-center gap-1"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    {actionLabel}
+                  </Button>
                 </div>
-                <div className="text-xs text-gray-600">{patient.email}</div>
               </div>
             ))}
           </div>

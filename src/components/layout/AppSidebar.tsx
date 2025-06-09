@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -11,8 +10,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarHeader,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { Logo } from '@/components/ui/logo';
 
 const patientMenuItems = [
   { title: 'Appointments', url: '/patient?tab=appointments', icon: Calendar },
@@ -90,6 +91,11 @@ export const AppSidebar: React.FC = () => {
 
   return (
     <Sidebar>
+      <SidebarHeader className="p-4 border-b">
+        <div className="flex items-center justify-center">
+          <Logo size="lg" />
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
