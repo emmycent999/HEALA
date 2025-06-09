@@ -7,7 +7,7 @@ export const BotpressChat: React.FC = () => {
   useEffect(() => {
     // Create script element for Botpress
     const script = document.createElement('script');
-    script.src = 'https://cdn.botpress.cloud/webchat/v2.4/shareable.html?configUrl=https://files.bpcontent.cloud/2025/01/20/01/20250120013114-HPA1X0O0.json';
+    script.src = 'https://cdn.botpress.cloud/webchat/v3.0/shareable.html?configUrl=https://files.bpcontent.cloud/2025/06/08/20/20250608203313-B2N3785R.json';
     script.async = true;
     
     // Add the script to the document
