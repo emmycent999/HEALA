@@ -74,7 +74,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       const { data, error } = await supabase.rpc('get_available_physicians');
       if (error) throw error;
       
-      const physiciansWithHospital = (data || []).map((physician: any) => ({
+      const physiciansWithHospital = (data || []).map((physician: ) => ({
         ...physician,
         hospital_name: physician.hospital_name || 'Independent Practice'
       }));
