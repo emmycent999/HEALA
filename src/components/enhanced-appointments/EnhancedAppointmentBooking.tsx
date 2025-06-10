@@ -56,33 +56,55 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
   const fetchHospitals = async () => {
     try {
+      console.log('Fetching hospitals...');
       const { data, error } = await supabase
         .from('hospitals')
         .select('*')
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching hospitals:', error);
+        throw error;
+      }
+      
+      console.log('Hospitals fetched:', data?.length || 0);
       setHospitals(data || []);
     } catch (error) {
       console.error('Error fetching hospitals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load hospitals. Please refresh the page.",
+        variant: "destructive"
+      });
     }
   };
 
   const fetchPhysicians = async () => {
     try {
+      console.log('Fetching physicians...');
       const { data, error } = await supabase.rpc('get_available_physicians');
-      if (error) throw error;
       
-      const physiciansWithHospital = (data || []).map((physician: ) => ({
+      if (error) {
+        console.error('Error fetching physicians:', error);
+        throw error;
+      }
+      
+      const physiciansWithHospital = (data || []).map((physician: any) => ({
         ...physician,
         hospital_name: physician.hospital_name || 'Independent Practice'
       }));
       
+      console.log('Physicians fetched:', physiciansWithHospital.length);
       setPhysicians(physiciansWithHospital);
       setFilteredPhysicians(physiciansWithHospital);
     } catch (error) {
       console.error('Error fetching physicians:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load physicians. Please refresh the page.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -115,15 +137,29 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to book an appointment.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setLoading(true);
     try {
+      console.log('Booking appointment for user:', user.id);
+      
       // Check monthly booking limit
       const { data: limitCheck, error: limitError } = await supabase
         .rpc('check_monthly_booking_limit', { patient_uuid: user.id });
 
-      if (limitError) throw limitError;
+      if (limitError) {
+        console.error('Error checking booking limit:', limitError);
+        throw limitError;
+      }
+
+      console.log('Monthly booking count:', limitCheck);
 
       if (limitCheck >= 5) {
         toast({
@@ -134,18 +170,27 @@ export const EnhancedAppointmentBooking: React.FC = () => {
         return;
       }
 
+      const appointmentData = {
+        patient_id: user.id,
+        physician_id: formData.physician_id,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        notes: formData.reason,
+        status: 'pending'
+      };
+
+      console.log('Inserting appointment:', appointmentData);
+
       const { error } = await supabase
         .from('appointments')
-        .insert({
-          patient_id: user.id,
-          physician_id: formData.physician_id,
-          appointment_date: formData.appointment_date,
-          appointment_time: formData.appointment_time,
-          notes: formData.reason,
-          status: 'pending'
-        });
+        .insert(appointmentData);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error booking appointment:', error);
+        throw error;
+      }
+
+      console.log('Appointment booked successfully');
 
       toast({
         title: "Appointment Booked",
@@ -175,6 +220,11 @@ export const EnhancedAppointmentBooking: React.FC = () => {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  // Get tomorrow's date as minimum date
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split('T')[0];
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -249,16 +299,20 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                 <SelectValue placeholder="Choose a physician" />
               </SelectTrigger>
               <SelectContent>
-                {filteredPhysicians.map((physician) => (
-                  <SelectItem key={physician.id} value={physician.id}>
-                    <div className="flex flex-col">
-                      <span>Dr. {physician.first_name} {physician.last_name}</span>
-                      <span className="text-sm text-gray-500">
-                        {physician.specialization} • {physician.hospital_name}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {filteredPhysicians.length === 0 ? (
+                  <SelectItem value="" disabled>No physicians found</SelectItem>
+                ) : (
+                  filteredPhysicians.map((physician) => (
+                    <SelectItem key={physician.id} value={physician.id}>
+                      <div className="flex flex-col">
+                        <span>Dr. {physician.first_name} {physician.last_name}</span>
+                        <span className="text-sm text-gray-500">
+                          {physician.specialization} • {physician.hospital_name}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -275,7 +329,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                   value={formData.appointment_date}
                   onChange={(e) => handleInputChange('appointment_date', e.target.value)}
                   className="pl-10"
-                  min={new Date().toISOString().split('T')[0]}
+                  min={minDate}
                   required
                 />
               </div>
@@ -311,7 +365,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
           <Button 
             type="submit" 
             className="w-full bg-blue-600 hover:bg-blue-700" 
-            disabled={loading}
+            disabled={loading || !formData.physician_id || !formData.appointment_date || !formData.appointment_time}
           >
             {loading ? 'Booking Appointment...' : 'Book Appointment'}
           </Button>

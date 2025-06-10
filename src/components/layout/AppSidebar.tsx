@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -89,6 +90,22 @@ export const AppSidebar: React.FC = () => {
 
   const menuItems = getMenuItems();
 
+  const isActiveLink = (itemUrl: string) => {
+    const currentPath = location.pathname + location.search;
+    const targetPath = itemUrl;
+    
+    // Check exact match first
+    if (currentPath === targetPath) return true;
+    
+    // Check if the current search params match the item's tab
+    const currentParams = new URLSearchParams(location.search);
+    const targetParams = new URLSearchParams(itemUrl.split('?')[1]);
+    const currentTab = currentParams.get('tab');
+    const targetTab = targetParams.get('tab');
+    
+    return currentTab === targetTab && location.pathname === itemUrl.split('?')[0];
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4 border-b">
@@ -109,7 +126,7 @@ export const AppSidebar: React.FC = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location.search === item.url.split('?')[1]}>
+                  <SidebarMenuButton asChild isActive={isActiveLink(item.url)}>
                     <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>

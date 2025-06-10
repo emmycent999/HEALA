@@ -12,7 +12,7 @@ import { PatientSettings } from '@/components/patient/PatientSettings';
 import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
 import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // Enhanced components
 import { EnhancedAppointmentBooking } from '@/components/enhanced-appointments/EnhancedAppointmentBooking';
@@ -25,12 +25,24 @@ import { OfflineManager } from '@/components/offline/OfflineManager';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'appointments');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('appointments');
 
   useEffect(() => {
-    const tab = searchParams.get('tab') || 'appointments';
+    const tab = searchParams.get('tab');
+    console.log('Current tab from URL:', tab);
+    
+    // If no tab is specified, redirect to appointments tab
+    if (!tab) {
+      console.log('No tab specified, redirecting to appointments');
+      navigate('/patient?tab=appointments', { replace: true });
+      return;
+    }
+    
     setActiveTab(tab);
-  }, [searchParams]);
+  }, [searchParams, navigate]);
+
+  console.log('Rendering PatientDashboard with activeTab:', activeTab);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -152,7 +164,14 @@ const PatientDashboard = () => {
       case 'ambulance':
         return <AmbulanceStatus />;
       default:
-        return <div>Content not found</div>;
+        return (
+          <div className="text-center py-8">
+            <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300">
+              Tab "{activeTab}" not found
+            </h3>
+            <p className="mt-2 text-gray-500">Please select a valid tab from the sidebar.</p>
+          </div>
+        );
     }
   };
 

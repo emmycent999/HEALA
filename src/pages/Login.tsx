@@ -11,22 +11,23 @@ const Login = () => {
 
   useEffect(() => {
     if (!loading && user && profile) {
+      console.log('Redirecting user with role:', profile.role);
       // Redirect based on role to the correct dashboard routes
       switch (profile.role) {
         case 'patient':
-          navigate('/patient-dashboard');
+          navigate('/patient?tab=appointments');
           break;
         case 'physician':
-          navigate('/physician-dashboard');
+          navigate('/physician?tab=overview');
           break;
         case 'hospital_admin':
-          navigate('/hospital-dashboard');
+          navigate('/hospital?tab=overview');
           break;
         case 'agent':
-          navigate('/agent-dashboard');
+          navigate('/agent?tab=overview');
           break;
         case 'admin':
-          navigate('/admin-dashboard');
+          navigate('/admin?tab=users');
           break;
         default:
           navigate('/');
