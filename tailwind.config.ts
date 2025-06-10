@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,12 +62,24 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom gradient colors
+				gradient: {
+					lavender: '#D8D2FC',
+					pink: '#FDE2E0',
+					gray: '#E6E4EA',
+					blue: '#E0E9F4'
 				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			backgroundImage: {
+				'gradient-primary': 'linear-gradient(118.7deg, #D8D2FC 17.58%, #D8D2FC 17.58%, #D8D2FC 17.59%, #FDE2E0 41.89%, #E6E4EA 68%, #E0E9F4 103.34%, rgba(230, 225, 232, 0) 103.35%, #E0E9F4 103.35%)',
+				'gradient-card': 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.8) 100%)',
+				'gradient-dark': 'linear-gradient(118.7deg, #4c1d95 17.58%, #4c1d95 17.58%, #4c1d95 17.59%, #7c2d12 41.89%, #374151 68%, #1e3a8a 103.34%, rgba(55, 65, 81, 0) 103.35%, #1e3a8a 103.35%)'
 			},
 			keyframes: {
 				'accordion-down': {
@@ -84,13 +97,23 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'gradient-shift': {
+					'0%, 100%': {
+						'background-position': '0% 50%'
+					},
+					'50%': {
+						'background-position': '100% 50%'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'gradient-shift': 'gradient-shift 8s ease infinite'
 			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+

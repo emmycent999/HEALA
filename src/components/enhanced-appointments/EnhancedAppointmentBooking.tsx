@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -227,38 +226,40 @@ export const EnhancedAppointmentBooking: React.FC = () => {
   const minDate = tomorrow.toISOString().split('T')[0];
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Calendar className="w-6 h-6" />
+    <Card className="max-w-2xl mx-auto gradient-card border-white/20 shadow-xl">
+      <CardHeader className="text-center">
+        <CardTitle className="flex items-center justify-center space-x-2 text-gray-700">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-white" />
+          </div>
           <span>Book Appointment</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Search and Filter Section */}
-          <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium text-gray-900">Find a Physician</h3>
+          <div className="space-y-4 p-4 bg-gradient-lavender/30 rounded-lg border border-white/30">
+            <h3 className="font-medium text-gray-700">Find a Physician</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="search">Search by Name or Specialty</Label>
+                <Label htmlFor="search" className="text-gray-700">Search by Name or Specialty</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                   <Input
                     id="search"
                     placeholder="Search physicians..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 bg-white/50 border-white/50 focus:bg-white focus:border-purple-300"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="hospital">Filter by Hospital</Label>
-                <Select value={selectedHospital || 'all_hospitals'} onValueChange={setSelectedHospital}>
-                  <SelectTrigger>
+                <Label htmlFor="hospital" className="text-gray-700">Filter by Hospital</Label>
+                <Select value={selectedHospital} onValueChange={setSelectedHospital}>
+                  <SelectTrigger className="bg-white/50 border-white/50 focus:bg-white focus:border-purple-300">
                     <SelectValue placeholder="All hospitals" />
                   </SelectTrigger>
                   <SelectContent>
@@ -273,9 +274,9 @@ export const EnhancedAppointmentBooking: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="location">Filter by Location</Label>
-                <Select value={selectedLocation || 'all_locations'} onValueChange={setSelectedLocation}>
-                  <SelectTrigger>
+                <Label htmlFor="location" className="text-gray-700">Filter by Location</Label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="bg-white/50 border-white/50 focus:bg-white focus:border-purple-300">
                     <SelectValue placeholder="All locations" />
                   </SelectTrigger>
                   <SelectContent>
@@ -293,9 +294,9 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
           {/* Physician Selection */}
           <div className="space-y-2">
-            <Label htmlFor="physician_id">Select Physician *</Label>
+            <Label htmlFor="physician_id" className="text-gray-700">Select Physician *</Label>
             <Select value={formData.physician_id || 'select_physician'} onValueChange={(value) => handleInputChange('physician_id', value === 'select_physician' ? '' : value)}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white/50 border-white/50 focus:bg-white focus:border-purple-300">
                 <SelectValue placeholder="Choose a physician" />
               </SelectTrigger>
               <SelectContent>
@@ -323,30 +324,30 @@ export const EnhancedAppointmentBooking: React.FC = () => {
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="appointment_date">Date *</Label>
+              <Label htmlFor="appointment_date" className="text-gray-700">Date *</Label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                 <Input
                   id="appointment_date"
                   type="date"
                   value={formData.appointment_date}
                   onChange={(e) => handleInputChange('appointment_date', e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-white/50 border-white/50 focus:bg-white focus:border-purple-300"
                   min={minDate}
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="appointment_time">Time *</Label>
+              <Label htmlFor="appointment_time" className="text-gray-700">Time *</Label>
               <div className="relative">
-                <Clock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                <Clock className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                 <Input
                   id="appointment_time"
                   type="time"
                   value={formData.appointment_time}
                   onChange={(e) => handleInputChange('appointment_time', e.target.value)}
-                  className="pl-10"
+                  className="pl-10 bg-white/50 border-white/50 focus:bg-white focus:border-purple-300"
                   required
                 />
               </div>
@@ -355,19 +356,20 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
           {/* Reason for Visit */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason for Visit</Label>
+            <Label htmlFor="reason" className="text-gray-700">Reason for Visit</Label>
             <Textarea
               id="reason"
               placeholder="Describe your symptoms or reason for the appointment"
               value={formData.reason}
               onChange={(e) => handleInputChange('reason', e.target.value)}
               rows={3}
+              className="bg-white/50 border-white/50 focus:bg-white focus:border-purple-300"
             />
           </div>
 
           <Button 
             type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-700" 
+            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1" 
             disabled={loading || !formData.physician_id || !formData.appointment_date || !formData.appointment_time}
           >
             {loading ? 'Booking Appointment...' : 'Book Appointment'}
