@@ -63,7 +63,7 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({
         <div>
           <Label htmlFor={`frequency_${index}`}>Frequency *</Label>
           <Select
-            value={medication.frequency}
+            value={medication.frequency || 'once_daily'}
             onValueChange={(value) => onUpdate(index, 'frequency', value)}
           >
             <SelectTrigger>

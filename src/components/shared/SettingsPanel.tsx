@@ -100,7 +100,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
           {/* Language Selection */}
           <div className="space-y-2">
             <Label className="text-gray-900 dark:text-white">Language</Label>
-            <Select value={language} onValueChange={handleLanguageChange}>
+            <Select value={language || 'en'} onValueChange={handleLanguageChange}>
               <SelectTrigger className="bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white">
                 <SelectValue placeholder="Select language" />
               </SelectTrigger>

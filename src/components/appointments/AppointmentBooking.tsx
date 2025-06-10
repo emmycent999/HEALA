@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -144,11 +143,12 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="physician">Select Physician</Label>
-            <Select value={formData.physicianId} onValueChange={(value) => setFormData({ ...formData, physicianId: value })}>
+            <Select value={formData.physicianId || 'default'} onValueChange={(value) => setFormData({ ...formData, physicianId: value === 'default' ? '' : value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a physician" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="default" disabled>Choose a physician</SelectItem>
                 {physicians.map((physician) => (
                   <SelectItem key={physician.id} value={physician.id}>
                     <div className="flex items-center gap-2">

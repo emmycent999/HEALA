@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,7 +134,7 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
 
         <div>
           <Label htmlFor="emergency-type">Emergency Type</Label>
-          <Select value={emergencyType} onValueChange={setEmergencyType}>
+          <Select value={emergencyType || 'Medical Emergency'} onValueChange={setEmergencyType}>
             <SelectTrigger>
               <SelectValue placeholder="Select emergency type" />
             </SelectTrigger>
@@ -149,7 +148,7 @@ export const EmergencyRequest: React.FC<EmergencyRequestProps> = ({ patientId })
 
         <div>
           <Label htmlFor="severity">Severity Level</Label>
-          <Select value={severity} onValueChange={setSeverity}>
+          <Select value={severity || 'Medium'} onValueChange={setSeverity}>
             <SelectTrigger>
               <SelectValue placeholder="Select severity level" />
             </SelectTrigger>

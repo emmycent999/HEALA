@@ -179,7 +179,7 @@ export const PatientSettings: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="language">Language</Label>
-              <Select value={preferences.language} onValueChange={(value) => updatePreference('language', value)}>
+              <Select value={preferences.language || 'en'} onValueChange={(value) => updatePreference('language', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -193,7 +193,7 @@ export const PatientSettings: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="font_size">Font Size</Label>
-              <Select value={preferences.font_size} onValueChange={(value) => updatePreference('font_size', value)}>
+              <Select value={preferences.font_size || 'medium'} onValueChange={(value) => updatePreference('font_size', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
