@@ -36,8 +36,8 @@ export const EnhancedAppointmentBooking: React.FC = () => {
   const [filteredPhysicians, setFilteredPhysicians] = useState<Physician[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedHospital, setSelectedHospital] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedHospital, setSelectedHospital] = useState('all_hospitals');
+  const [selectedLocation, setSelectedLocation] = useState('all_locations');
   const [formData, setFormData] = useState({
     physician_id: '',
     appointment_date: '',
@@ -120,12 +120,12 @@ export const EnhancedAppointmentBooking: React.FC = () => {
     }
 
     // Filter by hospital
-    if (selectedHospital) {
+    if (selectedHospital && selectedHospital !== 'all_hospitals') {
       filtered = filtered.filter(physician => physician.hospital_id === selectedHospital);
     }
 
     // Filter by location (city/state)
-    if (selectedLocation) {
+    if (selectedLocation && selectedLocation !== 'all_locations') {
       const selectedHospitalData = hospitals.find(h => h.id === selectedLocation);
       if (selectedHospitalData) {
         filtered = filtered.filter(physician => physician.hospital_id === selectedLocation);
@@ -257,12 +257,12 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
               <div>
                 <Label htmlFor="hospital">Filter by Hospital</Label>
-                <Select value={selectedHospital} onValueChange={setSelectedHospital}>
+                <Select value={selectedHospital || 'all_hospitals'} onValueChange={setSelectedHospital}>
                   <SelectTrigger>
                     <SelectValue placeholder="All hospitals" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All hospitals</SelectItem>
+                    <SelectItem value="all_hospitals">All hospitals</SelectItem>
                     {hospitals.map((hospital) => (
                       <SelectItem key={hospital.id} value={hospital.id}>
                         {hospital.name}
@@ -274,12 +274,12 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
               <div>
                 <Label htmlFor="location">Filter by Location</Label>
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <Select value={selectedLocation || 'all_locations'} onValueChange={setSelectedLocation}>
                   <SelectTrigger>
                     <SelectValue placeholder="All locations" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All locations</SelectItem>
+                    <SelectItem value="all_locations">All locations</SelectItem>
                     {hospitals.map((hospital) => (
                       <SelectItem key={hospital.id} value={hospital.id}>
                         {hospital.city}, {hospital.state}
@@ -294,24 +294,27 @@ export const EnhancedAppointmentBooking: React.FC = () => {
           {/* Physician Selection */}
           <div className="space-y-2">
             <Label htmlFor="physician_id">Select Physician *</Label>
-            <Select value={formData.physician_id} onValueChange={(value) => handleInputChange('physician_id', value)}>
+            <Select value={formData.physician_id || 'select_physician'} onValueChange={(value) => handleInputChange('physician_id', value === 'select_physician' ? '' : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a physician" />
               </SelectTrigger>
               <SelectContent>
                 {filteredPhysicians.length === 0 ? (
-                  <SelectItem value="" disabled>No physicians found</SelectItem>
+                  <SelectItem value="no_physicians" disabled>No physicians found</SelectItem>
                 ) : (
-                  filteredPhysicians.map((physician) => (
-                    <SelectItem key={physician.id} value={physician.id}>
-                      <div className="flex flex-col">
-                        <span>Dr. {physician.first_name} {physician.last_name}</span>
-                        <span className="text-sm text-gray-500">
-                          {physician.specialization} • {physician.hospital_name}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))
+                  <>
+                    <SelectItem value="select_physician" disabled>Choose a physician</SelectItem>
+                    {filteredPhysicians.map((physician) => (
+                      <SelectItem key={physician.id} value={physician.id}>
+                        <div className="flex flex-col">
+                          <span>Dr. {physician.first_name} {physician.last_name}</span>
+                          <span className="text-sm text-gray-500">
+                            {physician.specialization} • {physician.hospital_name}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </>
                 )}
               </SelectContent>
             </Select>
