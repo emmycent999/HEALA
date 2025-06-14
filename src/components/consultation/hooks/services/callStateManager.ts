@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { VideoCallState } from '../types/videoCall';
 
 export const useCallState = () => {
   const [isCallActive, setIsCallActive] = useState(false);
