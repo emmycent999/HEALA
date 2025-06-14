@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
-import { useSimpleVideoCall } from './hooks/useSimpleVideoCall';
-import { IncomingCallDialog } from './IncomingCallDialog';
+import { useVideoCall } from './hooks/useVideoCall';
 import { VideoStreams } from './VideoStreams';
 import { VideoConnectionStatus } from './VideoConnectionStatus';
 import { VideoControls } from './VideoControls';
@@ -34,33 +33,33 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   console.log('🖥️ [VideoInterface] Render:', { 
     sessionStatus: currentSession.status, 
     userRole: profile?.role,
-    videoStarted
+    videoStarted,
+    sessionId: currentSession.id
   });
 
-  // Update session and auto-start video for patients
+  // Auto-start video for patients when session is in progress
   useEffect(() => {
     setCurrentSession(session);
     
-    // Auto-start video immediately when session is in progress
-    if (session.status === 'in_progress' && !videoStarted) {
-      console.log('🎥 [VideoInterface] Auto-starting video for active session');
+    if (session.status === 'in_progress' && !videoStarted && isPatient) {
+      console.log('🎥 [VideoInterface] Auto-starting video for patient');
       setVideoStarted(true);
-      handleStartCall();
     }
-  }, [session, videoStarted]);
+  }, [session, videoStarted, isPatient]);
 
   const {
     isCallActive,
     connectionState,
     videoEnabled,
     audioEnabled,
+    error,
     localVideoRef,
     remoteVideoRef,
     startCall,
     endCall,
     toggleVideo,
     toggleAudio
-  } = useSimpleVideoCall({
+  } = useVideoCall({
     sessionId: currentSession.id,
     userId: user?.id || '',
     userRole: isPhysician ? 'physician' : 'patient',
@@ -94,9 +93,11 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         description: "Video call is starting now",
       });
 
-      // Start video immediately
-      setVideoStarted(true);
-      handleStartCall();
+      // Start video immediately for physician
+      if (isPhysician) {
+        setVideoStarted(true);
+        setTimeout(() => startCall(), 500);
+      }
       
     } catch (error) {
       console.error('❌ [VideoInterface] Error starting consultation:', error);
@@ -109,7 +110,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   };
 
   const handleStartCall = () => {
-    console.log('📞 [VideoInterface] Starting video call directly');
+    console.log('📞 [VideoInterface] Starting video call manually');
+    setVideoStarted(true);
     startCall();
   };
 
@@ -119,61 +121,92 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     onEndSession();
   };
 
-  const renderContent = () => {
-    // Show video streams when call is active
-    if (isCallActive) {
-      return (
-        <>
-          <VideoStreams
-            localVideoRef={localVideoRef}
-            remoteVideoRef={remoteVideoRef}
-            isCallActive={isCallActive}
-            connectionState={connectionState}
-          />
-
-          <VideoConnectionStatus
-            isCallActive={isCallActive}
-            connectionState={connectionState}
-          />
-          
-          <VideoControls
-            isCallActive={isCallActive}
-            videoEnabled={videoEnabled}
-            audioEnabled={audioEnabled}
-            sessionStatus={currentSession.status}
-            onToggleVideo={toggleVideo}
-            onToggleAudio={toggleAudio}
-            onStartSession={onStartSession}
-            onStartCall={handleStartCall}
-            onEndCall={handleEndSession}
-          />
-        </>
-      );
-    }
-
-    // Show consultation actions for non-active calls
+  // Show error state if there's an error
+  if (error) {
     return (
-      <ConsultationActions
-        sessionStatus={currentSession.status}
-        isPhysician={isPhysician}
-        isPatient={isPatient}
-        consultationStarted={currentSession.status === 'in_progress'}
-        showJoinButton={currentSession.status === 'in_progress'}
-        isCallActive={isCallActive}
-        autoJoinAttempted={false}
-        onStartConsultation={handleStartConsultation}
-        onPatientJoin={handleStartCall}
-        onStartCall={handleStartCall}
-        onEnableManualJoin={() => {}}
-      />
+      <Card>
+        <CardContent className="p-0">
+          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
+            <div className="absolute inset-0 flex items-center justify-center bg-red-50">
+              <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-red-200 max-w-md">
+                <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                <h3 className="text-xl font-bold text-red-800 mb-2">Video Call Error</h3>
+                <p className="text-red-600 mb-4">{error}</p>
+                <button 
+                  onClick={handleStartCall}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     );
-  };
+  }
 
+  // Show video streams when call is active
+  if (isCallActive) {
+    return (
+      <Card>
+        <CardContent className="p-0">
+          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
+            <VideoStreams
+              localVideoRef={localVideoRef}
+              remoteVideoRef={remoteVideoRef}
+              isCallActive={isCallActive}
+              connectionState={connectionState}
+            />
+
+            <VideoConnectionStatus
+              isCallActive={isCallActive}
+              connectionState={connectionState}
+            />
+            
+            <VideoControls
+              isCallActive={isCallActive}
+              videoEnabled={videoEnabled}
+              audioEnabled={audioEnabled}
+              sessionStatus={currentSession.status}
+              onToggleVideo={toggleVideo}
+              onToggleAudio={toggleAudio}
+              onStartSession={onStartSession}
+              onStartCall={handleStartCall}
+              onEndCall={handleEndSession}
+            />
+
+            {/* Debug info overlay */}
+            <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
+              <div>Role: {profile?.role}</div>
+              <div>Status: {currentSession.status}</div>
+              <div>Connection: {connectionState}</div>
+              <div>Call Active: {isCallActive ? 'Yes' : 'No'}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show consultation actions for non-active calls
   return (
     <Card>
       <CardContent className="p-0">
         <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
-          {renderContent()}
+          <ConsultationActions
+            sessionStatus={currentSession.status}
+            isPhysician={isPhysician}
+            isPatient={isPatient}
+            consultationStarted={currentSession.status === 'in_progress'}
+            showJoinButton={currentSession.status === 'in_progress'}
+            isCallActive={isCallActive}
+            autoJoinAttempted={false}
+            onStartConsultation={handleStartConsultation}
+            onPatientJoin={handleStartCall}
+            onStartCall={handleStartCall}
+            onEnableManualJoin={() => {}}
+          />
         </div>
       </CardContent>
     </Card>
