@@ -12,30 +12,39 @@ export type Database = {
       agent_assisted_patients: {
         Row: {
           agent_id: string
+          appointment_booking_count: number | null
           assistance_type: string
           created_at: string | null
           description: string | null
           id: string
+          last_interaction_at: string | null
+          notes: string | null
           patient_id: string
           status: string | null
           updated_at: string | null
         }
         Insert: {
           agent_id: string
+          appointment_booking_count?: number | null
           assistance_type: string
           created_at?: string | null
           description?: string | null
           id?: string
+          last_interaction_at?: string | null
+          notes?: string | null
           patient_id: string
           status?: string | null
           updated_at?: string | null
         }
         Update: {
           agent_id?: string
+          appointment_booking_count?: number | null
           assistance_type?: string
           created_at?: string | null
           description?: string | null
           id?: string
+          last_interaction_at?: string | null
+          notes?: string | null
           patient_id?: string
           status?: string | null
           updated_at?: string | null
@@ -188,6 +197,109 @@ export type Database = {
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultation_rooms: {
+        Row: {
+          created_at: string | null
+          id: string
+          patient_joined_at: string | null
+          physician_joined_at: string | null
+          recording_enabled: boolean | null
+          recording_url: string | null
+          room_status: string | null
+          room_token: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          patient_joined_at?: string | null
+          physician_joined_at?: string | null
+          recording_enabled?: boolean | null
+          recording_url?: string | null
+          room_status?: string | null
+          room_token: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          patient_joined_at?: string | null
+          physician_joined_at?: string | null
+          recording_enabled?: boolean | null
+          recording_url?: string | null
+          room_status?: string | null
+          room_token?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_rooms_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "consultation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultation_sessions: {
+        Row: {
+          appointment_id: string | null
+          consultation_rate: number
+          created_at: string | null
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          patient_id: string
+          payment_status: string | null
+          physician_id: string
+          session_data: Json | null
+          session_type: string | null
+          started_at: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          consultation_rate: number
+          created_at?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          patient_id: string
+          payment_status?: string | null
+          physician_id: string
+          session_data?: Json | null
+          session_type?: string | null
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          consultation_rate?: number
+          created_at?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          patient_id?: string
+          payment_status?: string | null
+          physician_id?: string
+          session_data?: Json | null
+          session_type?: string | null
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_sessions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
         ]
@@ -449,7 +561,10 @@ export type Database = {
           longitude: number | null
           name: string
           phone: string | null
+          security_settings: Json | null
           state: string | null
+          verification_documents: Json | null
+          verification_status: string | null
         }
         Insert: {
           address?: string | null
@@ -462,7 +577,10 @@ export type Database = {
           longitude?: number | null
           name: string
           phone?: string | null
+          security_settings?: Json | null
           state?: string | null
+          verification_documents?: Json | null
+          verification_status?: string | null
         }
         Update: {
           address?: string | null
@@ -475,7 +593,49 @@ export type Database = {
           longitude?: number | null
           name?: string
           phone?: string | null
+          security_settings?: Json | null
           state?: string | null
+          verification_documents?: Json | null
+          verification_status?: string | null
+        }
+        Relationships: []
+      }
+      medical_history_documents: {
+        Row: {
+          access_level: string | null
+          document_category: string
+          document_name: string
+          document_type: string
+          document_url: string
+          id: string
+          is_sensitive: boolean | null
+          metadata: Json | null
+          patient_id: string
+          upload_date: string | null
+        }
+        Insert: {
+          access_level?: string | null
+          document_category: string
+          document_name: string
+          document_type: string
+          document_url: string
+          id?: string
+          is_sensitive?: boolean | null
+          metadata?: Json | null
+          patient_id: string
+          upload_date?: string | null
+        }
+        Update: {
+          access_level?: string | null
+          document_category?: string
+          document_name?: string
+          document_type?: string
+          document_url?: string
+          id?: string
+          is_sensitive?: boolean | null
+          metadata?: Json | null
+          patient_id?: string
+          upload_date?: string | null
         }
         Relationships: []
       }
@@ -547,6 +707,42 @@ export type Database = {
           title?: string
           type?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      patient_data_access: {
+        Row: {
+          access_type: string
+          accessor_id: string
+          expires_at: string | null
+          granted_at: string | null
+          id: string
+          is_active: boolean | null
+          metadata: Json | null
+          patient_id: string
+          purpose: string
+        }
+        Insert: {
+          access_type: string
+          accessor_id: string
+          expires_at?: string | null
+          granted_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          patient_id: string
+          purpose: string
+        }
+        Update: {
+          access_type?: string
+          accessor_id?: string
+          expires_at?: string | null
+          granted_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          patient_id?: string
+          purpose?: string
         }
         Relationships: []
       }
@@ -782,18 +978,24 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_locked_until: string | null
           city: string | null
+          consultation_rate_max: number | null
+          consultation_rate_min: number | null
           created_at: string | null
+          current_consultation_rate: number | null
           email: string
           first_name: string | null
           hospital_id: string | null
           id: string
           is_active: boolean | null
+          last_login_at: string | null
           last_name: string | null
           license_number: string | null
           location: string | null
           location_latitude: number | null
           location_longitude: number | null
+          login_attempts: number | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization: string | null
@@ -801,21 +1003,29 @@ export type Database = {
           subscription_plan:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
+          two_factor_enabled: boolean | null
           updated_at: string | null
+          wallet_pin: string | null
         }
         Insert: {
+          account_locked_until?: string | null
           city?: string | null
+          consultation_rate_max?: number | null
+          consultation_rate_min?: number | null
           created_at?: string | null
+          current_consultation_rate?: number | null
           email: string
           first_name?: string | null
           hospital_id?: string | null
           id: string
           is_active?: boolean | null
+          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
           location?: string | null
           location_latitude?: number | null
           location_longitude?: number | null
+          login_attempts?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
@@ -823,21 +1033,29 @@ export type Database = {
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
+          two_factor_enabled?: boolean | null
           updated_at?: string | null
+          wallet_pin?: string | null
         }
         Update: {
+          account_locked_until?: string | null
           city?: string | null
+          consultation_rate_max?: number | null
+          consultation_rate_min?: number | null
           created_at?: string | null
+          current_consultation_rate?: number | null
           email?: string
           first_name?: string | null
           hospital_id?: string | null
           id?: string
           is_active?: boolean | null
+          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
           location?: string | null
           location_latitude?: number | null
           location_longitude?: number | null
+          login_attempts?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
@@ -845,7 +1063,9 @@ export type Database = {
           subscription_plan?:
             | Database["public"]["Enums"]["subscription_plan"]
             | null
+          two_factor_enabled?: boolean | null
           updated_at?: string | null
+          wallet_pin?: string | null
         }
         Relationships: [
           {
@@ -923,6 +1143,42 @@ export type Database = {
           recommendations?: string | null
           risk_level?: string | null
           symptoms?: Json
+        }
+        Relationships: []
+      }
+      system_audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          resource_id: string | null
+          resource_type: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource_id?: string | null
+          resource_type: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource_id?: string | null
+          resource_type?: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1053,34 +1309,126 @@ export type Database = {
       }
       verification_requests: {
         Row: {
+          auto_approved: boolean | null
+          document_urls: Json | null
           id: string
           notes: string | null
+          priority: number | null
           request_type: string
           reviewed_at: string | null
           reviewed_by: string | null
           status: string | null
           submitted_at: string | null
           user_id: string | null
+          verification_type: string | null
         }
         Insert: {
+          auto_approved?: boolean | null
+          document_urls?: Json | null
           id?: string
           notes?: string | null
+          priority?: number | null
           request_type: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string | null
           submitted_at?: string | null
           user_id?: string | null
+          verification_type?: string | null
         }
         Update: {
+          auto_approved?: boolean | null
+          document_urls?: Json | null
           id?: string
           notes?: string | null
+          priority?: number | null
           request_type?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string | null
           submitted_at?: string | null
           user_id?: string | null
+          verification_type?: string | null
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          paystack_reference: string | null
+          reference_id: string | null
+          status: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          paystack_reference?: string | null
+          reference_id?: string | null
+          status?: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          paystack_reference?: string | null
+          reference_id?: string | null
+          status?: string | null
+          transaction_type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string | null
+          currency: string
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -1102,6 +1450,10 @@ export type Database = {
       check_monthly_booking_limit: {
         Args: { patient_uuid: string }
         Returns: number
+      }
+      create_user_wallet: {
+        Args: { user_uuid: string }
+        Returns: string
       }
       generate_hospital_analytics: {
         Args: { hospital_uuid: string }
@@ -1132,6 +1484,38 @@ export type Database = {
           hospital_name: string
           distance_km: number
         }[]
+      }
+      get_physicians_by_hospital: {
+        Args: { hospital_uuid: string }
+        Returns: {
+          physician_id: string
+          first_name: string
+          last_name: string
+          specialization: string
+          consultation_rate: number
+          is_available: boolean
+        }[]
+      }
+      get_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_hospital_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      process_consultation_payment: {
+        Args: {
+          session_uuid: string
+          patient_uuid: string
+          physician_uuid: string
+          amount: number
+        }
+        Returns: boolean
       }
     }
     Enums: {

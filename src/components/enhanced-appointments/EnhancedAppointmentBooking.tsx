@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ interface Physician {
   specialization: string;
   hospital_name: string;
   hospital_id: string;
+  current_consultation_rate: number;
 }
 
 export const EnhancedAppointmentBooking: React.FC = () => {
@@ -94,7 +96,20 @@ export const EnhancedAppointmentBooking: React.FC = () => {
   const fetchPhysicians = async () => {
     try {
       console.log('Fetching physicians...');
-      const { data, error } = await supabase.rpc('get_available_physicians');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialization,
+          current_consultation_rate,
+          hospital_id,
+          hospitals (name)
+        `)
+        .eq('role', 'physician')
+        .eq('is_active', true)
+        .order('first_name');
       
       if (error) {
         console.error('Error fetching physicians:', error);
@@ -103,7 +118,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       
       const physiciansWithHospital = (data || []).map((physician: any) => ({
         ...physician,
-        hospital_name: physician.hospital_name || 'Independent Practice'
+        hospital_name: physician.hospitals?.name || 'Independent Practice'
       }));
       
       console.log('Physicians fetched:', physiciansWithHospital.length);
@@ -168,9 +183,12 @@ export const EnhancedAppointmentBooking: React.FC = () => {
     try {
       console.log('Booking appointment for user:', user.id);
       
+      const selectedPhysician = physicians.find(p => p.id === formData.physician_id);
+      
       const appointmentData = {
         patient_id: user.id,
         physician_id: formData.physician_id,
+        hospital_id: selectedPhysician?.hospital_id,
         appointment_date: formData.appointment_date,
         appointment_time: formData.appointment_time,
         notes: formData.reason,
@@ -190,6 +208,25 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       }
 
       console.log('Appointment booked successfully');
+
+      // If it's a virtual consultation, create a consultation session
+      if (formData.consultation_type === 'virtual' && selectedPhysician) {
+        const sessionData = {
+          patient_id: user.id,
+          physician_id: formData.physician_id,
+          consultation_rate: selectedPhysician.current_consultation_rate,
+          session_type: 'chat',
+          status: 'scheduled'
+        };
+
+        const { error: sessionError } = await supabase
+          .from('consultation_sessions')
+          .insert(sessionData);
+
+        if (sessionError) {
+          console.error('Error creating consultation session:', sessionError);
+        }
+      }
 
       toast({
         title: "Appointment Requested",
@@ -347,6 +384,11 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                               <span className="text-sm text-gray-500">
                                 {physician.specialization} • {physician.hospital_name}
                               </span>
+                              {formData.consultation_type === 'virtual' && (
+                                <span className="text-xs text-green-600">
+                                  Virtual consultation: ₦{physician.current_consultation_rate}
+                                </span>
+                              )}
                             </div>
                           </SelectItem>
                         ))}
