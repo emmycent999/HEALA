@@ -13,6 +13,9 @@ import { UniversalBotpress } from '@/components/shared/UniversalBotpress';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useGlobalSessionMonitor } from '@/components/consultation/hooks/useGlobalSessionMonitor';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 // Enhanced components
 import { EnhancedAppointmentBooking } from '@/components/enhanced-appointments/EnhancedAppointmentBooking';
@@ -30,6 +33,7 @@ const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('appointments');
+  const { user } = useAuth();
 
   // Set up global session monitoring for auto-redirect
   const { activeSessions, isMonitoring } = useGlobalSessionMonitor({
@@ -53,20 +57,59 @@ const PatientDashboard = () => {
     setActiveTab(tab);
   }, [searchParams, navigate]);
 
+  // Debug function to manually check for sessions
+  const checkForSessions = async () => {
+    if (!user) return;
+    
+    console.log('🔍 [PatientDashboard] Manual session check for user:', user.id);
+    
+    const { data: sessions, error } = await supabase
+      .from('consultation_sessions')
+      .select('*')
+      .eq('patient_id', user.id)
+      .in('status', ['scheduled', 'in_progress']);
+      
+    console.log('🔍 [PatientDashboard] Found sessions:', sessions);
+    if (error) console.error('❌ Error:', error);
+  };
+
   console.log('Rendering PatientDashboard with activeTab:', activeTab, 'Monitoring:', isMonitoring, 'Active sessions:', activeSessions);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'appointments':
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4 dark:text-white">Book New Appointment</h3>
-              <EnhancedAppointmentBooking />
+          <div className="space-y-6">
+            {/* Debug panel for testing */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-semibold text-yellow-800 mb-2">Debug Panel</h4>
+              <div className="flex gap-2 items-center text-sm">
+                <span>Monitoring: {isMonitoring ? '✅' : '❌'}</span>
+                <span>Sessions: {activeSessions.length}</span>
+                <Button size="sm" onClick={checkForSessions}>
+                  Check Sessions
+                </Button>
+              </div>
+              {activeSessions.length > 0 && (
+                <div className="mt-2 text-xs">
+                  {activeSessions.map(s => (
+                    <div key={s.id} className="text-yellow-700">
+                      Session {s.id.slice(0, 8)}: {s.status}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4 dark:text-white">My Appointments</h3>
-              <AppointmentList />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Book New Appointment</h3>
+                <EnhancedAppointmentBooking />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">My Appointments</h3>
+                <AppointmentList />
+              </div>
             </div>
           </div>
         );
