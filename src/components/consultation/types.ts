@@ -10,6 +10,7 @@ export interface ConsultationSession {
   ended_at?: string;
   duration_minutes?: number;
   payment_status: string;
+  created_at: string;
   patient?: {
     first_name: string;
     last_name: string;
