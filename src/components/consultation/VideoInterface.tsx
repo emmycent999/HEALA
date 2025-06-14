@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
@@ -7,7 +8,8 @@ import { VideoStreams } from './VideoStreams';
 import { VideoConnectionStatus } from './VideoConnectionStatus';
 import { VideoControls } from './VideoControls';
 import { ConsultationActions } from './ConsultationActions';
-import { useConsultationHandlers, sendConsultationStarted, sendPatientJoined } from './ConsultationHandlers';
+import { useNotificationManager, sendConsultationStarted } from './hooks/useNotificationManager';
+import { useAutoJoinManager } from './hooks/useAutoJoinManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,31 +29,22 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   const { toast } = useToast();
   const [currentSession, setCurrentSession] = useState(session);
   const [consultationStarted, setConsultationStarted] = useState(session.status === 'in_progress');
-  const [showJoinButton, setShowJoinButton] = useState(false);
-  const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
 
-  console.log('🖥️ VideoInterface render:', { 
+  console.log('🖥️ [VideoInterface] Render:', { 
     sessionStatus: currentSession.status, 
-    userRole: profile?.role, 
-    consultationStarted,
-    autoJoinAttempted 
+    userRole: profile?.role,
+    consultationStarted
   });
 
   // Update local state when session prop changes
   useEffect(() => {
-    console.log('📥 Session prop changed:', session);
+    console.log('📥 [VideoInterface] Session prop changed:', session);
     setCurrentSession(session);
     setConsultationStarted(session.status === 'in_progress');
-    
-    // For patients, show join button if session is in progress and auto-join hasn't been attempted
-    if (isPatient && session.status === 'in_progress' && !autoJoinAttempted) {
-      console.log('🎯 Patient detected session in progress, preparing auto-join');
-      setShowJoinButton(true);
-    }
-  }, [session, isPatient, autoJoinAttempted]);
+  }, [session]);
 
   const {
     isCallActive,
@@ -75,67 +68,45 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     sessionStatus: currentSession.status
   });
 
-  const handlePatientAutoJoin = async () => {
-    if (autoJoinAttempted) {
-      console.log('⚠️ Auto-join already attempted, skipping');
-      return;
+  const {
+    autoJoinAttempted,
+    showJoinButton,
+    triggerAutoJoin,
+    triggerManualJoin,
+    resetAutoJoin,
+    enableManualJoin
+  } = useAutoJoinManager({
+    sessionId: currentSession.id,
+    userId: user?.id || '',
+    profile,
+    isPatient,
+    initiateCall,
+    sendPatientJoined: async (sessionId: string, patientId: string) => {
+      const { sendPatientJoined } = await import('./hooks/useNotificationManager');
+      return sendPatientJoined(sessionId, patientId);
     }
+  });
 
-    try {
-      console.log('🚀 Patient auto-joining consultation for session:', currentSession.id);
-      setAutoJoinAttempted(true);
-      
-      // Notify physician that patient joined
-      await sendPatientJoined(currentSession.id, user?.id || '');
-      
-      setShowJoinButton(false);
-      
-      // Start the video call automatically
-      const callerName = `${profile?.first_name} ${profile?.last_name}` || 'Patient';
-      setTimeout(() => {
-        initiateCall(callerName);
-      }, 1000);
-      
-      toast({
-        title: "🎥 Joining Video Call",
-        description: "Connecting to the consultation...",
-      });
-    } catch (error) {
-      console.error('❌ Error auto-joining consultation:', error);
-      setAutoJoinAttempted(false); // Reset on error
-      toast({
-        title: "Error",
-        description: "Failed to join consultation automatically. Please try joining manually.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Use consultation handlers for real-time updates
-  useConsultationHandlers({
+  // Use the centralized notification manager
+  useNotificationManager({
     sessionId: currentSession.id,
     userId: user?.id || '',
     isPatient,
     isPhysician,
     onConsultationStarted: () => {
-      console.log('🎉 Consultation started handler triggered');
+      console.log('🎉 [VideoInterface] Consultation started handler triggered');
       setConsultationStarted(true);
-      
-      // Update session status locally
       setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
       
-      if (isPatient && !autoJoinAttempted) {
-        console.log('🎯 Patient: Auto-joining video call immediately');
-        setShowJoinButton(false);
-        
-        // Auto-join the video call after a short delay
+      if (isPatient) {
+        console.log('🎯 [VideoInterface] Patient: Auto-joining video call');
         setTimeout(() => {
-          handlePatientAutoJoin();
-        }, 1500);
+          triggerAutoJoin();
+        }, 1000);
       }
     },
     onPatientJoined: () => {
-      console.log('👋 Patient joined handler triggered');
+      console.log('👋 [VideoInterface] Patient joined handler triggered');
       if (isPhysician) {
         toast({
           title: "Patient Joined",
@@ -147,7 +118,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   const handleStartConsultation = async () => {
     try {
-      console.log('👨‍⚕️ Doctor starting consultation for session:', currentSession.id);
+      console.log('👨‍⚕️ [VideoInterface] Doctor starting consultation for session:', currentSession.id);
       
       // Update session status in database first
       const { error } = await supabase
@@ -159,11 +130,11 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         .eq('id', currentSession.id);
 
       if (error) {
-        console.error('❌ Error updating session status:', error);
+        console.error('❌ [VideoInterface] Error updating session status:', error);
         throw error;
       }
       
-      console.log('✅ Session status updated to in_progress in database');
+      console.log('✅ [VideoInterface] Session status updated to in_progress in database');
       
       // Update local state immediately
       const updatedSession = { 
@@ -177,7 +148,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       // Call the parent component's start session handler
       await onStartSession();
       
-      // Send real-time notifications
+      // Send real-time notifications as backup
       await sendConsultationStarted(currentSession.id, user?.id || '');
       
       toast({
@@ -185,7 +156,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         description: "Patient is being notified and will join automatically...",
       });
     } catch (error) {
-      console.error('❌ Error starting consultation:', error);
+      console.error('❌ [VideoInterface] Error starting consultation:', error);
       toast({
         title: "Error",
         description: "Failed to start consultation. Please try again.",
@@ -194,62 +165,19 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
   };
 
-  const handlePatientJoin = async () => {
-    try {
-      console.log('👤 Patient manually joining consultation for session:', currentSession.id);
-      
-      // Notify physician that patient joined
-      await sendPatientJoined(currentSession.id, user?.id || '');
-      
-      setShowJoinButton(false);
-      setAutoJoinAttempted(true);
-      
-      // Start the video call
-      const callerName = `${profile?.first_name} ${profile?.last_name}` || 'Patient';
-      initiateCall(callerName);
-      
-      toast({
-        title: "🎥 Joining Consultation",
-        description: "Connecting to video call...",
-      });
-    } catch (error) {
-      console.error('❌ Error joining consultation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to join consultation. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleStartCall = () => {
-    const callerName = `${profile?.first_name} ${profile?.last_name}` || 'Unknown User';
+    const callerName = `${profile?.first_name || 'Unknown'} ${profile?.last_name || 'User'}`.trim();
     initiateCall(callerName);
   };
 
   const handleEndSession = () => {
     endCall();
+    resetAutoJoin();
     onEndSession();
   };
 
-  const handleAnswerCall = () => {
-    answerCall();
-  };
-
-  const handleDeclineCall = () => {
-    declineCall();
-  };
-
-  const handleMessageCall = () => {
-    declineCall();
-    toast({
-      title: "Opening Chat",
-      description: "You can send a message instead of taking the call.",
-    });
-  };
-
   const renderContent = () => {
-    console.log('🎨 Rendering content:', { 
+    console.log('🎨 [VideoInterface] Rendering content:', { 
       sessionStatus: currentSession.status, 
       userRole: profile?.role, 
       callActive: isCallActive 
@@ -265,9 +193,11 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           consultationStarted={consultationStarted}
           showJoinButton={showJoinButton}
           isCallActive={isCallActive}
+          autoJoinAttempted={autoJoinAttempted}
           onStartConsultation={handleStartConsultation}
-          onPatientJoin={handlePatientJoin}
+          onPatientJoin={triggerManualJoin}
           onStartCall={handleStartCall}
+          onEnableManualJoin={enableManualJoin}
         />
       );
     }
@@ -304,14 +234,19 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   return (
     <>
-      {/* Incoming Call Dialog */}
       <IncomingCallDialog
         isOpen={incomingCall}
         session={currentSession}
         callerName={callInitiator}
-        onAnswer={handleAnswerCall}
-        onDecline={handleDeclineCall}
-        onMessage={handleMessageCall}
+        onAnswer={answerCall}
+        onDecline={declineCall}
+        onMessage={() => {
+          declineCall();
+          toast({
+            title: "Opening Chat",
+            description: "You can send a message instead of taking the call.",
+          });
+        }}
       />
 
       <Card>

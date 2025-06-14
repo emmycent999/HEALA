@@ -10,9 +10,11 @@ interface ConsultationActionsProps {
   consultationStarted: boolean;
   showJoinButton: boolean;
   isCallActive: boolean;
+  autoJoinAttempted: boolean;
   onStartConsultation: () => void;
   onPatientJoin: () => void;
   onStartCall: () => void;
+  onEnableManualJoin: () => void;
 }
 
 export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
@@ -22,10 +24,20 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
   consultationStarted,
   showJoinButton,
   isCallActive,
+  autoJoinAttempted,
   onStartConsultation,
   onPatientJoin,
-  onStartCall
+  onStartCall,
+  onEnableManualJoin
 }) => {
+  console.log('🎬 [ConsultationActions] Rendering:', {
+    sessionStatus,
+    isPhysician,
+    isPatient,
+    showJoinButton,
+    autoJoinAttempted
+  });
+
   // Session not started yet
   if (sessionStatus === 'scheduled') {
     if (isPhysician) {
@@ -75,36 +87,56 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
     }
   }
 
-  // Session started - patient is auto-joining or has joined
+  // Session started - patient auto-joining or needs to join
   if (sessionStatus === 'in_progress' && isPatient && !isCallActive) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
-        <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
-          <div className="flex items-center justify-center mb-6">
-            <Loader2 className="w-20 h-20 text-green-500 animate-spin" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">🚀 Joining Video Call...</h3>
-          <p className="text-gray-600 mb-6">
-            The doctor has started the consultation. You're being connected automatically to the video call.
-          </p>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-green-700 font-medium">
-              ⚡ Auto-connecting... Please wait a moment.
+    // Show auto-joining screen
+    if (autoJoinAttempted && !showJoinButton) {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+          <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
+            <div className="flex items-center justify-center mb-6">
+              <Loader2 className="w-20 h-20 text-green-500 animate-spin" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">🚀 Joining Video Call...</h3>
+            <p className="text-gray-600 mb-6">
+              The doctor has started the consultation. You're being connected automatically to the video call.
             </p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-green-700 font-medium">
+                ⚡ Auto-connecting... Please wait a moment.
+              </p>
+            </div>
           </div>
-          {showJoinButton && (
+        </div>
+      );
+    }
+
+    // Show manual join option
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-blue-200 max-w-md">
+          <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">🎥 Join Video Consultation</h3>
+          <p className="text-gray-600 mb-6">
+            The doctor has started the consultation. Click below to join the video call.
+          </p>
+          <Button
+            onClick={onPatientJoin}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg mb-4"
+            size="lg"
+          >
+            <Video className="w-5 h-5 mr-2" />
+            Join Video Call
+          </Button>
+          {!showJoinButton && (
             <div className="mt-4">
               <Button
-                onClick={onPatientJoin}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                onClick={onEnableManualJoin}
+                variant="outline"
                 size="sm"
               >
-                <Video className="w-4 h-4 mr-2" />
-                Join Manually
+                Show Join Button
               </Button>
-              <p className="text-xs text-gray-500 mt-2">
-                Click if auto-join doesn't work
-              </p>
             </div>
           )}
         </div>

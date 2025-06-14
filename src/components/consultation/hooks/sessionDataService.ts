@@ -3,64 +3,92 @@ import { supabase } from '@/integrations/supabase/client';
 import { ConsultationSession } from '../types';
 
 export const fetchSessionData = async (sessionId: string): Promise<ConsultationSession | null> => {
-  console.log('Fetching session data for:', sessionId);
+  console.log('🔍 [SessionData] Fetching session data for:', sessionId);
   
-  // Get the consultation session first
-  const { data: sessionData, error: sessionError } = await supabase
-    .from('consultation_sessions')
-    .select('*')
-    .eq('id', sessionId)
-    .single();
+  try {
+    // Get the consultation session first
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('consultation_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
 
-  if (sessionError) {
-    console.error('Error fetching session:', sessionError);
-    throw sessionError;
+    if (sessionError) {
+      console.error('❌ [SessionData] Error fetching session:', sessionError);
+      throw sessionError;
+    }
+
+    if (!sessionData) {
+      console.log('⚠️ [SessionData] No session found');
+      return null;
+    }
+
+    console.log('✅ [SessionData] Session data found:', sessionData);
+
+    // Get patient and physician profiles with proper error handling
+    const [patientResult, physicianResult] = await Promise.allSettled([
+      supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', sessionData.patient_id)
+        .single(),
+      supabase
+        .from('profiles')
+        .select('first_name, last_name, specialization')
+        .eq('id', sessionData.physician_id)
+        .single()
+    ]);
+
+    // Handle patient data with fallbacks
+    let patientData = { 
+      first_name: 'Unknown', 
+      last_name: 'Patient' 
+    };
+    
+    if (patientResult.status === 'fulfilled' && patientResult.value.data) {
+      patientData = patientResult.value.data;
+      console.log('✅ [SessionData] Patient data loaded:', patientData);
+    } else {
+      console.error('⚠️ [SessionData] Patient data not found, using fallback');
+      if (patientResult.status === 'rejected') {
+        console.error('❌ [SessionData] Patient fetch error:', patientResult.reason);
+      }
+    }
+
+    // Handle physician data with fallbacks
+    let physicianData = { 
+      first_name: 'Unknown', 
+      last_name: 'Doctor', 
+      specialization: 'General Practice' 
+    };
+    
+    if (physicianResult.status === 'fulfilled' && physicianResult.value.data) {
+      physicianData = physicianResult.value.data;
+      console.log('✅ [SessionData] Physician data loaded:', physicianData);
+    } else {
+      console.error('⚠️ [SessionData] Physician data not found, using fallback');
+      if (physicianResult.status === 'rejected') {
+        console.error('❌ [SessionData] Physician fetch error:', physicianResult.reason);
+      }
+    }
+
+    // Build the complete session object with validated data
+    const completeSession: ConsultationSession = {
+      ...sessionData,
+      patient: patientData,
+      physician: physicianData
+    };
+
+    console.log('🎯 [SessionData] Complete session assembled:', {
+      id: completeSession.id,
+      status: completeSession.status,
+      patient: completeSession.patient,
+      physician: completeSession.physician
+    });
+
+    return completeSession;
+  } catch (error) {
+    console.error('💥 [SessionData] Fatal error fetching session data:', error);
+    throw error;
   }
-
-  if (!sessionData) {
-    console.log('No session found');
-    return null;
-  }
-
-  console.log('Session data found:', sessionData);
-
-  // Get patient and physician profiles separately with better error handling
-  const [patientResult, physicianResult] = await Promise.allSettled([
-    supabase
-      .from('profiles')
-      .select('first_name, last_name')
-      .eq('id', sessionData.patient_id)
-      .maybeSingle(),
-    supabase
-      .from('profiles')
-      .select('first_name, last_name, specialization')
-      .eq('id', sessionData.physician_id)
-      .maybeSingle()
-  ]);
-
-  // Handle patient data
-  let patientData = { first_name: 'Unknown', last_name: 'Patient' };
-  if (patientResult.status === 'fulfilled' && patientResult.value.data) {
-    patientData = patientResult.value.data;
-  } else if (patientResult.status === 'rejected') {
-    console.error('Error fetching patient data:', patientResult.reason);
-  }
-
-  // Handle physician data
-  let physicianData = { first_name: 'Unknown', last_name: 'Doctor', specialization: 'General' };
-  if (physicianResult.status === 'fulfilled' && physicianResult.value.data) {
-    physicianData = physicianResult.value.data;
-  } else if (physicianResult.status === 'rejected') {
-    console.error('Error fetching physician data:', physicianResult.reason);
-  }
-
-  // Build the complete session object
-  const completeSession: ConsultationSession = {
-    ...sessionData,
-    patient: patientData,
-    physician: physicianData
-  };
-
-  console.log('Complete session with profiles:', completeSession);
-  return completeSession;
 };
