@@ -3,8 +3,15 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const EmptySessionState: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleBookAppointment = () => {
+    navigate('/patient?tab=appointments');
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -20,7 +27,7 @@ export const EmptySessionState: React.FC = () => {
           <p className="text-gray-600 mb-4">
             Start a virtual consultation by booking an appointment with a physician.
           </p>
-          <Button onClick={() => window.location.href = '/patient?tab=appointments'}>
+          <Button onClick={handleBookAppointment}>
             Book Appointment
           </Button>
         </div>
