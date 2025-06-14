@@ -85,38 +85,19 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
         <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
           <Video className="w-20 h-20 mx-auto mb-6 text-green-500" />
           <h3 className="text-2xl font-bold text-gray-800 mb-4">
-            {isPhysician ? 'Start Video Call' : 'Join Video Call'}
+            Start Video Call Now
           </h3>
           <p className="text-gray-600 mb-6">
-            {isPhysician 
-              ? 'Click below to start the video call with your patient.'
-              : 'The consultation is ready. Click below to join the video call.'
-            }
+            The consultation is ready. Click to start video immediately.
           </p>
-          <div className="space-y-3">
-            <Button
-              onClick={isPhysician ? onStartCall : onPatientJoin}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
-              size="lg"
-            >
-              <Play className="w-5 h-5 mr-2" />
-              {isPhysician ? 'Start Video Call' : 'Join Video Call'}
-            </Button>
-            
-            {/* Alternative button for immediate start */}
-            <Button
-              onClick={onStartCall}
-              variant="outline"
-              className="border-green-600 text-green-600 hover:bg-green-50 w-full"
-            >
-              <Video className="w-4 h-4 mr-2" />
-              Direct Video Start
-            </Button>
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-500">
-            Having issues? Try the "Direct Video Start" button above.
-          </div>
+          <Button
+            onClick={onStartCall}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
+            size="lg"
+          >
+            <Play className="w-5 h-5 mr-2" />
+            Start Video Call
+          </Button>
         </div>
       </div>
     );

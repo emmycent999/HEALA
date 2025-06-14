@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -17,9 +17,7 @@ export const useGlobalSessionMonitor = ({
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeSessions, setActiveSessions] = useState<string[]>([]);
   const channelRef = useRef<any>(null);
-  const processedEventsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isEnabled || !user || profile?.role !== 'patient') {
@@ -27,14 +25,14 @@ export const useGlobalSessionMonitor = ({
       return;
     }
 
-    console.log('🌍 [GlobalSessionMonitor] Setting up simplified global monitoring for patient:', user.id);
+    console.log('🌍 [GlobalSessionMonitor] Setting up monitoring for patient:', user.id);
 
     // Clean up existing channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
 
-    // Simplified global monitoring - just database changes
+    // Simple database monitoring
     channelRef.current = supabase
       .channel(`patient_sessions_${user.id}`)
       .on(
@@ -55,7 +53,7 @@ export const useGlobalSessionMonitor = ({
       });
 
     return () => {
-      console.log('🧹 [GlobalSessionMonitor] Cleaning up global monitor');
+      console.log('🧹 [GlobalSessionMonitor] Cleaning up');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
@@ -66,83 +64,29 @@ export const useGlobalSessionMonitor = ({
     const newSession = payload.new;
     const oldSession = payload.old;
     
-    // Create unique event ID
-    const eventId = `global_${newSession.id}_${newSession.status}_${Date.now()}`;
-    
-    if (processedEventsRef.current.has(eventId)) {
-      console.log('🔄 [GlobalSessionMonitor] Event already processed:', eventId);
-      return;
-    }
-    
-    processedEventsRef.current.add(eventId);
-    
-    // Check if session status changed from scheduled to in_progress
+    // Check if session status changed to in_progress
     if (oldSession?.status === 'scheduled' && newSession?.status === 'in_progress') {
       console.log('🚨 [GlobalSessionMonitor] CONSULTATION STARTED! Session:', newSession.id);
       
-      // Update active sessions
-      setActiveSessions(prev => [...prev, newSession.id]);
-      
-      // Show browser notification
-      showBrowserNotification(newSession);
-      
-      // Show toast notification
+      // Show notification
       toast({
         title: "🚨 Doctor Started Consultation!",
         description: "Redirecting to video call now...",
-        duration: 5000,
+        duration: 3000,
       });
       
-      // Immediate redirect to the consultation session
-      console.log('🔀 [GlobalSessionMonitor] Immediate redirect to session:', newSession.id);
+      // Immediate redirect
+      console.log('🔀 [GlobalSessionMonitor] Redirecting to session:', newSession.id);
       navigate(`/patient?tab=virtual-consultation&session=${newSession.id}`);
       
-      // Trigger callback if provided
+      // Trigger callback
       if (onSessionStarted) {
         onSessionStarted(newSession.id);
       }
     }
   };
 
-  const showBrowserNotification = (session: any) => {
-    // Request permission if not already granted
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          createNotification(session);
-        }
-      });
-    } else if (Notification.permission === 'granted') {
-      createNotification(session);
-    }
-  };
-
-  const createNotification = (session: any) => {
-    try {
-      const notification = new Notification('🚨 Doctor Started Consultation!', {
-        body: 'Your doctor has started the video consultation. Click to join.',
-        icon: '/favicon.ico',
-        tag: `consultation-${session.id}`,
-        requireInteraction: true
-      });
-
-      notification.onclick = () => {
-        window.focus();
-        navigate(`/patient?tab=virtual-consultation&session=${session.id}`);
-        notification.close();
-      };
-
-      // Auto-close after 8 seconds
-      setTimeout(() => {
-        notification.close();
-      }, 8000);
-    } catch (error) {
-      console.error('❌ [GlobalSessionMonitor] Error creating notification:', error);
-    }
-  };
-
   return {
-    activeSessions,
     isMonitoring: isEnabled && !!channelRef.current
   };
 };
