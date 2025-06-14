@@ -122,6 +122,9 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     if (session.status === 'scheduled' && !isPhysician) {
       return 'secondary'; // Disabled look for patients waiting
     }
+    if (session.status === 'in_progress') {
+      return 'default'; // Active look for in-progress sessions
+    }
     return 'default';
   };
 
