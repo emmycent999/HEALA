@@ -5,7 +5,6 @@ import { ConsultationSession } from './types';
 import { useVideoCall } from './hooks/useVideoCall';
 import { IncomingCallDialog } from './IncomingCallDialog';
 import { VideoStreams } from './VideoStreams';
-import { VideoPlaceholder } from './VideoPlaceholder';
 import { VideoConnectionStatus } from './VideoConnectionStatus';
 import { VideoControls } from './VideoControls';
 import { ConsultationActions } from './ConsultationActions';
@@ -41,11 +40,13 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   // Update local state when session prop changes
   useEffect(() => {
+    console.log('Session prop changed:', session);
     setCurrentSession(session);
     setConsultationStarted(session.status === 'in_progress');
     
     // For patients, show join button if session is in progress
     if (isPatient && session.status === 'in_progress') {
+      console.log('Patient detected session in progress, showing join button');
       setShowJoinButton(true);
     }
   }, [session, isPatient]);
@@ -79,13 +80,14 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     isPatient,
     isPhysician,
     onConsultationStarted: () => {
-      console.log('Consultation started handler triggered');
+      console.log('Consultation started handler triggered - updating UI state');
       setConsultationStarted(true);
       
       // Update session status locally
       setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
       
       if (isPatient) {
+        console.log('Patient: showing join button and notification');
         setShowJoinButton(true);
         toast({
           title: "🚨 Doctor Started Consultation!",
@@ -96,7 +98,12 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     },
     onPatientJoined: () => {
       console.log('Patient joined handler triggered');
-      // Handle patient joined logic if needed
+      if (isPhysician) {
+        toast({
+          title: "Patient Joined",
+          description: "The patient has joined the consultation.",
+        });
+      }
     }
   });
 
@@ -118,18 +125,21 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         throw error;
       }
       
-      // Update local state
-      setCurrentSession(prev => ({ 
-        ...prev, 
-        status: 'in_progress',
+      console.log('Session status updated to in_progress in database');
+      
+      // Update local state immediately
+      const updatedSession = { 
+        ...currentSession, 
+        status: 'in_progress' as const,
         started_at: new Date().toISOString()
-      }));
+      };
+      setCurrentSession(updatedSession);
       setConsultationStarted(true);
       
       // Call the parent component's start session handler
       await onStartSession();
       
-      // Send real-time notifications as backup
+      // Send real-time notifications
       await sendConsultationStarted(currentSession.id, user?.id || '');
       
       toast({

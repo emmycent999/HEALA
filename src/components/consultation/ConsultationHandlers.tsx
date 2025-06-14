@@ -28,9 +28,9 @@ export const useConsultationHandlers = ({
 
     console.log('Setting up consultation handlers for session:', sessionId, 'user:', userId, 'role:', isPatient ? 'patient' : 'physician');
 
-    // Listen for database changes on the consultation_sessions table
+    // Primary: Listen for database changes on the consultation_sessions table
     const dbChannel = supabase
-      .channel('db-changes')
+      .channel(`consultation_db_${sessionId}`)
       .on(
         'postgres_changes',
         {
@@ -45,8 +45,8 @@ export const useConsultationHandlers = ({
           const oldSession = payload.old as any;
           
           // Check if status changed from scheduled to in_progress
-          if (oldSession.status === 'scheduled' && newSession.status === 'in_progress') {
-            console.log('Consultation started via database update');
+          if (oldSession?.status === 'scheduled' && newSession?.status === 'in_progress') {
+            console.log('Consultation started via database update - triggering handler');
             onConsultationStarted();
             
             if (isPatient) {
@@ -63,12 +63,13 @@ export const useConsultationHandlers = ({
         console.log('Database subscription status:', status);
       });
 
-    // Also listen for broadcast messages as backup
+    // Secondary: Listen for broadcast messages as backup
     const broadcastChannel = supabase
-      .channel(`consultation_${sessionId}`)
+      .channel(`consultation_broadcast_${sessionId}`)
       .on('broadcast', { event: 'consultation-started' }, (payload) => {
         console.log('Received consultation-started broadcast:', payload);
-        if (payload.payload.startedBy !== userId) {
+        if (payload.payload?.startedBy !== userId) {
+          console.log('Broadcast consultation started - triggering handler');
           onConsultationStarted();
           if (isPatient) {
             toast({
@@ -81,7 +82,7 @@ export const useConsultationHandlers = ({
       })
       .on('broadcast', { event: 'patient-joined' }, (payload) => {
         console.log('Received patient-joined broadcast:', payload);
-        if (payload.payload.patientId !== userId && isPhysician) {
+        if (payload.payload?.patientId !== userId && isPhysician) {
           onPatientJoined();
           toast({
             title: "Patient Joined",
@@ -106,7 +107,7 @@ export const sendConsultationStarted = async (sessionId: string, userId: string)
     console.log('Sending consultation started notification for session:', sessionId);
     
     // Send broadcast notification
-    const channel = supabase.channel(`consultation_${sessionId}`);
+    const channel = supabase.channel(`consultation_broadcast_${sessionId}`);
     await channel.send({
       type: 'broadcast',
       event: 'consultation-started',
@@ -128,7 +129,7 @@ export const sendPatientJoined = async (sessionId: string, patientId: string) =>
   try {
     console.log('Sending patient joined notification for session:', sessionId);
     
-    const channel = supabase.channel(`consultation_${sessionId}`);
+    const channel = supabase.channel(`consultation_broadcast_${sessionId}`);
     await channel.send({
       type: 'broadcast',
       event: 'patient-joined',

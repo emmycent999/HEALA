@@ -24,7 +24,7 @@ export const fetchSessionData = async (sessionId: string): Promise<ConsultationS
 
   console.log('Session data found:', sessionData);
 
-  // Get patient and physician profiles separately
+  // Get patient and physician profiles separately to avoid complex joins
   const [patientResult, physicianResult] = await Promise.all([
     supabase
       .from('profiles')
@@ -38,10 +38,11 @@ export const fetchSessionData = async (sessionId: string): Promise<ConsultationS
       .single()
   ]);
 
+  // Build the complete session object with fallback values
   const completeSession: ConsultationSession = {
     ...sessionData,
-    patient: patientResult.data,
-    physician: physicianResult.data
+    patient: patientResult.data || { first_name: 'Unknown', last_name: 'Patient' },
+    physician: physicianResult.data || { first_name: 'Unknown', last_name: 'Doctor', specialization: 'General' }
   };
 
   console.log('Complete session with profiles:', completeSession);
