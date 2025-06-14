@@ -13,6 +13,8 @@ export const TestVideoSession: React.FC = () => {
 
   const createTestVideoSession = async () => {
     try {
+      console.log('Creating test session with user:', user?.id, 'profile role:', profile?.role);
+      
       if (!user) {
         toast({
           title: "Error",
@@ -22,12 +24,27 @@ export const TestVideoSession: React.FC = () => {
         return;
       }
 
+      if (!profile) {
+        toast({
+          title: "Error",
+          description: "Profile not loaded. Please refresh the page.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Determine patient and physician IDs based on current user role
+      const patientId = profile.role === 'physician' ? '150176f3-659d-4421-8e11-81086e3b5d00' : user.id;
+      const physicianId = profile.role === 'physician' ? user.id : 'c48a9b68-2144-4767-a3d1-395fab939a50';
+
+      console.log('Patient ID:', patientId, 'Physician ID:', physicianId);
+
       // Create a test appointment first
       const { data: appointmentData, error: appointmentError } = await supabase
         .from('appointments')
         .insert({
-          patient_id: profile?.role === 'physician' ? '150176f3-659d-4421-8e11-81086e3b5d00' : user.id,
-          physician_id: profile?.role === 'physician' ? user.id : 'c48a9b68-2144-4767-a3d1-395fab939a50',
+          patient_id: patientId,
+          physician_id: physicianId,
           appointment_date: new Date().toISOString().split('T')[0],
           appointment_time: '14:00',
           consultation_type: 'virtual',
@@ -37,38 +54,50 @@ export const TestVideoSession: React.FC = () => {
         .select()
         .single();
 
-      if (appointmentError) throw appointmentError;
+      if (appointmentError) {
+        console.error('Appointment creation error:', appointmentError);
+        throw new Error(`Failed to create appointment: ${appointmentError.message}`);
+      }
+
+      console.log('Appointment created:', appointmentData);
 
       // Create a video consultation session
       const { data: sessionData, error: sessionError } = await supabase
         .from('consultation_sessions')
         .insert({
           appointment_id: appointmentData.id,
-          patient_id: profile?.role === 'physician' ? '150176f3-659d-4421-8e11-81086e3b5d00' : user.id,
-          physician_id: profile?.role === 'physician' ? user.id : 'c48a9b68-2144-4767-a3d1-395fab939a50',
+          patient_id: patientId,
+          physician_id: physicianId,
           consultation_rate: 5000,
-          session_type: 'video', // This is the key change - making it video type
+          session_type: 'video',
           status: 'scheduled',
           payment_status: 'pending'
         })
         .select()
         .single();
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error('Session creation error:', sessionError);
+        throw new Error(`Failed to create session: ${sessionError.message}`);
+      }
+
+      console.log('Session created:', sessionData);
 
       toast({
         title: "Test Session Created",
         description: `Video consultation session created with ID: ${sessionData.id}. Refresh the page to see it in the list.`,
       });
 
-      // Refresh the page to see the new session
-      window.location.reload();
+      // Refresh the page after a short delay to show the new session
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
     } catch (error) {
       console.error('Error creating test session:', error);
       toast({
         title: "Error",
-        description: "Failed to create test session. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to create test session. Please try again.",
         variant: "destructive"
       });
     }
