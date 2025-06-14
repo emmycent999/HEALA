@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Video, Clock, UserCheck, Loader2 } from 'lucide-react';
+import { Video, Clock, UserCheck, Play } from 'lucide-react';
 
 interface ConsultationActionsProps {
   sessionStatus: string;
@@ -24,18 +24,16 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
   consultationStarted,
   showJoinButton,
   isCallActive,
-  autoJoinAttempted,
   onStartConsultation,
   onPatientJoin,
-  onStartCall,
-  onEnableManualJoin
+  onStartCall
 }) => {
   console.log('🎬 [ConsultationActions] Rendering:', {
     sessionStatus,
     isPhysician,
     isPatient,
-    showJoinButton,
-    autoJoinAttempted
+    consultationStarted,
+    showJoinButton
   });
 
   // Session not started yet
@@ -45,9 +43,9 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
           <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-blue-200 max-w-md">
             <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Start Video Consultation</h3>
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Start</h3>
             <p className="text-gray-600 mb-6">
-              Click "Start Video Consultation" to begin the video session and notify the patient.
+              Click below to start the video consultation immediately.
             </p>
             <Button
               onClick={onStartConsultation}
@@ -57,9 +55,6 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
               <UserCheck className="w-5 h-5 mr-2" />
               Start Video Consultation
             </Button>
-            <div className="mt-4 text-sm text-gray-500">
-              Patient will be notified and join automatically
-            </div>
           </div>
         </div>
       );
@@ -70,16 +65,12 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
             <Clock className="w-20 h-20 mx-auto mb-6 text-gray-400 animate-pulse" />
             <h3 className="text-2xl font-bold text-gray-800 mb-4">Waiting for Doctor</h3>
             <p className="text-gray-600 mb-4">
-              The video consultation has not started yet. You will be automatically connected when the doctor begins the session.
+              The doctor will start the video consultation shortly.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-700">
-                📱 You'll automatically join the video call when the doctor starts the consultation.
+                📱 You'll automatically join when the doctor starts.
               </p>
-            </div>
-            <div className="mt-6 flex items-center justify-center text-sm text-gray-500">
-              <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full mr-2"></div>
-              Waiting for doctor to start...
             </div>
           </div>
         </div>
@@ -87,86 +78,45 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
     }
   }
 
-  // Session started - patient auto-joining or needs to join
-  if (sessionStatus === 'in_progress' && isPatient && !isCallActive) {
-    // Show auto-joining screen
-    if (autoJoinAttempted && !showJoinButton) {
-      return (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
-          <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
-            <div className="flex items-center justify-center mb-6">
-              <Loader2 className="w-20 h-20 text-green-500 animate-spin" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">🚀 Joining Video Call...</h3>
-            <p className="text-gray-600 mb-6">
-              The doctor has started the consultation. You're being connected automatically to the video call.
-            </p>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-700 font-medium">
-                ⚡ Auto-connecting... Please wait a moment.
-              </p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Show manual join option
-    return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-blue-200 max-w-md">
-          <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
-          <h3 className="text-2xl font-bold text-gray-800 mb-4">🎥 Join Video Consultation</h3>
-          <p className="text-gray-600 mb-6">
-            The doctor has started the consultation. Click below to join the video call.
-          </p>
-          <Button
-            onClick={onPatientJoin}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg mb-4"
-            size="lg"
-          >
-            <Video className="w-5 h-5 mr-2" />
-            Join Video Call
-          </Button>
-          {!showJoinButton && (
-            <div className="mt-4">
-              <Button
-                onClick={onEnableManualJoin}
-                variant="outline"
-                size="sm"
-              >
-                Show Join Button
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Session started - physician waiting for patient or call active
+  // Session started - show video call options
   if (sessionStatus === 'in_progress' && !isCallActive) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
-        <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-purple-200 max-w-md">
-          <Video className="w-20 h-20 mx-auto mb-6 text-purple-500" />
-          <h3 className="text-xl font-bold text-gray-800 mb-4">
-            {isPhysician ? 'Patient is joining video call...' : 'Preparing video call...'}
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
+          <Video className="w-20 h-20 mx-auto mb-6 text-green-500" />
+          <h3 className="text-2xl font-bold text-gray-800 mb-4">
+            {isPhysician ? 'Start Video Call' : 'Join Video Call'}
           </h3>
-          {isPhysician && (
-            <>
-              <p className="text-gray-600 mb-6">
-                The patient will join automatically. You can also start the video call manually if needed.
-              </p>
-              <Button
-                onClick={onStartCall}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
-              >
-                <Video className="w-4 h-4 mr-2" />
-                Start Video Call
-              </Button>
-            </>
-          )}
+          <p className="text-gray-600 mb-6">
+            {isPhysician 
+              ? 'Click below to start the video call with your patient.'
+              : 'The consultation is ready. Click below to join the video call.'
+            }
+          </p>
+          <div className="space-y-3">
+            <Button
+              onClick={isPhysician ? onStartCall : onPatientJoin}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
+              size="lg"
+            >
+              <Play className="w-5 h-5 mr-2" />
+              {isPhysician ? 'Start Video Call' : 'Join Video Call'}
+            </Button>
+            
+            {/* Alternative button for immediate start */}
+            <Button
+              onClick={onStartCall}
+              variant="outline"
+              className="border-green-600 text-green-600 hover:bg-green-50 w-full"
+            >
+              <Video className="w-4 h-4 mr-2" />
+              Direct Video Start
+            </Button>
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-500">
+            Having issues? Try the "Direct Video Start" button above.
+          </div>
         </div>
       </div>
     );

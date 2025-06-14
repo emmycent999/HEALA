@@ -8,8 +8,6 @@ import { VideoStreams } from './VideoStreams';
 import { VideoConnectionStatus } from './VideoConnectionStatus';
 import { VideoControls } from './VideoControls';
 import { ConsultationActions } from './ConsultationActions';
-import { useNotificationManager, sendConsultationStarted } from './hooks/useNotificationManager';
-import { useAutoJoinManager } from './hooks/useAutoJoinManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +27,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   const { toast } = useToast();
   const [currentSession, setCurrentSession] = useState(session);
   const [consultationStarted, setConsultationStarted] = useState(session.status === 'in_progress');
+  const [videoStarted, setVideoStarted] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
@@ -36,15 +35,25 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   console.log('🖥️ [VideoInterface] Render:', { 
     sessionStatus: currentSession.status, 
     userRole: profile?.role,
-    consultationStarted
+    consultationStarted,
+    videoStarted
   });
 
   // Update local state when session prop changes
   useEffect(() => {
     console.log('📥 [VideoInterface] Session prop changed:', session);
     setCurrentSession(session);
-    setConsultationStarted(session.status === 'in_progress');
-  }, [session]);
+    const wasStarted = session.status === 'in_progress';
+    setConsultationStarted(wasStarted);
+    
+    // Auto-start video for patients when consultation becomes active
+    if (wasStarted && isPatient && !videoStarted) {
+      console.log('🎥 [VideoInterface] Auto-starting video for patient');
+      setTimeout(() => {
+        handleStartCall();
+      }, 1000);
+    }
+  }, [session, isPatient, videoStarted]);
 
   const {
     isCallActive,
@@ -68,59 +77,52 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     sessionStatus: currentSession.status
   });
 
-  const {
-    autoJoinAttempted,
-    showJoinButton,
-    triggerAutoJoin,
-    triggerManualJoin,
-    resetAutoJoin,
-    enableManualJoin
-  } = useAutoJoinManager({
-    sessionId: currentSession.id,
-    userId: user?.id || '',
-    profile,
-    isPatient,
-    initiateCall,
-    sendPatientJoined: async (sessionId: string, patientId: string) => {
-      const { sendPatientJoined } = await import('./hooks/useNotificationManager');
-      return sendPatientJoined(sessionId, patientId);
-    }
-  });
+  // Simple notification handler - just listen for database changes
+  useEffect(() => {
+    if (currentSession.status !== 'in_progress') return;
 
-  // Use the centralized notification manager (only when in this specific session)
-  useNotificationManager({
-    sessionId: currentSession.id,
-    userId: user?.id || '',
-    isPatient,
-    isPhysician,
-    onConsultationStarted: () => {
-      console.log('🎉 [VideoInterface] Consultation started handler triggered');
-      setConsultationStarted(true);
-      setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
-      
-      if (isPatient) {
-        console.log('🎯 [VideoInterface] Patient: Auto-joining video call');
-        setTimeout(() => {
-          triggerAutoJoin();
-        }, 1000);
-      }
-    },
-    onPatientJoined: () => {
-      console.log('👋 [VideoInterface] Patient joined handler triggered');
-      if (isPhysician) {
-        toast({
-          title: "Patient Joined",
-          description: "The patient has joined the consultation.",
-        });
-      }
-    }
-  });
+    console.log('🔔 [VideoInterface] Setting up simple notification listener');
+    
+    const channel = supabase
+      .channel(`consultation_simple_${currentSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'consultation_sessions',
+          filter: `id=eq.${currentSession.id}`
+        },
+        (payload) => {
+          console.log('📡 [VideoInterface] Session update:', payload);
+          const newSession = payload.new as any;
+          
+          if (newSession?.status === 'in_progress' && !consultationStarted) {
+            console.log('🚀 [VideoInterface] Consultation started via update');
+            setConsultationStarted(true);
+            setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
+            
+            if (isPatient && !videoStarted) {
+              toast({
+                title: "🎥 Doctor Started Consultation!",
+                description: "Starting video call...",
+              });
+              setTimeout(() => handleStartCall(), 500);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSession.id, currentSession.status, consultationStarted, isPatient, videoStarted]);
 
   const handleStartConsultation = async () => {
     try {
-      console.log('👨‍⚕️ [VideoInterface] Doctor starting consultation for session:', currentSession.id);
+      console.log('👨‍⚕️ [VideoInterface] Doctor starting consultation');
       
-      // Update session status in database first
       const { error } = await supabase
         .from('consultation_sessions')
         .update({ 
@@ -129,14 +131,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         })
         .eq('id', currentSession.id);
 
-      if (error) {
-        console.error('❌ [VideoInterface] Error updating session status:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('✅ [VideoInterface] Session status updated to in_progress in database');
-      
-      // Update local state immediately
       const updatedSession = { 
         ...currentSession, 
         status: 'in_progress' as const,
@@ -145,16 +141,16 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       setCurrentSession(updatedSession);
       setConsultationStarted(true);
       
-      // Call the parent component's start session handler
       await onStartSession();
-      
-      // Send real-time notifications as backup
-      await sendConsultationStarted(currentSession.id, user?.id || '');
       
       toast({
         title: "🚀 Consultation Started",
-        description: "Patient is being notified and will join automatically...",
+        description: "Video call is ready to begin",
       });
+
+      // Auto-start video for physician
+      setTimeout(() => handleStartCall(), 1000);
+      
     } catch (error) {
       console.error('❌ [VideoInterface] Error starting consultation:', error);
       toast({
@@ -166,13 +162,15 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   };
 
   const handleStartCall = () => {
-    const callerName = `${profile?.first_name || 'Unknown'} ${profile?.last_name || 'User'}`.trim();
+    console.log('📞 [VideoInterface] Starting video call directly');
+    setVideoStarted(true);
+    const callerName = `${profile?.first_name || 'User'} ${profile?.last_name || ''}`.trim();
     initiateCall(callerName);
   };
 
   const handleEndSession = () => {
     endCall();
-    resetAutoJoin();
+    setVideoStarted(false);
     onEndSession();
   };
 
@@ -180,55 +178,56 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     console.log('🎨 [VideoInterface] Rendering content:', { 
       sessionStatus: currentSession.status, 
       userRole: profile?.role, 
-      callActive: isCallActive 
+      callActive: isCallActive,
+      videoStarted
     });
     
-    // Show consultation actions for non-active calls
-    if (!isCallActive) {
+    // Show video streams when call is active
+    if (isCallActive) {
       return (
-        <ConsultationActions
-          sessionStatus={currentSession.status}
-          isPhysician={isPhysician}
-          isPatient={isPatient}
-          consultationStarted={consultationStarted}
-          showJoinButton={showJoinButton}
-          isCallActive={isCallActive}
-          autoJoinAttempted={autoJoinAttempted}
-          onStartConsultation={handleStartConsultation}
-          onPatientJoin={triggerManualJoin}
-          onStartCall={handleStartCall}
-          onEnableManualJoin={enableManualJoin}
-        />
+        <>
+          <VideoStreams
+            localVideoRef={localVideoRef}
+            remoteVideoRef={remoteVideoRef}
+            isCallActive={isCallActive}
+            connectionState={connectionState}
+          />
+
+          <VideoConnectionStatus
+            isCallActive={isCallActive}
+            connectionState={connectionState}
+          />
+          
+          <VideoControls
+            isCallActive={isCallActive}
+            videoEnabled={videoEnabled}
+            audioEnabled={audioEnabled}
+            sessionStatus={currentSession.status}
+            onToggleVideo={toggleVideo}
+            onToggleAudio={toggleAudio}
+            onStartSession={onStartSession}
+            onStartCall={handleStartCall}
+            onEndCall={handleEndSession}
+          />
+        </>
       );
     }
 
-    // Show video streams when call is active
+    // Show consultation actions for non-active calls
     return (
-      <>
-        <VideoStreams
-          localVideoRef={localVideoRef}
-          remoteVideoRef={remoteVideoRef}
-          isCallActive={isCallActive}
-          connectionState={connectionState}
-        />
-
-        <VideoConnectionStatus
-          isCallActive={isCallActive}
-          connectionState={connectionState}
-        />
-        
-        <VideoControls
-          isCallActive={isCallActive}
-          videoEnabled={videoEnabled}
-          audioEnabled={audioEnabled}
-          sessionStatus={currentSession.status}
-          onToggleVideo={toggleVideo}
-          onToggleAudio={toggleAudio}
-          onStartSession={onStartSession}
-          onStartCall={handleStartCall}
-          onEndCall={handleEndSession}
-        />
-      </>
+      <ConsultationActions
+        sessionStatus={currentSession.status}
+        isPhysician={isPhysician}
+        isPatient={isPatient}
+        consultationStarted={consultationStarted}
+        showJoinButton={consultationStarted && !videoStarted}
+        isCallActive={isCallActive}
+        autoJoinAttempted={false}
+        onStartConsultation={handleStartConsultation}
+        onPatientJoin={handleStartCall}
+        onStartCall={handleStartCall}
+        onEnableManualJoin={() => {}} // Not needed in simplified version
+      />
     );
   };
 

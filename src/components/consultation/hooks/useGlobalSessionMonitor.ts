@@ -27,16 +27,16 @@ export const useGlobalSessionMonitor = ({
       return;
     }
 
-    console.log('🌍 [GlobalSessionMonitor] Setting up global session monitoring for patient:', user.id);
+    console.log('🌍 [GlobalSessionMonitor] Setting up simplified global monitoring for patient:', user.id);
 
     // Clean up existing channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
 
-    // Set up global database change listener for patient's sessions
+    // Simplified global monitoring - just database changes
     channelRef.current = supabase
-      .channel(`patient_global_sessions_${user.id}`)
+      .channel(`patient_sessions_${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -67,7 +67,7 @@ export const useGlobalSessionMonitor = ({
     const oldSession = payload.old;
     
     // Create unique event ID
-    const eventId = `global_${newSession.id}_${newSession.status}_${newSession.updated_at}`;
+    const eventId = `global_${newSession.id}_${newSession.status}_${Date.now()}`;
     
     if (processedEventsRef.current.has(eventId)) {
       console.log('🔄 [GlobalSessionMonitor] Event already processed:', eventId);
@@ -89,20 +89,18 @@ export const useGlobalSessionMonitor = ({
       // Show toast notification
       toast({
         title: "🚨 Doctor Started Consultation!",
-        description: "Redirecting you to the video call now...",
-        duration: 8000,
+        description: "Redirecting to video call now...",
+        duration: 5000,
       });
       
-      // Auto-redirect to the consultation session
-      setTimeout(() => {
-        console.log('🔀 [GlobalSessionMonitor] Auto-redirecting to session:', newSession.id);
-        navigate(`/patient?tab=virtual-consultation&session=${newSession.id}`);
-        
-        // Trigger callback if provided
-        if (onSessionStarted) {
-          onSessionStarted(newSession.id);
-        }
-      }, 2000);
+      // Immediate redirect to the consultation session
+      console.log('🔀 [GlobalSessionMonitor] Immediate redirect to session:', newSession.id);
+      navigate(`/patient?tab=virtual-consultation&session=${newSession.id}`);
+      
+      // Trigger callback if provided
+      if (onSessionStarted) {
+        onSessionStarted(newSession.id);
+      }
     }
   };
 
@@ -134,10 +132,10 @@ export const useGlobalSessionMonitor = ({
         notification.close();
       };
 
-      // Auto-close after 10 seconds
+      // Auto-close after 8 seconds
       setTimeout(() => {
         notification.close();
-      }, 10000);
+      }, 8000);
     } catch (error) {
       console.error('❌ [GlobalSessionMonitor] Error creating notification:', error);
     }

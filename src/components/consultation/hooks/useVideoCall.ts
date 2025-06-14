@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: UseVideoCallProps) => {
   const { toast } = useToast();
   const signalingService = useRef<SignalingService | null>(null);
+  const initializationRef = useRef(false);
   
   const {
     isCallActive,
@@ -40,86 +41,112 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     endCall: webRTCEndCall
   } = useWebRTCManager(setConnectionState);
 
-  // Setup signaling when session is in progress and both participants are ready
+  // Simplified setup - only when session is ready and not already initialized
   useEffect(() => {
-    if (sessionStatus === 'in_progress') {
+    if (sessionStatus === 'in_progress' && !initializationRef.current) {
+      console.log('🚀 [useVideoCall] Setting up simplified signaling');
+      initializationRef.current = true;
       setupSignaling();
     }
+    
     return () => {
       if (signalingService.current) {
         signalingService.current.dispose();
+        signalingService.current = null;
       }
     };
   }, [sessionStatus]);
 
   const setupSignaling = () => {
-    signalingService.current = new SignalingService(sessionId, userId);
-    
-    signalingService.current.setupChannel({
-      onCallInvitation: (sender: string, senderName: string) => {
-        console.log('Received call invitation from:', senderName);
-        setCallInitiator(senderName || 'Unknown User');
-        setIncomingCall(true);
-      },
-      onCallDeclined: (sender: string) => {
-        toast({
-          title: "Call Declined",
-          description: "The other participant declined the call.",
-          variant: "destructive"
-        });
-        setIsCallActive(false);
-      },
-      onWebRTCSignal: async (type: string, data: any, sender: string) => {
-        try {
-          switch (type) {
-            case 'offer':
-              if (userRole === 'physician') {
-                const answer = await createAnswer(data);
-                signalingService.current?.sendWebRTCSignal('answer', answer);
-              }
-              break;
-            case 'answer':
-              if (userRole === 'patient') {
-                await handleAnswer(data);
-              }
-              break;
-            case 'ice-candidate':
-              await handleIceCandidate(data);
-              break;
+    try {
+      signalingService.current = new SignalingService(sessionId, userId);
+      
+      signalingService.current.setupChannel({
+        onCallInvitation: (sender: string, senderName: string) => {
+          console.log('📞 [useVideoCall] Received call invitation from:', senderName);
+          setCallInitiator(senderName || 'Unknown User');
+          setIncomingCall(true);
+        },
+        onCallDeclined: (sender: string) => {
+          console.log('📞 [useVideoCall] Call declined by:', sender);
+          toast({
+            title: "Call Declined",
+            description: "The other participant declined the call.",
+            variant: "destructive"
+          });
+          setIsCallActive(false);
+        },
+        onWebRTCSignal: async (type: string, data: any, sender: string) => {
+          try {
+            console.log('📡 [useVideoCall] Received WebRTC signal:', type, 'from:', sender);
+            switch (type) {
+              case 'offer':
+                if (userRole === 'physician') {
+                  const answer = await createAnswer(data);
+                  signalingService.current?.sendWebRTCSignal('answer', answer);
+                }
+                break;
+              case 'answer':
+                if (userRole === 'patient') {
+                  await handleAnswer(data);
+                }
+                break;
+              case 'ice-candidate':
+                await handleIceCandidate(data);
+                break;
+            }
+          } catch (error) {
+            console.error('❌ [useVideoCall] Error handling WebRTC signal:', error);
           }
-        } catch (error) {
-          console.error('Error handling WebRTC signal:', error);
         }
-      }
-    });
+      });
 
-    setSignalingChannel({
-      send: (message: string) => {
-        const data = JSON.parse(message);
-        signalingService.current?.sendWebRTCSignal(data.type, data.data || data.candidate);
-      }
-    });
+      setSignalingChannel({
+        send: (message: string) => {
+          const data = JSON.parse(message);
+          signalingService.current?.sendWebRTCSignal(data.type, data.data || data.candidate);
+        }
+      });
+    } catch (error) {
+      console.error('❌ [useVideoCall] Error setting up signaling:', error);
+    }
   };
 
   const initiateCall = async (callerName: string) => {
     try {
-      console.log('Initiating call for user:', userId, 'role:', userRole);
+      console.log('📞 [useVideoCall] Initiating call - starting video immediately');
       
       // Start local video first
       await startLocalVideo();
+      setIsCallActive(true);
       
       // Send call invitation
-      signalingService.current?.sendCallInvitation(callerName);
+      if (signalingService.current) {
+        signalingService.current.sendCallInvitation(callerName);
+      }
+
+      // Auto-answer for simplicity - create offer/answer based on role
+      setTimeout(async () => {
+        try {
+          if (userRole === 'patient') {
+            console.log('📞 [useVideoCall] Patient creating offer');
+            const offer = await createOffer();
+            signalingService.current?.sendWebRTCSignal('offer', offer);
+          }
+        } catch (error) {
+          console.error('❌ [useVideoCall] Error in auto-offer:', error);
+        }
+      }, 1000);
 
       toast({
-        title: "Calling...",
-        description: "Sending call invitation to the other participant.",
+        title: "🎥 Video Call Started",
+        description: "Connecting to the other participant...",
       });
     } catch (error) {
-      console.error('Error initiating call:', error);
+      console.error('❌ [useVideoCall] Error initiating call:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate call. Please check your camera and microphone permissions.",
+        description: "Failed to start video. Please check camera/microphone permissions.",
         variant: "destructive"
       });
     }
@@ -127,7 +154,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
 
   const answerCall = async () => {
     try {
-      console.log('Answering call for user:', userId, 'role:', userRole);
+      console.log('📞 [useVideoCall] Answering call');
       
       await startLocalVideo();
       setIsCallActive(true);
@@ -138,18 +165,18 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
         setTimeout(async () => {
           const offer = await createOffer();
           signalingService.current?.sendWebRTCSignal('offer', offer);
-        }, 1000);
+        }, 500);
       }
 
       toast({
-        title: "Call Connected",
-        description: "You are now connected to the video call.",
+        title: "📞 Call Connected",
+        description: "You are now in the video call.",
       });
     } catch (error) {
-      console.error('Error answering call:', error);
+      console.error('❌ [useVideoCall] Error answering call:', error);
       toast({
         title: "Error",
-        description: "Failed to answer call. Please check your camera and microphone permissions.",
+        description: "Failed to answer call. Please check permissions.",
         variant: "destructive"
       });
     }
@@ -166,10 +193,14 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
   };
 
   const endCall = () => {
+    console.log('📞 [useVideoCall] Ending call');
     webRTCEndCall();
-    signalingService.current?.dispose();
-    signalingService.current = null;
+    if (signalingService.current) {
+      signalingService.current.dispose();
+      signalingService.current = null;
+    }
     resetCallState();
+    initializationRef.current = false;
   };
 
   const toggleVideo = () => {
