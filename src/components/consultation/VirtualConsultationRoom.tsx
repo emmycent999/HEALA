@@ -17,6 +17,9 @@ interface ConsultationSession {
   status: string;
   session_type: string;
   payment_status: string;
+  started_at?: string;
+  ended_at?: string;
+  duration_minutes?: number;
 }
 
 interface Message {

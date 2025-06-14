@@ -30,6 +30,12 @@ interface Patient {
   total_appointments: number;
 }
 
+interface SecuritySettings {
+  two_factor_required?: boolean;
+  ip_whitelist?: string[];
+  session_timeout?: number;
+}
+
 export const SecureHospitalDashboard: React.FC = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -125,10 +131,11 @@ export const SecureHospitalDashboard: React.FC = () => {
       if (error) throw error;
 
       if (data?.security_settings) {
+        const settings = data.security_settings as SecuritySettings;
         setSecurityStatus({
-          two_factor_enabled: data.security_settings.two_factor_required || false,
-          ip_whitelist_active: (data.security_settings.ip_whitelist || []).length > 0,
-          session_timeout: data.security_settings.session_timeout || 3600
+          two_factor_enabled: settings.two_factor_required || false,
+          ip_whitelist_active: (settings.ip_whitelist || []).length > 0,
+          session_timeout: settings.session_timeout || 3600
         });
       }
     } catch (error) {
