@@ -8,9 +8,10 @@ interface UseVideoCallProps {
   sessionId: string;
   userId: string;
   userRole: 'patient' | 'physician';
+  sessionStatus: string;
 }
 
-export const useVideoCall = ({ sessionId, userId, userRole }: UseVideoCallProps) => {
+export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: UseVideoCallProps) => {
   const { toast } = useToast();
   const [isCallActive, setIsCallActive] = useState(false);
   const [connectionState, setConnectionState] = useState<string>('new');
@@ -62,6 +63,17 @@ export const useVideoCall = ({ sessionId, userId, userRole }: UseVideoCallProps)
       }
     };
   }, [toast]);
+
+  // Auto-connect when session status changes to 'in_progress'
+  useEffect(() => {
+    if (sessionStatus === 'in_progress' && !isCallActive) {
+      console.log('Session started, auto-connecting video call...');
+      startCall();
+    } else if (sessionStatus !== 'in_progress' && isCallActive) {
+      console.log('Session ended, disconnecting video call...');
+      endCall();
+    }
+  }, [sessionStatus, isCallActive]);
 
   const setupSignaling = () => {
     const channelName = `consultation_${sessionId}`;
@@ -117,20 +129,25 @@ export const useVideoCall = ({ sessionId, userId, userRole }: UseVideoCallProps)
 
   const startCall = async () => {
     try {
-      if (!webRTCService.current) return;
+      if (!webRTCService.current || isCallActive) return;
 
+      console.log('Starting video call for user:', userId, 'role:', userRole);
+      
       await webRTCService.current.startLocalVideo();
       setupSignaling();
       setIsCallActive(true);
 
       // Patient initiates the call by creating an offer
       if (userRole === 'patient') {
-        const offer = await webRTCService.current.createOffer();
-        signalingChannel.current.send({
-          type: 'broadcast',
-          event: 'webrtc-signal',
-          payload: { type: 'offer', data: offer, sender: userId }
-        });
+        // Small delay to ensure signaling is set up
+        setTimeout(async () => {
+          const offer = await webRTCService.current!.createOffer();
+          signalingChannel.current.send({
+            type: 'broadcast',
+            event: 'webrtc-signal',
+            payload: { type: 'offer', data: offer, sender: userId }
+          });
+        }, 1000);
       }
 
       toast({

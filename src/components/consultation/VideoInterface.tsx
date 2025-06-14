@@ -27,20 +27,15 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     audioEnabled,
     localVideoRef,
     remoteVideoRef,
-    startCall,
     endCall,
     toggleVideo,
     toggleAudio
   } = useVideoCall({
     sessionId: session.id,
     userId: user?.id || '',
-    userRole: profile?.role === 'physician' ? 'physician' : 'patient'
+    userRole: profile?.role === 'physician' ? 'physician' : 'patient',
+    sessionStatus: session.status
   });
-
-  const handleStartSession = async () => {
-    onStartSession();
-    await startCall();
-  };
 
   const handleEndSession = () => {
     endCall();
@@ -77,8 +72,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
                 <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg mb-2">Video Call Interface</p>
                 <p className="text-sm opacity-75">
-                  {session.status === 'scheduled' ? 'Waiting to start...' : 
-                   session.status === 'in_progress' ? 'Session in progress' :
+                  {session.status === 'scheduled' ? 'Click "Start Session" to begin video call' : 
+                   session.status === 'in_progress' ? 'Video call will connect automatically...' :
                    'Session ended'}
                 </p>
               </div>
@@ -91,8 +86,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
               <div className="text-white text-center">
                 <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-lg">
-                  {connectionState === 'connecting' ? 'Connecting...' :
-                   connectionState === 'new' ? 'Initializing...' :
+                  {connectionState === 'connecting' ? 'Connecting to video call...' :
+                   connectionState === 'new' ? 'Initializing video call...' :
                    connectionState === 'failed' ? 'Connection failed' :
                    connectionState}
                 </p>
@@ -125,12 +120,12 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
                 </>
               )}
 
-              {session.status === 'scheduled' && !isCallActive && (
+              {session.status === 'scheduled' && (
                 <Button
-                  onClick={handleStartSession}
+                  onClick={onStartSession}
                   className="bg-green-600 hover:bg-green-700 rounded-full"
                 >
-                  Start Video Call
+                  Start Session
                 </Button>
               )}
 
@@ -141,7 +136,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
                   className="rounded-full"
                 >
                   <Phone className="w-4 h-4 mr-2" />
-                  End Call
+                  End Session
                 </Button>
               )}
 
