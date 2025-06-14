@@ -6,6 +6,7 @@ import { ConsultationSessionHeader } from './ConsultationSessionHeader';
 import { VideoInterface } from './VideoInterface';
 import { SessionSummary } from './SessionSummary';
 import { EmptySessionState } from './EmptySessionState';
+import { SessionList } from './SessionList';
 import { VirtualConsultationRoomProps } from './types';
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
@@ -19,6 +20,16 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     formatDuration
   } = useConsultationSession(sessionId);
 
+  const handleSelectSession = (selectedSessionId: string) => {
+    // Update the URL to include the session ID
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('session', selectedSessionId);
+    window.history.pushState({}, '', currentUrl.toString());
+    
+    // Reload the component with the new session ID
+    window.location.reload();
+  };
+
   if (loading) {
     return (
       <Card>
@@ -29,8 +40,14 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     );
   }
 
+  // If no sessionId is provided, show the session list
   if (!sessionId) {
-    return <EmptySessionState />;
+    return (
+      <div className="space-y-6">
+        <SessionList onSelectSession={handleSelectSession} />
+        <EmptySessionState />
+      </div>
+    );
   }
 
   if (!session) {

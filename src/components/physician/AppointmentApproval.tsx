@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ interface PendingAppointment {
   appointment_time: string;
   consultation_type: string;
   notes?: string;
+  patient_id: string;
   patient: {
     first_name: string;
     last_name: string;
@@ -22,7 +22,7 @@ interface PendingAppointment {
 }
 
 export const AppointmentApproval: React.FC = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [pendingAppointments, setPendingAppointments] = useState<PendingAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,7 @@ export const AppointmentApproval: React.FC = () => {
 
           return {
             id: appointment.id,
+            patient_id: appointment.patient_id,
             appointment_date: appointment.appointment_date,
             appointment_time: appointment.appointment_time,
             consultation_type: appointment.consultation_type,
@@ -79,6 +80,45 @@ export const AppointmentApproval: React.FC = () => {
     }
   };
 
+  const createConsultationSession = async (appointment: PendingAppointment) => {
+    try {
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('consultation_sessions')
+        .insert({
+          appointment_id: appointment.id,
+          patient_id: appointment.patient_id,
+          physician_id: user?.id,
+          consultation_rate: profile?.current_consultation_rate || 5000,
+          session_type: 'video',
+          status: 'scheduled',
+          payment_status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      // Create a consultation room for the session
+      const { error: roomError } = await supabase
+        .from('consultation_rooms')
+        .insert({
+          session_id: sessionData.id,
+          room_token: `room_${sessionData.id}`,
+          room_status: 'waiting'
+        });
+
+      if (roomError) {
+        console.error('Error creating consultation room:', roomError);
+        // Don't throw here as the session was created successfully
+      }
+
+      return sessionData;
+    } catch (error) {
+      console.error('Error creating consultation session:', error);
+      throw error;
+    }
+  };
+
   const handleAppointmentAction = async (appointmentId: string, action: 'accepted' | 'rejected', appointment: PendingAppointment) => {
     try {
       const { error } = await supabase
@@ -88,12 +128,29 @@ export const AppointmentApproval: React.FC = () => {
 
       if (error) throw error;
 
-      // If appointment is accepted and it's virtual, create a chat conversation
+      // If appointment is accepted and it's virtual, create a consultation session
       if (action === 'accepted' && appointment.consultation_type === 'virtual') {
+        try {
+          await createConsultationSession(appointment);
+          
+          toast({
+            title: "Virtual Consultation Scheduled",
+            description: `Virtual consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
+          });
+        } catch (sessionError) {
+          console.error('Error creating consultation session:', sessionError);
+          toast({
+            title: "Warning",
+            description: "Appointment accepted but failed to create consultation session. Please try again from the Virtual Consultation tab.",
+            variant: "destructive"
+          });
+        }
+
+        // Also create a chat conversation for virtual consultations
         const { error: conversationError } = await supabase
           .from('conversations')
           .insert({
-            patient_id: (await supabase.from('appointments').select('patient_id').eq('id', appointmentId).single()).data?.patient_id,
+            patient_id: appointment.patient_id,
             physician_id: user?.id,
             type: 'physician_consultation',
             title: `Virtual Consultation - ${appointment.patient.first_name} ${appointment.patient.last_name}`,
@@ -103,12 +160,17 @@ export const AppointmentApproval: React.FC = () => {
         if (conversationError) {
           console.error('Error creating conversation:', conversationError);
         }
+      } else if (action === 'accepted') {
+        toast({
+          title: "Appointment Accepted",
+          description: `In-person appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been accepted.`,
+        });
+      } else {
+        toast({
+          title: "Appointment Rejected",
+          description: `Appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been rejected.`,
+        });
       }
-
-      toast({
-        title: action === 'accepted' ? "Appointment Accepted" : "Appointment Rejected",
-        description: `Appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been ${action}.`,
-      });
 
       fetchPendingAppointments();
     } catch (error) {
