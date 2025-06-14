@@ -73,6 +73,33 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     sessionStatus: currentSession.status
   });
 
+  const handlePatientAutoJoin = async () => {
+    try {
+      console.log('Patient auto-joining consultation for session:', currentSession.id);
+      
+      // Notify physician that patient joined
+      await sendPatientJoined(currentSession.id, user?.id || '');
+      
+      setShowJoinButton(false);
+      
+      // Start the video call automatically
+      const callerName = `${profile?.first_name} ${profile?.last_name}` || 'Patient';
+      initiateCall(callerName);
+      
+      toast({
+        title: "Joining Video Call",
+        description: "Connecting to the video consultation...",
+      });
+    } catch (error) {
+      console.error('Error auto-joining consultation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to join consultation automatically. Please try joining manually.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Use consultation handlers for real-time updates
   useConsultationHandlers({
     sessionId: currentSession.id,
@@ -87,12 +114,18 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
       
       if (isPatient) {
-        console.log('Patient: showing join button and notification');
-        setShowJoinButton(true);
+        console.log('Patient: Auto-joining video call immediately');
+        setShowJoinButton(false); // Hide the manual join button
+        
+        // Auto-join the video call after a short delay to ensure state is updated
+        setTimeout(() => {
+          handlePatientAutoJoin();
+        }, 1000);
+        
         toast({
           title: "🚨 Doctor Started Consultation!",
-          description: "Click the 'Join Video Call Now' button to connect.",
-          duration: 15000,
+          description: "Automatically joining the video call...",
+          duration: 10000,
         });
       }
     },
@@ -144,7 +177,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       
       toast({
         title: "Consultation Started",
-        description: "Patient has been notified. Waiting for them to join...",
+        description: "Patient has been notified and will join automatically...",
       });
     } catch (error) {
       console.error('Error starting consultation:', error);
@@ -158,7 +191,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   const handlePatientJoin = async () => {
     try {
-      console.log('Patient joining consultation for session:', currentSession.id);
+      console.log('Patient manually joining consultation for session:', currentSession.id);
       
       // Notify physician that patient joined
       await sendPatientJoined(currentSession.id, user?.id || '');
