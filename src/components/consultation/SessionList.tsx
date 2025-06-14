@@ -29,28 +29,58 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     if (!user) return;
 
     try {
-      const query = profile?.role === 'patient' 
-        ? supabase.from('consultation_sessions').select(`
-            *,
-            physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name, specialization)
-          `).eq('patient_id', user.id)
-        : supabase.from('consultation_sessions').select(`
-            *,
-            patient:profiles!consultation_sessions_patient_id_fkey(first_name, last_name)
-          `).eq('physician_id', user.id);
+      console.log('Fetching consultation sessions for user:', user.id, 'role:', profile?.role);
+      
+      // First get the consultation sessions
+      const sessionQuery = profile?.role === 'patient' 
+        ? supabase.from('consultation_sessions').select('*').eq('patient_id', user.id)
+        : supabase.from('consultation_sessions').select('*').eq('physician_id', user.id);
 
-      const { data, error } = await query
+      const { data: sessionsData, error: sessionsError } = await sessionQuery
         .in('status', ['scheduled', 'in_progress'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (sessionsError) {
+        console.error('Error fetching sessions:', sessionsError);
+        throw sessionsError;
+      }
 
-      const sessionsWithProfiles = (data || []).map(session => ({
-        ...session,
-        patient: Array.isArray(session.patient) ? session.patient[0] : session.patient,
-        physician: Array.isArray(session.physician) ? session.physician[0] : session.physician
-      }));
+      console.log('Raw sessions data:', sessionsData);
 
+      if (!sessionsData || sessionsData.length === 0) {
+        setSessions([]);
+        return;
+      }
+
+      // Get related profiles separately
+      const sessionsWithProfiles = await Promise.all(
+        sessionsData.map(async (session) => {
+          const patientQuery = supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.patient_id)
+            .single();
+
+          const physicianQuery = supabase
+            .from('profiles')
+            .select('first_name, last_name, specialization')
+            .eq('id', session.physician_id)
+            .single();
+
+          const [patientResult, physicianResult] = await Promise.all([
+            patientQuery,
+            physicianQuery
+          ]);
+
+          return {
+            ...session,
+            patient: patientResult.data,
+            physician: physicianResult.data
+          };
+        })
+      );
+
+      console.log('Sessions with profiles:', sessionsWithProfiles);
       setSessions(sessionsWithProfiles);
     } catch (error) {
       console.error('Error fetching sessions:', error);

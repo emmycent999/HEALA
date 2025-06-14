@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,28 +37,51 @@ export const useConsultationSession = (sessionId?: string | null) => {
     if (!sessionId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('consultation_sessions')
-        .select(`
-          *,
-          patient:profiles!consultation_sessions_patient_id_fkey(first_name, last_name),
-          physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name, specialization)
-        `)
-        .eq('id', sessionId)
-        .maybeSingle();
-
-      if (error) throw error;
+      console.log('Fetching session data for:', sessionId);
       
-      if (data) {
-        const sessionData: ConsultationSession = {
-          ...data,
-          patient: Array.isArray(data.patient) ? data.patient[0] : data.patient,
-          physician: Array.isArray(data.physician) ? data.physician[0] : data.physician
-        };
-        
-        setSession(sessionData);
-        setConnectionStatus('connected');
+      // Get the consultation session first
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('consultation_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) {
+        console.error('Error fetching session:', sessionError);
+        throw sessionError;
       }
+
+      if (!sessionData) {
+        console.log('No session found');
+        setSession(null);
+        return;
+      }
+
+      console.log('Session data found:', sessionData);
+
+      // Get patient and physician profiles separately
+      const [patientResult, physicianResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', sessionData.patient_id)
+          .single(),
+        supabase
+          .from('profiles')
+          .select('first_name, last_name, specialization')
+          .eq('id', sessionData.physician_id)
+          .single()
+      ]);
+
+      const completeSession: ConsultationSession = {
+        ...sessionData,
+        patient: patientResult.data,
+        physician: physicianResult.data
+      };
+
+      console.log('Complete session with profiles:', completeSession);
+      setSession(completeSession);
+      setConnectionStatus('connected');
     } catch (error) {
       console.error('Error fetching session:', error);
       toast({
