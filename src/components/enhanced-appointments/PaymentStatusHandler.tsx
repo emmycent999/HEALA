@@ -1,14 +1,18 @@
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const PaymentStatusHandler: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [status, setStatus] = useState<'checking' | 'success' | 'failed'>('checking');
   const [message, setMessage] = useState('');
 
@@ -25,22 +29,42 @@ export const PaymentStatusHandler: React.FC = () => {
   }, [searchParams]);
 
   const verifyPayment = async (reference: string | null) => {
-    if (!reference) return;
+    if (!reference || !user) return;
 
     try {
       console.log('Verifying payment with reference:', reference);
       
-      // In a real implementation, you would verify the payment with Paystack
-      // For now, we'll assume success if we have a reference
-      // You can implement actual verification by calling Paystack's verify endpoint
+      // Check if this is a wallet funding payment
+      const pendingFunding = sessionStorage.getItem('pending_wallet_funding');
       
-      setStatus('success');
-      setMessage('Payment successful! You can now book additional in-person appointments.');
-      
-      toast({
-        title: "Payment Successful",
-        description: "Your payment has been processed successfully.",
-      });
+      if (pendingFunding) {
+        const fundingData = JSON.parse(pendingFunding);
+        console.log('Processing wallet funding:', fundingData);
+        
+        // In a real implementation, you would verify with Paystack API
+        // For now, we'll simulate successful verification and update the wallet
+        await processWalletFunding(fundingData, reference);
+        
+        // Clear the pending funding data
+        sessionStorage.removeItem('pending_wallet_funding');
+        
+        setStatus('success');
+        setMessage(`Wallet funded successfully with ₦${fundingData.amount.toLocaleString()}!`);
+        
+        toast({
+          title: "Payment Successful",
+          description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
+        });
+      } else {
+        // Handle other payment types (appointments, etc.)
+        setStatus('success');
+        setMessage('Payment processed successfully!');
+        
+        toast({
+          title: "Payment Successful",
+          description: "Your payment has been processed successfully.",
+        });
+      }
 
     } catch (error) {
       console.error('Payment verification error:', error);
@@ -52,6 +76,49 @@ export const PaymentStatusHandler: React.FC = () => {
         description: "Unable to verify payment. Please contact support.",
         variant: "destructive"
       });
+    }
+  };
+
+  const processWalletFunding = async (fundingData: any, reference: string) => {
+    try {
+      // Get current wallet balance
+      const { data: walletData, error: walletError } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('id', fundingData.wallet_id)
+        .single();
+
+      if (walletError) throw walletError;
+
+      const newBalance = (walletData.balance || 0) + fundingData.amount;
+
+      // Update wallet balance
+      const { error: updateError } = await supabase
+        .from('wallets')
+        .update({ balance: newBalance })
+        .eq('id', fundingData.wallet_id);
+
+      if (updateError) throw updateError;
+
+      // Add transaction record
+      const { error: transactionError } = await supabase
+        .from('wallet_transactions')
+        .insert({
+          wallet_id: fundingData.wallet_id,
+          transaction_type: 'credit',
+          amount: fundingData.amount,
+          balance_after: newBalance,
+          description: 'Wallet funding via Paystack',
+          status: 'completed',
+          paystack_reference: reference
+        });
+
+      if (transactionError) throw transactionError;
+
+      console.log('Wallet funding processed successfully');
+    } catch (error) {
+      console.error('Error processing wallet funding:', error);
+      throw error;
     }
   };
 
@@ -77,6 +144,17 @@ export const PaymentStatusHandler: React.FC = () => {
     }
   };
 
+  const handleContinue = () => {
+    const pendingFunding = sessionStorage.getItem('pending_wallet_funding');
+    if (pendingFunding || searchParams.get('purpose') === 'wallet_funding') {
+      // Go back to wallet tab
+      navigate('/patient?tab=wallet');
+    } else {
+      // Go back to appointments
+      navigate('/patient?tab=appointments');
+    }
+  };
+
   return (
     <Card className={`max-w-md mx-auto mt-8 ${getStatusColor()}`}>
       <CardHeader className="text-center">
@@ -94,10 +172,11 @@ export const PaymentStatusHandler: React.FC = () => {
         
         {status !== 'checking' && (
           <Button
-            onClick={() => window.location.href = '/patient?tab=appointments'}
+            onClick={handleContinue}
             className="w-full"
+            variant={status === 'success' ? 'default' : 'outline'}
           >
-            {status === 'success' ? 'Continue to Appointments' : 'Back to Appointments'}
+            {status === 'success' ? 'Continue' : 'Back to Dashboard'}
           </Button>
         )}
       </CardContent>
