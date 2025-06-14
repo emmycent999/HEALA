@@ -101,8 +101,17 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       
       if (!rpcError && rpcData && rpcData.length > 0) {
         console.log('Physicians fetched via RPC:', rpcData.length);
-        setPhysicians(rpcData);
-        setFilteredPhysicians(rpcData);
+        const formattedPhysicians = rpcData.map((physician: any) => ({
+          id: physician.id,
+          first_name: physician.first_name || '',
+          last_name: physician.last_name || '',
+          specialization: physician.specialization || 'General Practice',
+          hospital_name: physician.hospital_name || 'Independent Practice',
+          hospital_id: physician.hospital_id || '',
+          current_consultation_rate: physician.current_consultation_rate || 5000
+        }));
+        setPhysicians(formattedPhysicians);
+        setFilteredPhysicians(formattedPhysicians);
         return;
       }
 
@@ -130,8 +139,13 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       }
       
       const physiciansWithHospital = (data || []).map((physician: any) => ({
-        ...physician,
-        hospital_name: physician.hospitals?.name || 'Independent Practice'
+        id: physician.id,
+        first_name: physician.first_name || '',
+        last_name: physician.last_name || '',
+        specialization: physician.specialization || 'General Practice',
+        hospital_name: physician.hospitals?.name || 'Independent Practice',
+        hospital_id: physician.hospital_id || '',
+        current_consultation_rate: physician.current_consultation_rate || 5000
       }));
       
       console.log('Physicians fetched directly:', physiciansWithHospital.length);
