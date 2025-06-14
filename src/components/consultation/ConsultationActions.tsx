@@ -35,7 +35,7 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
             <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
             <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Start Video Consultation</h3>
             <p className="text-gray-600 mb-6">
-              Click "Start Consultation" to begin the video session and notify the patient.
+              Click "Start Video Consultation" to begin the video session and notify the patient.
             </p>
             <Button
               onClick={onStartConsultation}

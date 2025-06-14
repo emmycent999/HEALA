@@ -105,6 +105,32 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     }
   };
 
+  const getButtonText = (session: ConsultationSession) => {
+    const isPhysician = profile?.role === 'physician';
+    
+    if (session.status === 'scheduled') {
+      return isPhysician ? 'Start Video Consultation' : 'Wait for Doctor';
+    } else if (session.status === 'in_progress') {
+      return isPhysician ? 'Join Session' : 'Join Video Call';
+    }
+    return 'View Session';
+  };
+
+  const getButtonVariant = (session: ConsultationSession) => {
+    const isPhysician = profile?.role === 'physician';
+    
+    if (session.status === 'scheduled' && !isPhysician) {
+      return 'secondary'; // Disabled look for patients waiting
+    }
+    return 'default';
+  };
+
+  const isButtonDisabled = (session: ConsultationSession) => {
+    const isPhysician = profile?.role === 'physician';
+    // Patients can't start scheduled sessions, only physicians can
+    return session.status === 'scheduled' && !isPhysician;
+  };
+
   if (loading) {
     return (
       <Card>
@@ -170,10 +196,12 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
                     <Button
                       size="sm"
                       onClick={() => onSelectSession(session.id)}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      variant={getButtonVariant(session)}
+                      disabled={isButtonDisabled(session)}
+                      className={session.status === 'in_progress' ? "bg-blue-600 hover:bg-blue-700" : ""}
                     >
                       <Video className="w-4 h-4 mr-1" />
-                      {session.status === 'in_progress' ? 'Join Session' : 'Start Session'}
+                      {getButtonText(session)}
                     </Button>
                   </div>
                 </div>
