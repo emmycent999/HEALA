@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useConsultationSession } from './hooks/useConsultationSession';
 import { ConsultationSessionHeader } from './ConsultationSessionHeader';
@@ -9,7 +9,9 @@ import { EmptySessionState } from './EmptySessionState';
 import { SessionList } from './SessionList';
 import { VirtualConsultationRoomProps } from './types';
 
-export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
+export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId: initialSessionId }) => {
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId || null);
+  
   const {
     session,
     loading,
@@ -18,16 +20,28 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     startSession,
     endSession,
     formatDuration
-  } = useConsultationSession(sessionId);
+  } = useConsultationSession(currentSessionId);
+
+  // Update URL when session changes without reloading
+  useEffect(() => {
+    if (currentSessionId) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('session', currentSessionId);
+      window.history.pushState({}, '', currentUrl.toString());
+    } else {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('session');
+      window.history.pushState({}, '', currentUrl.toString());
+    }
+  }, [currentSessionId]);
 
   const handleSelectSession = (selectedSessionId: string) => {
-    // Update the URL to include the session ID
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('session', selectedSessionId);
-    window.history.pushState({}, '', currentUrl.toString());
-    
-    // Reload the component with the new session ID
-    window.location.reload();
+    console.log('Selecting session:', selectedSessionId);
+    setCurrentSessionId(selectedSessionId);
+  };
+
+  const handleBackToList = () => {
+    setCurrentSessionId(null);
   };
 
   if (loading) {
@@ -40,8 +54,8 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     );
   }
 
-  // If no sessionId is provided, show the session list
-  if (!sessionId) {
+  // If no session is selected, show the session list
+  if (!currentSessionId) {
     return (
       <div className="space-y-6">
         <SessionList onSelectSession={handleSelectSession} />
@@ -50,12 +64,19 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
     );
   }
 
+  // If session ID is provided but no session found
   if (!session) {
     return (
       <Card>
         <CardContent className="pt-6">
           <div className="text-center py-8">
-            <p className="text-red-600">Session not found or access denied.</p>
+            <p className="text-red-600 mb-4">Session not found or access denied.</p>
+            <button 
+              onClick={handleBackToList}
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Back to session list
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -64,6 +85,15 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-4">
+        <button 
+          onClick={handleBackToList}
+          className="text-blue-600 hover:text-blue-800 underline text-sm"
+        >
+          ← Back to sessions
+        </button>
+      </div>
+
       <ConsultationSessionHeader
         session={session}
         connectionStatus={connectionStatus}

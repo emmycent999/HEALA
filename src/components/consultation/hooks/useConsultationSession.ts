@@ -15,6 +15,7 @@ export const useConsultationSession = (sessionId?: string | null) => {
       fetchSessionData();
     } else {
       setLoading(false);
+      setSession(null);
     }
   }, [sessionId]);
 
@@ -38,6 +39,7 @@ export const useConsultationSession = (sessionId?: string | null) => {
 
     try {
       console.log('Fetching session data for:', sessionId);
+      setLoading(true);
       
       // Get the consultation session first
       const { data: sessionData, error: sessionError } = await supabase
@@ -54,6 +56,7 @@ export const useConsultationSession = (sessionId?: string | null) => {
       if (!sessionData) {
         console.log('No session found');
         setSession(null);
+        setConnectionStatus('disconnected');
         return;
       }
 
@@ -84,6 +87,7 @@ export const useConsultationSession = (sessionId?: string | null) => {
       setConnectionStatus('connected');
     } catch (error) {
       console.error('Error fetching session:', error);
+      setConnectionStatus('disconnected');
       toast({
         title: "Error",
         description: "Failed to load consultation session.",
@@ -95,9 +99,26 @@ export const useConsultationSession = (sessionId?: string | null) => {
   };
 
   const startSession = async () => {
-    if (!session) return;
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "No session available to start.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (session.status === 'in_progress') {
+      toast({
+        title: "Session Already Active",
+        description: "This session is already in progress.",
+      });
+      return;
+    }
 
     try {
+      console.log('Starting session:', session.id);
+      
       const { error } = await supabase
         .from('consultation_sessions')
         .update({
@@ -106,23 +127,30 @@ export const useConsultationSession = (sessionId?: string | null) => {
         })
         .eq('id', session.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error starting session:', error);
+        throw error;
+      }
 
-      setSession(prev => prev ? {
-        ...prev,
-        status: 'in_progress',
+      const updatedSession = {
+        ...session,
+        status: 'in_progress' as const,
         started_at: new Date().toISOString()
-      } : null);
+      };
+
+      setSession(updatedSession);
 
       toast({
         title: "Session Started",
         description: "Virtual consultation has begun.",
       });
+
+      console.log('Session started successfully');
     } catch (error) {
       console.error('Error starting session:', error);
       toast({
         title: "Error",
-        description: "Failed to start session.",
+        description: "Failed to start session. Please try again.",
         variant: "destructive"
       });
     }
@@ -130,6 +158,15 @@ export const useConsultationSession = (sessionId?: string | null) => {
 
   const endSession = async () => {
     if (!session) return;
+
+    if (session.status !== 'in_progress') {
+      toast({
+        title: "Session Not Active",
+        description: "This session is not currently in progress.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
       const endTime = new Date().toISOString();
