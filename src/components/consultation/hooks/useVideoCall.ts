@@ -67,8 +67,13 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
   // Auto-connect when session status changes to 'in_progress'
   useEffect(() => {
     if (sessionStatus === 'in_progress' && !isCallActive) {
-      console.log('Session started, auto-connecting video call...');
-      startCall();
+      console.log('Session is in progress, checking if should auto-connect...');
+      // Auto-connect with a slight delay to ensure both users are ready
+      const timeout = setTimeout(() => {
+        startCall();
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
     } else if (sessionStatus !== 'in_progress' && isCallActive) {
       console.log('Session ended, disconnecting video call...');
       endCall();
@@ -164,6 +169,32 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     }
   };
 
+  const joinCall = async () => {
+    // Join an existing call - same as starting but with different messaging
+    try {
+      if (!webRTCService.current || isCallActive) return;
+
+      console.log('Joining video call for user:', userId, 'role:', userRole);
+      
+      await webRTCService.current.startLocalVideo();
+      setupSignaling();
+      setIsCallActive(true);
+
+      // Physician joins by being ready to receive offer
+      toast({
+        title: "Joining Call",
+        description: "Connecting to the consultation...",
+      });
+    } catch (error) {
+      console.error('Error joining video call:', error);
+      toast({
+        title: "Error",
+        description: "Failed to join video call. Please check your camera and microphone permissions.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const endCall = () => {
     if (webRTCService.current) {
       webRTCService.current.endCall();
@@ -200,6 +231,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     localVideoRef,
     remoteVideoRef,
     startCall,
+    joinCall,
     endCall,
     toggleVideo,
     toggleAudio
