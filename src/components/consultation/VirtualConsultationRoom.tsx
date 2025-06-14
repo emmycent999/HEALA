@@ -1,10 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Video, VideoOff, Mic, MicOff, Phone, MessageSquare, Send } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, Phone, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -13,49 +12,31 @@ interface ConsultationSession {
   id: string;
   patient_id: string;
   physician_id: string;
-  consultation_rate: number;
   status: string;
+  consultation_rate: number;
   session_type: string;
-  payment_status: string;
-  started_at?: string;
-  ended_at?: string;
-  duration_minutes?: number;
-}
-
-interface Message {
-  id: string;
-  content: string;
-  sender_type: 'patient' | 'physician';
-  sender_id: string;
-  created_at: string;
+  started_at: string | null;
+  ended_at: string | null;
 }
 
 interface VirtualConsultationRoomProps {
-  sessionId: string;
+  sessionId?: string;
 }
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [session, setSession] = useState<ConsultationSession | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isVideoOn, setIsVideoOn] = useState(false);
+  const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [consultationStarted, setConsultationStarted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (sessionId) {
       fetchSession();
-      setupRealtimeSubscription();
     }
   }, [sessionId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const fetchSession = async () => {
     try {
@@ -67,34 +48,20 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
 
       if (error) throw error;
       setSession(data);
+      setConsultationStarted(!!data.started_at);
     } catch (error) {
       console.error('Error fetching session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load consultation session.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel(`consultation-${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${sessionId}`
-        },
-        (payload) => {
-          setMessages(prev => [...prev, payload.new as Message]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const startSession = async () => {
+  const startConsultation = async () => {
     try {
       const { error } = await supabase
         .from('consultation_sessions')
@@ -105,26 +72,26 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
         .eq('id', sessionId);
 
       if (error) throw error;
-      setSessionStarted(true);
-      
+
+      setConsultationStarted(true);
       toast({
-        title: "Session Started",
+        title: "Consultation Started",
         description: "Virtual consultation session has begun.",
       });
     } catch (error) {
-      console.error('Error starting session:', error);
+      console.error('Error starting consultation:', error);
       toast({
         title: "Error",
-        description: "Failed to start session. Please try again.",
+        description: "Failed to start consultation.",
         variant: "destructive"
       });
     }
   };
 
-  const endSession = async () => {
+  const endConsultation = async () => {
     try {
+      const startTime = session?.started_at ? new Date(session.started_at) : new Date();
       const endTime = new Date();
-      const startTime = new Date(session?.started_at || Date.now());
       const durationMinutes = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 
       const { error } = await supabase
@@ -138,223 +105,178 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
 
       if (error) throw error;
 
-      // Process payment if not already paid
-      if (session?.payment_status === 'pending') {
-        await processConsultationPayment();
-      }
-
-      setSessionStarted(false);
-      toast({
-        title: "Session Ended",
-        description: "Virtual consultation has been completed.",
-      });
-    } catch (error) {
-      console.error('Error ending session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to end session properly.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const processConsultationPayment = async () => {
-    if (!session) return;
-
-    try {
-      const { data, error } = await supabase.rpc('process_consultation_payment', {
-        session_uuid: session.id,
-        patient_uuid: session.patient_id,
-        physician_uuid: session.physician_id,
-        amount: session.consultation_rate
-      });
-
-      if (error) throw error;
-
-      if (data) {
-        toast({
-          title: "Payment Processed",
-          description: `₦${session.consultation_rate} has been deducted from your wallet.`,
+      // Process payment
+      if (session) {
+        const { error: paymentError } = await supabase.rpc('process_consultation_payment', {
+          session_uuid: session.id,
+          patient_uuid: session.patient_id,
+          physician_uuid: session.physician_id,
+          amount: session.consultation_rate
         });
-      } else {
-        toast({
-          title: "Payment Failed",
-          description: "Insufficient wallet balance. Please fund your wallet.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error processing payment:', error);
-      toast({
-        title: "Payment Error",
-        description: "Failed to process consultation payment.",
-        variant: "destructive"
-      });
-    }
-  };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !session) return;
-
-    try {
-      const messageData = {
-        conversation_id: sessionId,
-        content: newMessage,
-        sender_type: profile?.role === 'physician' ? 'physician' : 'patient',
-        sender_id: user?.id
-      };
-
-      const { error } = await supabase
-        .from('messages')
-        .insert(messageData);
-
-      if (error) throw error;
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const toggleVideo = async () => {
-    try {
-      if (!isVideoOn) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } else {
-        if (videoRef.current?.srcObject) {
-          const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-          tracks.forEach(track => track.stop());
-          videoRef.current.srcObject = null;
+        if (paymentError) {
+          console.error('Payment processing error:', paymentError);
+          toast({
+            title: "Payment Error",
+            description: "Consultation ended but payment processing failed.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Consultation Completed",
+            description: `Session ended. Payment of ₦${session.consultation_rate.toLocaleString()} processed.`,
+          });
         }
       }
-      setIsVideoOn(!isVideoOn);
+
+      setConsultationStarted(false);
     } catch (error) {
-      console.error('Error toggling video:', error);
+      console.error('Error ending consultation:', error);
       toast({
-        title: "Camera Error",
-        description: "Failed to access camera. Please check permissions.",
+        title: "Error",
+        description: "Failed to end consultation.",
         variant: "destructive"
       });
     }
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">Loading consultation room...</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!session) {
-    return <div className="p-6">Loading consultation session...</div>;
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <p className="text-gray-500">No consultation session found</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-screen max-h-screen">
-      {/* Video Section */}
-      <div className="lg:col-span-2 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Virtual Consultation</span>
-              <Badge variant={sessionStarted ? "default" : "secondary"}>
-                {sessionStarted ? "Active" : "Waiting"}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative bg-gray-900 rounded-lg aspect-video mb-4">
-              {isVideoOn ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  className="w-full h-full rounded-lg object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-white">
-                  <div className="text-center">
-                    <VideoOff className="w-16 h-16 mx-auto mb-4" />
-                    <p>Camera is off</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-center gap-4">
-              <Button
-                variant={isVideoOn ? "default" : "secondary"}
-                size="lg"
-                onClick={toggleVideo}
-              >
-                {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
-              </Button>
-              
-              <Button
-                variant={isAudioOn ? "default" : "secondary"}
-                size="lg"
-                onClick={() => setIsAudioOn(!isAudioOn)}
-              >
-                {isAudioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-              </Button>
-
-              {!sessionStarted ? (
-                <Button onClick={startSession} className="bg-green-600 hover:bg-green-700">
-                  Start Session
-                </Button>
-              ) : (
-                <Button onClick={endSession} variant="destructive">
-                  <Phone className="w-5 h-5 mr-2" />
-                  End Session
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Chat Section */}
-      <Card className="flex flex-col">
+    <div className="space-y-6">
+      {/* Session Info */}
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            Chat
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Video className="w-5 h-5" />
+              Virtual Consultation
+            </span>
+            <Badge variant={consultationStarted ? "default" : "secondary"}>
+              {consultationStarted ? "Active" : "Waiting"}
+            </Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-y-auto space-y-3 mb-4 max-h-96">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-xs px-3 py-2 rounded-lg ${
-                    message.sender_id === user?.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-900'
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <p className="text-xs opacity-75 mt-1">
-                    {new Date(message.created_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-sm text-gray-600">Session Type</p>
+              <p className="font-medium capitalize">{session.session_type}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Consultation Rate</p>
+              <p className="font-medium">₦{session.consultation_rate.toLocaleString()}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Video Call Interface */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="aspect-video bg-gray-900 rounded-lg mb-4 flex items-center justify-center">
+            <div className="text-center text-white">
+              <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-lg">Video call interface would be here</p>
+              <p className="text-sm opacity-75">Integration with WebRTC or video calling service</p>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <Button onClick={sendMessage} size="sm">
-              <Send className="w-4 h-4" />
+          {/* Controls */}
+          <div className="flex justify-center gap-4">
+            <Button
+              variant={isVideoOn ? "default" : "destructive"}
+              size="lg"
+              onClick={() => setIsVideoOn(!isVideoOn)}
+            >
+              {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
             </Button>
+
+            <Button
+              variant={isAudioOn ? "default" : "destructive"}
+              size="lg"
+              onClick={() => setIsAudioOn(!isAudioOn)}
+            >
+              {isAudioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+            </Button>
+
+            <Button variant="outline" size="lg">
+              <MessageCircle className="w-5 h-5" />
+            </Button>
+
+            {consultationStarted ? (
+              <Button 
+                variant="destructive" 
+                size="lg"
+                onClick={endConsultation}
+              >
+                <Phone className="w-5 h-5 mr-2" />
+                End Call
+              </Button>
+            ) : (
+              <Button 
+                variant="default" 
+                size="lg"
+                onClick={startConsultation}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Video className="w-5 h-5 mr-2" />
+                Start Consultation
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Session Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Session Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Status:</span>
+              <Badge variant={session.status === 'active' ? 'default' : 'secondary'}>
+                {session.status}
+              </Badge>
+            </div>
+            {session.started_at && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Started:</span>
+                <span>{new Date(session.started_at).toLocaleString()}</span>
+              </div>
+            )}
+            {session.ended_at && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Ended:</span>
+                <span>{new Date(session.ended_at).toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-600">Rate:</span>
+              <span className="font-medium">₦{session.consultation_rate.toLocaleString()}</span>
+            </div>
           </div>
         </CardContent>
       </Card>

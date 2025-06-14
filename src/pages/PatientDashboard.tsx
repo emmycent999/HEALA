@@ -18,10 +18,13 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { EnhancedAppointmentBooking } from '@/components/enhanced-appointments/EnhancedAppointmentBooking';
 import { PrescriptionManagement } from '@/components/prescriptions/PrescriptionManagement';
 import { HealthRecordsAccess } from '@/components/health-records/HealthRecordsAccess';
+import { MedicalHistoryUpload } from '@/components/medical-history/MedicalHistoryUpload';
 import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
 import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
 import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
 import { OfflineManager } from '@/components/offline/OfflineManager';
+import { DigitalWallet } from '@/components/wallet/DigitalWallet';
+import { VirtualConsultationRoom } from '@/components/consultation/VirtualConsultationRoom';
 
 const PatientDashboard = () => {
   const [searchParams] = useSearchParams();
@@ -59,6 +62,24 @@ const PatientDashboard = () => {
             </div>
           </div>
         );
+      case 'wallet':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Digital Wallet
+            </h2>
+            <DigitalWallet />
+          </div>
+        );
+      case 'virtual-consultation':
+        return (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Virtual Consultation Room
+            </h2>
+            <VirtualConsultationRoom sessionId={searchParams.get('session')} />
+          </div>
+        );
       case 'chat':
         return <ChatInterface />;
       case 'ai-assistant':
@@ -86,11 +107,19 @@ const PatientDashboard = () => {
         );
       case 'health-records':
         return (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              Health Records
-            </h2>
-            <HealthRecordsAccess />
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                Health Records
+              </h2>
+              <HealthRecordsAccess />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Upload Medical History
+              </h3>
+              <MedicalHistoryUpload />
+            </div>
           </div>
         );
       case 'symptom-checker':

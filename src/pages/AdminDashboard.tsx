@@ -1,9 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserManagement } from '@/components/admin/UserManagement';
-import { SystemAnalytics } from '@/components/admin/SystemAnalytics';
-import { AdminVerificationCenter } from '@/components/admin/AdminVerificationCenter';
-import { DocumentManagement } from '@/components/admin/DocumentManagement';
+import { EnhancedAdminDashboard } from '@/components/admin/EnhancedAdminDashboard';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -16,24 +13,9 @@ const AdminDashboard = () => {
     setActiveTab(tab);
   }, [searchParams]);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'users':
-        return <UserManagement />;
-      case 'analytics':
-        return <SystemAnalytics />;
-      case 'verification':
-        return <AdminVerificationCenter />;
-      case 'documents':
-        return <DocumentManagement />;
-      default:
-        return <UserManagement />;
-    }
-  };
-
   return (
     <DashboardLayout title="Admin Dashboard">
-      {renderContent()}
+      <EnhancedAdminDashboard />
     </DashboardLayout>
   );
 };

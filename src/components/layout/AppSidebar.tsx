@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -18,6 +18,8 @@ import { Logo } from '@/components/ui/logo';
 
 const patientMenuItems = [
   { title: 'Appointments', url: '/patient?tab=appointments', icon: Calendar },
+  { title: 'Wallet', url: '/patient?tab=wallet', icon: Wallet },
+  { title: 'Virtual Consultation', url: '/patient?tab=virtual-consultation', icon: Video },
   { title: 'Chat', url: '/patient?tab=chat', icon: MessageCircle },
   { title: 'AI Assistant', url: '/patient?tab=ai-assistant', icon: Bot },
   { title: 'Prescriptions', url: '/patient?tab=prescriptions', icon: Pill },
@@ -35,8 +37,11 @@ const patientMenuItems = [
 
 const physicianMenuItems = [
   { title: 'Overview', url: '/physician?tab=overview', icon: Home },
+  { title: 'Appointments', url: '/physician?tab=appointments', icon: Calendar },
   { title: 'Patients', url: '/physician?tab=patients', icon: Users },
   { title: 'Chat', url: '/physician?tab=chat', icon: MessageCircle },
+  { title: 'Wallet', url: '/physician?tab=wallet', icon: Wallet },
+  { title: 'Virtual Consultation', url: '/physician?tab=virtual-consultation', icon: Video },
   { title: 'Profile', url: '/physician?tab=profile', icon: Users },
   { title: 'Documents', url: '/physician?tab=documents', icon: FileText },
 ];
