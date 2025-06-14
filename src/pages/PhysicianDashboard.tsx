@@ -5,6 +5,7 @@ import { PhysicianChatInterface } from '@/components/physician/PhysicianChatInte
 import { PhysicianProfile } from '@/components/physician/PhysicianProfile';
 import { PhysicianDocumentUpload } from '@/components/physician/PhysicianDocumentUpload';
 import { DynamicOverview } from '@/components/physician/DynamicOverview';
+import { AppointmentApproval } from '@/components/physician/AppointmentApproval';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useSearchParams } from 'react-router-dom';
 
@@ -21,6 +22,8 @@ const PhysicianDashboard = () => {
     switch (activeTab) {
       case 'overview':
         return <DynamicOverview />;
+      case 'appointments':
+        return <AppointmentApproval />;
       case 'patients':
         return <PatientList patients={[]} onStartConversation={() => {}} />;
       case 'chat':

@@ -146,6 +146,7 @@ export type Database = {
         Row: {
           appointment_date: string
           appointment_time: string
+          consultation_type: string
           created_at: string | null
           hospital_id: string | null
           id: string
@@ -158,6 +159,7 @@ export type Database = {
         Insert: {
           appointment_date: string
           appointment_time: string
+          consultation_type?: string
           created_at?: string | null
           hospital_id?: string | null
           id?: string
@@ -170,6 +172,7 @@ export type Database = {
         Update: {
           appointment_date?: string
           appointment_time?: string
+          consultation_type?: string
           created_at?: string | null
           hospital_id?: string | null
           id?: string
@@ -788,6 +791,7 @@ export type Database = {
           is_active: boolean | null
           last_name: string | null
           license_number: string | null
+          location: string | null
           location_latitude: number | null
           location_longitude: number | null
           phone: string | null
@@ -809,6 +813,7 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           license_number?: string | null
+          location?: string | null
           location_latitude?: number | null
           location_longitude?: number | null
           phone?: string | null
@@ -830,6 +835,7 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string | null
           license_number?: string | null
+          location?: string | null
           location_latitude?: number | null
           location_longitude?: number | null
           phone?: string | null
@@ -1083,6 +1089,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_inperson_booking_limit: {
+        Args: { patient_uuid: string }
+        Returns: {
+          current_count: number
+          limit_allowed: number
+          subscription_plan: string
+          can_book_free: boolean
+          extra_cost: number
+        }[]
+      }
       check_monthly_booking_limit: {
         Args: { patient_uuid: string }
         Returns: number
