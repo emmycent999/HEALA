@@ -1,104 +1,73 @@
 
+import { ConnectionManager } from './managers/connectionManager';
+import { StreamManager } from './managers/streamManager';
+import { WebRTCCallbacks, SignalingChannel } from './types/webRTCTypes';
+
 export class WebRTCService {
-  private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
-  private peerConnection: RTCPeerConnection | null = null;
-  private signalingChannel: any = null;
+  private connectionManager: ConnectionManager;
+  private streamManager: StreamManager;
   
   private onLocalStreamCallback?: (stream: MediaStream) => void;
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
   private onConnectionStateChangeCallback?: (state: string) => void;
 
   constructor() {
-    this.setupPeerConnection();
+    this.connectionManager = new ConnectionManager();
+    this.streamManager = new StreamManager();
+    
+    this.setupCallbacks();
   }
 
-  private setupPeerConnection() {
-    const configuration = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    };
-
-    this.peerConnection = new RTCPeerConnection(configuration);
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate && this.signalingChannel) {
-        this.signalingChannel.send(JSON.stringify({
-          type: 'ice-candidate',
-          candidate: event.candidate
-        }));
+  private setupCallbacks() {
+    this.streamManager.setOnLocalStreamCallback((stream) => {
+      if (this.onLocalStreamCallback) {
+        this.onLocalStreamCallback(stream);
       }
-    };
+    });
 
-    this.peerConnection.ontrack = (event) => {
-      this.remoteStream = event.streams[0];
-      if (this.onRemoteStreamCallback) {
-        this.onRemoteStreamCallback(this.remoteStream);
+    this.connectionManager.setCallbacks({
+      onRemoteStream: (stream) => {
+        if (this.onRemoteStreamCallback) {
+          this.onRemoteStreamCallback(stream);
+        }
+      },
+      onConnectionStateChange: (state) => {
+        if (this.onConnectionStateChangeCallback) {
+          this.onConnectionStateChangeCallback(state);
+        }
       }
-    };
-
-    this.peerConnection.onconnectionstatechange = () => {
-      if (this.onConnectionStateChangeCallback && this.peerConnection) {
-        this.onConnectionStateChangeCallback(this.peerConnection.connectionState);
-      }
-    };
+    });
   }
 
   async startLocalVideo(): Promise<MediaStream> {
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
+    const stream = await this.streamManager.startLocalVideo();
+    
+    // Add tracks to peer connection
+    stream.getTracks().forEach(track => {
+      this.connectionManager.addTrack(track, stream);
+    });
 
-      if (this.peerConnection && this.localStream) {
-        this.localStream.getTracks().forEach(track => {
-          this.peerConnection!.addTrack(track, this.localStream!);
-        });
-      }
-
-      if (this.onLocalStreamCallback) {
-        this.onLocalStreamCallback(this.localStream);
-      }
-
-      return this.localStream;
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
-      throw error;
-    }
+    return stream;
   }
 
   async createOffer(): Promise<RTCSessionDescriptionInit> {
-    if (!this.peerConnection) throw new Error('Peer connection not initialized');
-    
-    const offer = await this.peerConnection.createOffer();
-    await this.peerConnection.setLocalDescription(offer);
-    return offer;
+    return await this.connectionManager.createOffer();
   }
 
   async createAnswer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
-    if (!this.peerConnection) throw new Error('Peer connection not initialized');
-    
-    await this.peerConnection.setRemoteDescription(offer);
-    const answer = await this.peerConnection.createAnswer();
-    await this.peerConnection.setLocalDescription(answer);
-    return answer;
+    return await this.connectionManager.createAnswer(offer);
   }
 
   async handleAnswer(answer: RTCSessionDescriptionInit) {
-    if (!this.peerConnection) throw new Error('Peer connection not initialized');
-    await this.peerConnection.setRemoteDescription(answer);
+    await this.connectionManager.handleAnswer(answer);
   }
 
   async handleIceCandidate(candidate: RTCIceCandidateInit) {
-    if (!this.peerConnection) throw new Error('Peer connection not initialized');
-    await this.peerConnection.addIceCandidate(candidate);
+    await this.connectionManager.handleIceCandidate(candidate);
   }
 
-  setSignalingChannel(channel: any) {
-    this.signalingChannel = channel;
+  setSignalingChannel(channel: SignalingChannel) {
+    this.connectionManager.setSignalingChannel(channel);
   }
 
   onLocalStream(callback: (stream: MediaStream) => void) {
@@ -114,40 +83,20 @@ export class WebRTCService {
   }
 
   toggleVideo(enabled: boolean) {
-    if (this.localStream) {
-      this.localStream.getVideoTracks().forEach(track => {
-        track.enabled = enabled;
-      });
-    }
+    this.streamManager.toggleVideo(enabled);
   }
 
   toggleAudio(enabled: boolean) {
-    if (this.localStream) {
-      this.localStream.getAudioTracks().forEach(track => {
-        track.enabled = enabled;
-      });
-    }
+    this.streamManager.toggleAudio(enabled);
   }
 
   endCall() {
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
-      this.localStream = null;
-    }
-
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.setupPeerConnection();
-    }
-
-    this.remoteStream = null;
+    this.streamManager.stopLocalStream();
+    this.connectionManager.close();
   }
 
   dispose() {
-    this.endCall();
-    if (this.peerConnection) {
-      this.peerConnection.close();
-      this.peerConnection = null;
-    }
+    this.streamManager.stopLocalStream();
+    this.connectionManager.dispose();
   }
 }
