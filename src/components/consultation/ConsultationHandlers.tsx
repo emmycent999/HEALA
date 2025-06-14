@@ -22,26 +22,65 @@ export const useConsultationHandlers = ({
 }: ConsultationHandlersProps) => {
   const { toast } = useToast();
 
-  // Listen for consultation start notifications
+  // Listen for database changes and real-time notifications
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !sessionId) return;
 
-    const channel = supabase
+    console.log('Setting up consultation handlers for session:', sessionId, 'user:', userId, 'role:', isPatient ? 'patient' : 'physician');
+
+    // Listen for database changes on the consultation_sessions table
+    const dbChannel = supabase
+      .channel('db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'consultation_sessions',
+          filter: `id=eq.${sessionId}`
+        },
+        (payload) => {
+          console.log('Database change detected:', payload);
+          const newSession = payload.new as any;
+          const oldSession = payload.old as any;
+          
+          // Check if status changed from scheduled to in_progress
+          if (oldSession.status === 'scheduled' && newSession.status === 'in_progress') {
+            console.log('Consultation started via database update');
+            onConsultationStarted();
+            
+            if (isPatient) {
+              toast({
+                title: "🚨 Consultation Started!",
+                description: "The doctor has started the consultation. Click 'Join Video Call Now' to connect.",
+                duration: 10000,
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Database subscription status:', status);
+      });
+
+    // Also listen for broadcast messages as backup
+    const broadcastChannel = supabase
       .channel(`consultation_${sessionId}`)
       .on('broadcast', { event: 'consultation-started' }, (payload) => {
-        console.log('Received consultation-started event:', payload);
+        console.log('Received consultation-started broadcast:', payload);
         if (payload.payload.startedBy !== userId) {
           onConsultationStarted();
           if (isPatient) {
             toast({
               title: "🚨 Consultation Started!",
-              description: "The doctor has started the consultation. Click 'Join Now' to connect.",
+              description: "The doctor has started the consultation. Click 'Join Video Call Now' to connect.",
+              duration: 10000,
             });
           }
         }
       })
       .on('broadcast', { event: 'patient-joined' }, (payload) => {
-        console.log('Received patient-joined event:', payload);
+        console.log('Received patient-joined broadcast:', payload);
         if (payload.payload.patientId !== userId && isPhysician) {
           onPatientJoined();
           toast({
@@ -51,35 +90,24 @@ export const useConsultationHandlers = ({
         }
       })
       .subscribe((status) => {
-        console.log('Subscription status:', status);
+        console.log('Broadcast subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up channel subscription');
-      supabase.removeChannel(channel);
+      console.log('Cleaning up consultation handlers');
+      supabase.removeChannel(dbChannel);
+      supabase.removeChannel(broadcastChannel);
     };
   }, [sessionId, userId, isPatient, isPhysician, toast, onConsultationStarted, onPatientJoined]);
 };
 
 export const sendConsultationStarted = async (sessionId: string, userId: string) => {
   try {
-    // Create a dedicated channel for this notification
-    const notificationChannel = supabase.channel(`consultation_notification_${sessionId}_${Date.now()}`);
+    console.log('Sending consultation started notification for session:', sessionId);
     
-    // Send notification to patient
-    await notificationChannel.send({
-      type: 'broadcast',
-      event: 'consultation-started',
-      payload: { 
-        startedBy: userId, 
-        sessionId: sessionId,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-    // Also send on the main channel
-    const mainChannel = supabase.channel(`consultation_${sessionId}`);
-    await mainChannel.send({
+    // Send broadcast notification
+    const channel = supabase.channel(`consultation_${sessionId}`);
+    await channel.send({
       type: 'broadcast',
       event: 'consultation-started',
       payload: { 
@@ -89,7 +117,7 @@ export const sendConsultationStarted = async (sessionId: string, userId: string)
       }
     });
 
-    console.log('Consultation start notification sent');
+    console.log('Consultation start notification sent successfully');
   } catch (error) {
     console.error('Error sending consultation started notification:', error);
     throw error;
@@ -98,12 +126,16 @@ export const sendConsultationStarted = async (sessionId: string, userId: string)
 
 export const sendPatientJoined = async (sessionId: string, patientId: string) => {
   try {
+    console.log('Sending patient joined notification for session:', sessionId);
+    
     const channel = supabase.channel(`consultation_${sessionId}`);
     await channel.send({
       type: 'broadcast',
       event: 'patient-joined',
-      payload: { patientId, sessionId }
+      payload: { patientId, sessionId, timestamp: new Date().toISOString() }
     });
+
+    console.log('Patient joined notification sent successfully');
   } catch (error) {
     console.error('Error sending patient joined notification:', error);
     throw error;

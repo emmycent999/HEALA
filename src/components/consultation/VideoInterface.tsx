@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
 import { useVideoCall } from './hooks/useVideoCall';
@@ -12,6 +12,7 @@ import { ConsultationActions } from './ConsultationActions';
 import { useConsultationHandlers, sendConsultationStarted, sendPatientJoined } from './ConsultationHandlers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VideoInterfaceProps {
   session: ConsultationSession;
@@ -26,15 +27,28 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const [currentSession, setCurrentSession] = useState(session);
   const [consultationStarted, setConsultationStarted] = useState(session.status === 'in_progress');
-  const [showJoinButton, setShowJoinButton] = useState(session.status === 'in_progress');
+  const [showJoinButton, setShowJoinButton] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
 
   console.log('VideoInterface - Current user role:', profile?.role);
-  console.log('VideoInterface - Session status:', session.status);
-  console.log('VideoInterface - Session type:', session.session_type);
+  console.log('VideoInterface - Session status:', currentSession.status);
+  console.log('VideoInterface - Consultation started:', consultationStarted);
+  console.log('VideoInterface - Show join button:', showJoinButton);
+
+  // Update local state when session prop changes
+  useEffect(() => {
+    setCurrentSession(session);
+    setConsultationStarted(session.status === 'in_progress');
+    
+    // For patients, show join button if session is in progress
+    if (isPatient && session.status === 'in_progress') {
+      setShowJoinButton(true);
+    }
+  }, [session, isPatient]);
 
   const {
     isCallActive,
@@ -52,40 +66,71 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     toggleVideo,
     toggleAudio
   } = useVideoCall({
-    sessionId: session.id,
+    sessionId: currentSession.id,
     userId: user?.id || '',
     userRole: isPhysician ? 'physician' : 'patient',
-    sessionStatus: session.status
+    sessionStatus: currentSession.status
   });
 
-  // Use consultation handlers
+  // Use consultation handlers for real-time updates
   useConsultationHandlers({
-    sessionId: session.id,
+    sessionId: currentSession.id,
     userId: user?.id || '',
     isPatient,
     isPhysician,
     onConsultationStarted: () => {
+      console.log('Consultation started handler triggered');
       setConsultationStarted(true);
+      
+      // Update session status locally
+      setCurrentSession(prev => ({ ...prev, status: 'in_progress' }));
+      
       if (isPatient) {
         setShowJoinButton(true);
+        toast({
+          title: "🚨 Doctor Started Consultation!",
+          description: "Click the 'Join Video Call Now' button to connect.",
+          duration: 15000,
+        });
       }
     },
     onPatientJoined: () => {
+      console.log('Patient joined handler triggered');
       // Handle patient joined logic if needed
     }
   });
 
   const handleStartConsultation = async () => {
     try {
-      console.log('Doctor starting consultation...');
+      console.log('Doctor starting consultation for session:', currentSession.id);
       
-      // Start the session in database
+      // Update session status in database first
+      const { error } = await supabase
+        .from('consultation_sessions')
+        .update({ 
+          status: 'in_progress',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', currentSession.id);
+
+      if (error) {
+        console.error('Error updating session status:', error);
+        throw error;
+      }
+      
+      // Update local state
+      setCurrentSession(prev => ({ 
+        ...prev, 
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      }));
+      setConsultationStarted(true);
+      
+      // Call the parent component's start session handler
       await onStartSession();
       
-      // Send real-time notifications
-      await sendConsultationStarted(session.id, user?.id || '');
-      
-      setConsultationStarted(true);
+      // Send real-time notifications as backup
+      await sendConsultationStarted(currentSession.id, user?.id || '');
       
       toast({
         title: "Consultation Started",
@@ -103,10 +148,10 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   const handlePatientJoin = async () => {
     try {
-      console.log('Patient joining consultation...');
+      console.log('Patient joining consultation for session:', currentSession.id);
       
       // Notify physician that patient joined
-      await sendPatientJoined(session.id, user?.id || '');
+      await sendPatientJoined(currentSession.id, user?.id || '');
       
       setShowJoinButton(false);
       
@@ -155,13 +200,13 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   };
 
   const renderContent = () => {
-    console.log('Rendering content - Session status:', session.status, 'User role:', profile?.role);
+    console.log('Rendering content - Session status:', currentSession.status, 'User role:', profile?.role, 'Call active:', isCallActive);
     
     // Show consultation actions for non-active calls
     if (!isCallActive) {
       return (
         <ConsultationActions
-          sessionStatus={session.status}
+          sessionStatus={currentSession.status}
           isPhysician={isPhysician}
           isPatient={isPatient}
           consultationStarted={consultationStarted}
@@ -193,7 +238,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           isCallActive={isCallActive}
           videoEnabled={videoEnabled}
           audioEnabled={audioEnabled}
-          sessionStatus={session.status}
+          sessionStatus={currentSession.status}
           onToggleVideo={toggleVideo}
           onToggleAudio={toggleAudio}
           onStartSession={onStartSession}
@@ -209,7 +254,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       {/* Incoming Call Dialog */}
       <IncomingCallDialog
         isOpen={incomingCall}
-        session={session}
+        session={currentSession}
         callerName={callInitiator}
         onAnswer={handleAnswerCall}
         onDecline={handleDeclineCall}
