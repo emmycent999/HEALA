@@ -87,7 +87,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
   });
 
-  // Use the centralized notification manager
+  // Use the centralized notification manager (only when in this specific session)
   useNotificationManager({
     sessionId: currentSession.id,
     userId: user?.id || '',

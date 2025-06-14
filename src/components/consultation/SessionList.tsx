@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, Video } from 'lucide-react';
+import { Calendar, Clock, User, Video, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -18,10 +18,13 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
   const { toast } = useToast();
   const [sessions, setSessions] = useState<ConsultationSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (user) {
       fetchSessions();
+      setupRealtimeUpdates();
     }
   }, [user]);
 
@@ -29,7 +32,7 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     if (!user) return;
 
     try {
-      console.log('Fetching consultation sessions for user:', user.id, 'role:', profile?.role);
+      console.log('📋 [SessionList] Fetching consultation sessions for user:', user.id, 'role:', profile?.role);
       
       // First get the consultation sessions
       const sessionQuery = profile?.role === 'patient' 
@@ -41,11 +44,11 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
         .order('created_at', { ascending: false });
 
       if (sessionsError) {
-        console.error('Error fetching sessions:', sessionsError);
+        console.error('❌ [SessionList] Error fetching sessions:', sessionsError);
         throw sessionsError;
       }
 
-      console.log('Raw sessions data:', sessionsData);
+      console.log('📋 [SessionList] Raw sessions data:', sessionsData);
 
       if (!sessionsData || sessionsData.length === 0) {
         setSessions([]);
@@ -80,10 +83,11 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
         })
       );
 
-      console.log('Sessions with profiles:', sessionsWithProfiles);
+      console.log('📋 [SessionList] Sessions with profiles:', sessionsWithProfiles);
       setSessions(sessionsWithProfiles);
+      setLastUpdate(new Date());
     } catch (error) {
-      console.error('Error fetching sessions:', error);
+      console.error('❌ [SessionList] Error fetching sessions:', error);
       toast({
         title: "Error",
         description: "Failed to load consultation sessions.",
@@ -94,12 +98,70 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     }
   };
 
+  const setupRealtimeUpdates = () => {
+    if (!user) return;
+
+    console.log('🔄 [SessionList] Setting up real-time updates for user:', user.id);
+
+    const channel = supabase
+      .channel(`session_list_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'consultation_sessions',
+          filter: profile?.role === 'patient' 
+            ? `patient_id=eq.${user.id}`
+            : `physician_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('🔄 [SessionList] Real-time session update:', payload);
+          setIsConnected(true);
+          
+          // Refresh sessions data when changes occur
+          fetchSessions();
+          
+          // Show toast for status changes
+          if (payload.eventType === 'UPDATE') {
+            const oldStatus = payload.old?.status;
+            const newStatus = payload.new?.status;
+            
+            if (oldStatus !== newStatus && newStatus === 'in_progress') {
+              toast({
+                title: "🚀 Session Started",
+                description: profile?.role === 'patient' 
+                  ? "Doctor has started the consultation!"
+                  : "Consultation session is now active",
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔄 [SessionList] Subscription status:', status);
+        setIsConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      console.log('🧹 [SessionList] Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'scheduled':
         return <Badge variant="secondary" className="bg-blue-100 text-blue-800">Scheduled</Badge>;
       case 'in_progress':
-        return <Badge variant="default" className="bg-green-100 text-green-800">In Progress</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              In Progress
+            </div>
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -150,6 +212,22 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
         <CardTitle className="flex items-center gap-2">
           <Video className="w-5 h-5" />
           Available Consultation Sessions
+          <div className="ml-auto flex items-center gap-2">
+            {isConnected ? (
+              <div className="flex items-center gap-1 text-green-600">
+                <Wifi className="w-4 h-4" />
+                <span className="text-xs">Live</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-red-600">
+                <WifiOff className="w-4 h-4" />
+                <span className="text-xs">Offline</span>
+              </div>
+            )}
+            <span className="text-xs text-gray-500">
+              Updated: {lastUpdate.toLocaleTimeString()}
+            </span>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -162,7 +240,11 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
         ) : (
           <div className="space-y-4">
             {sessions.map((session) => (
-              <div key={session.id} className="border rounded-lg p-4">
+              <div key={session.id} className="border rounded-lg p-4 relative">
+                {session.status === 'in_progress' && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
+                )}
+                
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-2">
@@ -201,7 +283,7 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
                       onClick={() => onSelectSession(session.id)}
                       variant={getButtonVariant(session)}
                       disabled={isButtonDisabled(session)}
-                      className={session.status === 'in_progress' ? "bg-blue-600 hover:bg-blue-700" : ""}
+                      className={session.status === 'in_progress' ? "bg-blue-600 hover:bg-blue-700 animate-pulse" : ""}
                     >
                       <Video className="w-4 h-4 mr-1" />
                       {getButtonText(session)}
