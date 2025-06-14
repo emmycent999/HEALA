@@ -87,6 +87,7 @@ export const useGlobalSessionMonitor = ({
   };
 
   return {
-    isMonitoring: isEnabled && !!channelRef.current
+    isMonitoring: isEnabled && !!channelRef.current,
+    activeSessions: [] // Add the missing property that PatientDashboard expects
   };
 };
