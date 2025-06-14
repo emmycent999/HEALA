@@ -27,11 +27,12 @@ export const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
 
     setLoading(true);
     try {
+      console.log('Initializing payment for user:', user.id);
+      
       const { data, error } = await supabase.functions.invoke('paystack-payment', {
         body: {
           email: user.email,
           amount: amount,
-          plan: 'in_person_booking_extra',
           metadata: {
             user_id: user.id,
             purpose: 'additional_booking'
@@ -39,20 +40,25 @@ export const PaymentProcessor: React.FC<PaymentProcessorProps> = ({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
 
-      if (data.status && data.data.authorization_url) {
+      console.log('Payment initialization response:', data);
+
+      if (data.status && data.data && data.data.authorization_url) {
         // Redirect to Paystack payment page
         window.location.href = data.data.authorization_url;
       } else {
-        throw new Error('Failed to initialize payment');
+        throw new Error(data.message || 'Failed to initialize payment');
       }
 
     } catch (error) {
       console.error('Payment initialization error:', error);
       toast({
         title: "Payment Error",
-        description: "Failed to initialize payment. Please try again.",
+        description: error.message || "Failed to initialize payment. Please try again.",
         variant: "destructive"
       });
     } finally {

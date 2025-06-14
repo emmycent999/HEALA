@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export const PaymentStatusHandler: React.FC = () => {
@@ -29,11 +28,12 @@ export const PaymentStatusHandler: React.FC = () => {
     if (!reference) return;
 
     try {
-      // Here you would typically verify the payment with Paystack
-      // For now, we'll assume success if reference exists
       console.log('Verifying payment with reference:', reference);
       
-      // Mark payment as successful in your database if needed
+      // In a real implementation, you would verify the payment with Paystack
+      // For now, we'll assume success if we have a reference
+      // You can implement actual verification by calling Paystack's verify endpoint
+      
       setStatus('success');
       setMessage('Payment successful! You can now book additional in-person appointments.');
       

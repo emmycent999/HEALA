@@ -12,13 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    const { email, amount, plan, metadata } = await req.json();
+    const { email, amount, metadata } = await req.json();
     
     const paystackSecretKey = Deno.env.get("PAYSTACK_SECRET_KEY");
     
     if (!paystackSecretKey) {
       throw new Error("Paystack secret key not configured");
     }
+
+    console.log("Initializing payment for:", { email, amount, metadata });
 
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
@@ -28,11 +30,11 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         email,
-        amount: amount * 100, // Convert to kobo
-        plan,
+        amount: amount * 100, // Convert to kobo (smallest currency unit)
+        currency: "NGN",
         callback_url: `${req.headers.get("origin")}/payment-success`,
         metadata: {
-          plan_name: plan,
+          purpose: 'additional_booking',
           ...metadata
         }
       }),
@@ -41,6 +43,10 @@ serve(async (req) => {
     const data = await response.json();
 
     console.log("Paystack response:", data);
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to initialize payment");
+    }
 
     return new Response(
       JSON.stringify(data),
