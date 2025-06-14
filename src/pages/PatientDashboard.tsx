@@ -36,7 +36,7 @@ const PatientDashboard = () => {
   const { user } = useAuth();
 
   // Set up global session monitoring for auto-redirect
-  const { activeSessions, isMonitoring } = useGlobalSessionMonitor({
+  const { activeSessions, isMonitoring, lastUpdate, manualSessionCheck } = useGlobalSessionMonitor({
     isEnabled: true, // Always monitor for patients
     onSessionStarted: (sessionId: string) => {
       console.log('🎯 [PatientDashboard] Session started callback triggered:', sessionId);
@@ -57,22 +57,6 @@ const PatientDashboard = () => {
     setActiveTab(tab);
   }, [searchParams, navigate]);
 
-  // Debug function to manually check for sessions
-  const checkForSessions = async () => {
-    if (!user) return;
-    
-    console.log('🔍 [PatientDashboard] Manual session check for user:', user.id);
-    
-    const { data: sessions, error } = await supabase
-      .from('consultation_sessions')
-      .select('*')
-      .eq('patient_id', user.id)
-      .in('status', ['scheduled', 'in_progress']);
-      
-    console.log('🔍 [PatientDashboard] Found sessions:', sessions);
-    if (error) console.error('❌ Error:', error);
-  };
-
   console.log('Rendering PatientDashboard with activeTab:', activeTab, 'Monitoring:', isMonitoring, 'Active sessions:', activeSessions);
 
   const renderContent = () => {
@@ -80,21 +64,40 @@ const PatientDashboard = () => {
       case 'appointments':
         return (
           <div className="space-y-6">
-            {/* Debug panel for testing */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h4 className="font-semibold text-yellow-800 mb-2">Debug Panel</h4>
-              <div className="flex gap-2 items-center text-sm">
-                <span>Monitoring: {isMonitoring ? '✅' : '❌'}</span>
-                <span>Sessions: {activeSessions.length}</span>
-                <Button size="sm" onClick={checkForSessions}>
-                  Check Sessions
-                </Button>
+            {/* Enhanced Debug Panel */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 mb-3">🔍 Session Monitor Debug Panel</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-700">Monitoring Status:</span>
+                  <span className={`${isMonitoring ? 'text-green-600' : 'text-red-600'}`}>
+                    {isMonitoring ? '✅ Active' : '❌ Inactive'}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-700">Active Sessions:</span>
+                  <span className="text-blue-600">{activeSessions.length}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-700">Last Update:</span>
+                  <span className="text-blue-600 text-xs">{lastUpdate.toLocaleTimeString()}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-700">Actions:</span>
+                  <Button size="sm" onClick={manualSessionCheck} className="mt-1">
+                    🔄 Check Now
+                  </Button>
+                </div>
               </div>
               {activeSessions.length > 0 && (
-                <div className="mt-2 text-xs">
+                <div className="mt-3 p-2 bg-blue-100 rounded text-xs">
+                  <div className="font-medium text-blue-800 mb-1">Active Sessions:</div>
                   {activeSessions.map(s => (
-                    <div key={s.id} className="text-yellow-700">
-                      Session {s.id.slice(0, 8)}: {s.status}
+                    <div key={s.id} className="text-blue-700">
+                      📍 {s.id.slice(0, 8)}... - Status: <span className="font-medium">{s.status}</span>
+                      {s.status === 'in_progress' && (
+                        <span className="ml-2 text-green-600 font-bold animate-pulse">🔴 LIVE</span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -263,7 +266,7 @@ const PatientDashboard = () => {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-sm text-green-700 font-medium">
-              Monitoring for consultation updates...
+              🔴 Live monitoring for consultation updates...
             </span>
             {activeSessions.length > 0 && (
               <span className="text-xs text-green-600">

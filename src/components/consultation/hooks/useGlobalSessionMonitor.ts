@@ -19,6 +19,7 @@ export const useGlobalSessionMonitor = ({
   const navigate = useNavigate();
   const channelRef = useRef<any>(null);
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (!isEnabled || !user || profile?.role !== 'patient') {
@@ -28,39 +29,50 @@ export const useGlobalSessionMonitor = ({
 
     console.log('🌍 [GlobalSessionMonitor] Setting up monitoring for patient:', user.id);
 
-    // First, fetch existing sessions to see current state
+    // Fetch current state first
     fetchCurrentSessions();
     
     // Clean up existing channel
     if (channelRef.current) {
+      console.log('🧹 [GlobalSessionMonitor] Cleaning up existing channel');
       supabase.removeChannel(channelRef.current);
     }
 
-    // Set up real-time monitoring with more specific filter
+    // Set up real-time monitoring with specific patient filter
+    console.log('📡 [GlobalSessionMonitor] Creating subscription channel for patient:', user.id);
+    
     channelRef.current = supabase
-      .channel(`global_patient_sessions_${user.id}`)
+      .channel(`global_sessions_${user.id}_${Date.now()}`) // Unique channel name
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all events
+          event: '*', 
           schema: 'public',
           table: 'consultation_sessions',
           filter: `patient_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('🌍 [GlobalSessionMonitor] Any session change detected:', payload);
+          console.log('🚨 [GlobalSessionMonitor] DATABASE CHANGE DETECTED:', {
+            event: payload.eventType,
+            oldStatus: payload.old?.status,
+            newStatus: payload.new?.status,
+            sessionId: payload.new?.id,
+            timestamp: new Date().toISOString()
+          });
           handleSessionUpdate(payload);
         }
       )
       .subscribe((status) => {
-        console.log('🌍 [GlobalSessionMonitor] Subscription status:', status);
+        console.log('📡 [GlobalSessionMonitor] Subscription status:', status);
         if (status === 'SUBSCRIBED') {
           console.log('✅ [GlobalSessionMonitor] Successfully subscribed to real-time updates');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ [GlobalSessionMonitor] Channel subscription error');
         }
       });
 
     return () => {
-      console.log('🧹 [GlobalSessionMonitor] Cleaning up');
+      console.log('🧹 [GlobalSessionMonitor] Cleaning up subscription');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
@@ -85,19 +97,15 @@ export const useGlobalSessionMonitor = ({
         return;
       }
 
-      console.log('📋 [GlobalSessionMonitor] Current sessions:', sessions);
+      console.log('📋 [GlobalSessionMonitor] Current sessions found:', sessions?.length || 0, sessions);
       setActiveSessions(sessions || []);
+      setLastUpdate(new Date());
       
       // Check if any session is already in progress
       const inProgressSession = sessions?.find(s => s.status === 'in_progress');
       if (inProgressSession) {
         console.log('🎯 [GlobalSessionMonitor] Found session already in progress:', inProgressSession.id);
-        toast({
-          title: "🚨 Active Consultation Found!",
-          description: "Redirecting to ongoing consultation...",
-          duration: 3000,
-        });
-        navigate(`/patient?tab=virtual-consultation&session=${inProgressSession.id}`);
+        showNotificationAndRedirect(inProgressSession);
       }
     } catch (error) {
       console.error('❌ [GlobalSessionMonitor] Error in fetchCurrentSessions:', error);
@@ -112,34 +120,27 @@ export const useGlobalSessionMonitor = ({
       event: payload.eventType,
       sessionId: newSession?.id,
       oldStatus: oldSession?.status,
-      newStatus: newSession?.status
+      newStatus: newSession?.status,
+      patientId: newSession?.patient_id
     });
     
     // Update active sessions list
     if (payload.eventType === 'UPDATE' && newSession) {
       setActiveSessions(prev => {
         const updated = prev.map(s => s.id === newSession.id ? newSession : s);
+        console.log('📊 [GlobalSessionMonitor] Updated sessions list:', updated.length);
         return updated;
       });
+      setLastUpdate(new Date());
     }
     
-    // Check if session status changed to in_progress
+    // Check for status change to in_progress
     if (payload.eventType === 'UPDATE' && 
         oldSession?.status === 'scheduled' && 
         newSession?.status === 'in_progress') {
       
       console.log('🚨 [GlobalSessionMonitor] CONSULTATION STARTED! Session:', newSession.id);
-      
-      // Show immediate notification
-      toast({
-        title: "🚨 Doctor Started Consultation!",
-        description: "Redirecting to video call now...",
-        duration: 5000,
-      });
-      
-      // Immediate redirect - no delays
-      console.log('🔀 [GlobalSessionMonitor] Immediate redirect to session:', newSession.id);
-      navigate(`/patient?tab=virtual-consultation&session=${newSession.id}`);
+      showNotificationAndRedirect(newSession);
       
       // Trigger callback
       if (onSessionStarted) {
@@ -148,8 +149,31 @@ export const useGlobalSessionMonitor = ({
     }
   };
 
+  const showNotificationAndRedirect = (session: any) => {
+    console.log('🚀 [GlobalSessionMonitor] Showing notification and redirecting to session:', session.id);
+    
+    // Show immediate notification
+    toast({
+      title: "🚨 Doctor Started Consultation!",
+      description: "Redirecting to video call now...",
+      duration: 5000,
+    });
+    
+    // Immediate redirect
+    const redirectUrl = `/patient?tab=virtual-consultation&session=${session.id}`;
+    console.log('🔀 [GlobalSessionMonitor] Redirecting to:', redirectUrl);
+    navigate(redirectUrl);
+  };
+
+  const manualSessionCheck = async () => {
+    console.log('🔍 [GlobalSessionMonitor] Manual session check triggered');
+    await fetchCurrentSessions();
+  };
+
   return {
     isMonitoring: isEnabled && !!channelRef.current,
-    activeSessions
+    activeSessions,
+    lastUpdate,
+    manualSessionCheck
   };
 };
