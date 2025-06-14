@@ -1,164 +1,111 @@
 
-import { useState, useEffect, useRef } from 'react';
-import { WebRTCService } from '../services/webRTCService';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useRef } from 'react';
+import { UseVideoCallProps } from './types/videoCall';
+import { SignalingService } from './services/signalingService';
+import { useCallState } from './services/callStateManager';
+import { useWebRTCManager } from './services/webRTCManager';
 import { useToast } from '@/hooks/use-toast';
-
-interface UseVideoCallProps {
-  sessionId: string;
-  userId: string;
-  userRole: 'patient' | 'physician';
-  sessionStatus: string;
-}
 
 export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: UseVideoCallProps) => {
   const { toast } = useToast();
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [connectionState, setConnectionState] = useState<string>('new');
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [incomingCall, setIncomingCall] = useState(false);
-  const [callInitiator, setCallInitiator] = useState<string>('');
+  const signalingService = useRef<SignalingService | null>(null);
   
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const webRTCService = useRef<WebRTCService | null>(null);
-  const signalingChannel = useRef<any>(null);
+  const {
+    isCallActive,
+    connectionState,
+    videoEnabled,
+    audioEnabled,
+    incomingCall,
+    callInitiator,
+    setIsCallActive,
+    setConnectionState,
+    setVideoEnabled,
+    setAudioEnabled,
+    setIncomingCall,
+    setCallInitiator,
+    resetCallState
+  } = useCallState();
 
-  useEffect(() => {
-    webRTCService.current = new WebRTCService();
-    
-    webRTCService.current.onLocalStream((stream) => {
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-    });
+  const {
+    localVideoRef,
+    remoteVideoRef,
+    toggleVideo: webRTCToggleVideo,
+    toggleAudio: webRTCToggleAudio,
+    startLocalVideo,
+    createOffer,
+    createAnswer,
+    handleAnswer,
+    handleIceCandidate,
+    setSignalingChannel,
+    endCall: webRTCEndCall
+  } = useWebRTCManager(setConnectionState);
 
-    webRTCService.current.onRemoteStream((stream) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = stream;
-      }
-    });
-
-    webRTCService.current.onConnectionStateChange((state) => {
-      setConnectionState(state);
-      if (state === 'connected') {
-        toast({
-          title: "Connected",
-          description: "Video call established successfully.",
-        });
-      } else if (state === 'disconnected' || state === 'failed') {
-        toast({
-          title: "Connection Lost",
-          description: "Video call connection was lost.",
-          variant: "destructive"
-        });
-      }
-    });
-
-    return () => {
-      if (webRTCService.current) {
-        webRTCService.current.dispose();
-      }
-      if (signalingChannel.current) {
-        supabase.removeChannel(signalingChannel.current);
-      }
-    };
-  }, [toast]);
-
-  // Listen for call invitations
+  // Setup signaling when session is in progress
   useEffect(() => {
     if (sessionStatus === 'in_progress') {
       setupSignaling();
     }
+    return () => {
+      if (signalingService.current) {
+        signalingService.current.dispose();
+      }
+    };
   }, [sessionStatus]);
 
   const setupSignaling = () => {
-    const channelName = `consultation_${sessionId}`;
-    signalingChannel.current = supabase.channel(channelName);
-
-    signalingChannel.current
-      .on('broadcast', { event: 'call-invitation' }, (payload: any) => {
-        const { sender, senderName } = payload.payload;
-        
-        // Don't process our own messages
-        if (sender === userId) return;
-
+    signalingService.current = new SignalingService(sessionId, userId);
+    
+    signalingService.current.setupChannel({
+      onCallInvitation: (sender: string, senderName: string) => {
         console.log('Received call invitation from:', senderName);
         setCallInitiator(senderName || 'Unknown User');
         setIncomingCall(true);
-      })
-      .on('broadcast', { event: 'call-declined' }, (payload: any) => {
-        const { sender } = payload.payload;
-        
-        if (sender === userId) return;
-
+      },
+      onCallDeclined: (sender: string) => {
         toast({
           title: "Call Declined",
           description: "The other participant declined the call.",
           variant: "destructive"
         });
         setIsCallActive(false);
-      })
-      .on('broadcast', { event: 'webrtc-signal' }, async (payload: any) => {
-        const { type, data, sender } = payload.payload;
-        
-        // Don't process our own messages
-        if (sender === userId) return;
-
+      },
+      onWebRTCSignal: async (type: string, data: any, sender: string) => {
         try {
           switch (type) {
             case 'offer':
               if (userRole === 'physician') {
-                const answer = await webRTCService.current!.createAnswer(data);
-                signalingChannel.current.send({
-                  type: 'broadcast',
-                  event: 'webrtc-signal',
-                  payload: { type: 'answer', data: answer, sender: userId }
-                });
+                const answer = await createAnswer(data);
+                signalingService.current?.sendWebRTCSignal('answer', answer);
               }
               break;
             case 'answer':
               if (userRole === 'patient') {
-                await webRTCService.current!.handleAnswer(data);
+                await handleAnswer(data);
               }
               break;
             case 'ice-candidate':
-              await webRTCService.current!.handleIceCandidate(data);
+              await handleIceCandidate(data);
               break;
           }
         } catch (error) {
           console.error('Error handling WebRTC signal:', error);
         }
-      })
-      .subscribe();
+      }
+    });
 
-    if (webRTCService.current) {
-      webRTCService.current.setSignalingChannel({
-        send: (message: string) => {
-          const data = JSON.parse(message);
-          signalingChannel.current.send({
-            type: 'broadcast',
-            event: 'webrtc-signal',
-            payload: { ...data, sender: userId }
-          });
-        }
-      });
-    }
+    setSignalingChannel({
+      send: (message: string) => {
+        const data = JSON.parse(message);
+        signalingService.current?.sendWebRTCSignal(data.type, data.data || data.candidate);
+      }
+    });
   };
 
   const initiateCall = async (callerName: string) => {
     try {
       console.log('Initiating call for user:', userId, 'role:', userRole);
       
-      // Send call invitation to other user
-      if (signalingChannel.current) {
-        signalingChannel.current.send({
-          type: 'broadcast',
-          event: 'call-invitation',
-          payload: { sender: userId, senderName: callerName }
-        });
-      }
+      signalingService.current?.sendCallInvitation(callerName);
 
       toast({
         title: "Calling...",
@@ -176,23 +123,16 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
 
   const answerCall = async () => {
     try {
-      if (!webRTCService.current) return;
-
       console.log('Answering call for user:', userId, 'role:', userRole);
       
-      await webRTCService.current.startLocalVideo();
+      await startLocalVideo();
       setIsCallActive(true);
       setIncomingCall(false);
 
-      // If physician, wait for offer. If patient, create offer
       if (userRole === 'patient') {
         setTimeout(async () => {
-          const offer = await webRTCService.current!.createOffer();
-          signalingChannel.current.send({
-            type: 'broadcast',
-            event: 'webrtc-signal',
-            payload: { type: 'offer', data: offer, sender: userId }
-          });
+          const offer = await createOffer();
+          signalingService.current?.sendWebRTCSignal('offer', offer);
         }, 1000);
       }
 
@@ -212,16 +152,8 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
 
   const declineCall = () => {
     setIncomingCall(false);
+    signalingService.current?.sendCallDeclined();
     
-    // Send decline notification
-    if (signalingChannel.current) {
-      signalingChannel.current.send({
-        type: 'broadcast',
-        event: 'call-declined',
-        payload: { sender: userId }
-      });
-    }
-
     toast({
       title: "Call Declined",
       description: "You declined the incoming call.",
@@ -229,32 +161,22 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
   };
 
   const endCall = () => {
-    if (webRTCService.current) {
-      webRTCService.current.endCall();
-    }
-    if (signalingChannel.current) {
-      supabase.removeChannel(signalingChannel.current);
-      signalingChannel.current = null;
-    }
-    setIsCallActive(false);
-    setIncomingCall(false);
-    setConnectionState('new');
+    webRTCEndCall();
+    signalingService.current?.dispose();
+    signalingService.current = null;
+    resetCallState();
   };
 
   const toggleVideo = () => {
-    if (webRTCService.current) {
-      const newVideoState = !videoEnabled;
-      webRTCService.current.toggleVideo(newVideoState);
-      setVideoEnabled(newVideoState);
-    }
+    const newVideoState = !videoEnabled;
+    webRTCToggleVideo(newVideoState);
+    setVideoEnabled(newVideoState);
   };
 
   const toggleAudio = () => {
-    if (webRTCService.current) {
-      const newAudioState = !audioEnabled;
-      webRTCService.current.toggleAudio(newAudioState);
-      setAudioEnabled(newAudioState);
-    }
+    const newAudioState = !audioEnabled;
+    webRTCToggleAudio(newAudioState);
+    setAudioEnabled(newAudioState);
   };
 
   return {
