@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,6 +95,20 @@ export const EnhancedAppointmentBooking: React.FC = () => {
   const fetchPhysicians = async () => {
     try {
       console.log('Fetching physicians...');
+      
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_physicians');
+      
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        console.log('Physicians fetched via RPC:', rpcData.length);
+        setPhysicians(rpcData);
+        setFilteredPhysicians(rpcData);
+        return;
+      }
+
+      console.log('RPC failed or empty, trying direct query...');
+      
+      // Fallback to direct query
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -112,7 +125,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
         .order('first_name');
       
       if (error) {
-        console.error('Error fetching physicians:', error);
+        console.error('Error fetching physicians directly:', error);
         throw error;
       }
       
@@ -121,7 +134,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
         hospital_name: physician.hospitals?.name || 'Independent Practice'
       }));
       
-      console.log('Physicians fetched:', physiciansWithHospital.length);
+      console.log('Physicians fetched directly:', physiciansWithHospital.length);
       setPhysicians(physiciansWithHospital);
       setFilteredPhysicians(physiciansWithHospital);
     } catch (error) {
@@ -373,7 +386,9 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {filteredPhysicians.length === 0 ? (
-                      <SelectItem value="no_physicians" disabled>No physicians found</SelectItem>
+                      <SelectItem value="no_physicians" disabled>
+                        No physicians found - Click refresh to reload
+                      </SelectItem>
                     ) : (
                       <>
                         <SelectItem value="select_physician" disabled>Choose a physician</SelectItem>
@@ -396,6 +411,17 @@ export const EnhancedAppointmentBooking: React.FC = () => {
                     )}
                   </SelectContent>
                 </Select>
+                {filteredPhysicians.length === 0 && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={fetchPhysicians}
+                    className="mt-2"
+                  >
+                    Refresh Physicians
+                  </Button>
+                )}
               </div>
 
               {/* Date and Time */}

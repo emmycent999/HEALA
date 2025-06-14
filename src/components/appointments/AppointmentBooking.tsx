@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,18 +49,54 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
 
   const fetchPhysicians = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_available_physicians');
+      console.log('Fetching physicians for appointment booking...');
       
-      if (error) throw error;
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_available_physicians');
+      
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        console.log('Physicians fetched via RPC:', rpcData.length);
+        const formattedPhysicians = rpcData.map((physician: any) => ({
+          id: physician.id,
+          first_name: physician.first_name || 'Unknown',
+          last_name: physician.last_name || '',
+          specialization: physician.specialization || 'General',
+          hospital_name: physician.hospital_name || 'Unknown Hospital'
+        }));
+        setPhysicians(formattedPhysicians);
+        return;
+      }
+
+      console.log('RPC failed, trying direct query...');
+      
+      // Fallback to direct query
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          first_name,
+          last_name,
+          specialization,
+          hospitals (name)
+        `)
+        .eq('role', 'physician')
+        .eq('is_active', true)
+        .order('first_name');
+      
+      if (error) {
+        console.error('Error in direct query:', error);
+        throw error;
+      }
       
       const formattedPhysicians = (data || []).map((physician: any) => ({
         id: physician.id,
         first_name: physician.first_name || 'Unknown',
         last_name: physician.last_name || '',
         specialization: physician.specialization || 'General',
-        hospital_name: physician.hospital_name || 'Unknown Hospital'
+        hospital_name: physician.hospitals?.name || 'Unknown Hospital'
       }));
       
+      console.log('Physicians fetched directly:', formattedPhysicians.length);
       setPhysicians(formattedPhysicians);
     } catch (error) {
       console.error('Error fetching physicians:', error);
@@ -149,18 +186,35 @@ export const AppointmentBooking: React.FC<AppointmentBookingProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="default" disabled>Choose a physician</SelectItem>
-                {physicians.map((physician) => (
-                  <SelectItem key={physician.id} value={physician.id}>
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="w-4 h-4" />
-                      <span>
-                        Dr. {physician.first_name} {physician.last_name} - {physician.specialization}
-                      </span>
-                    </div>
+                {physicians.length === 0 ? (
+                  <SelectItem value="no_physicians" disabled>
+                    No physicians available - Click refresh
                   </SelectItem>
-                ))}
+                ) : (
+                  physicians.map((physician) => (
+                    <SelectItem key={physician.id} value={physician.id}>
+                      <div className="flex items-center gap-2">
+                        <Stethoscope className="w-4 h-4" />
+                        <span>
+                          Dr. {physician.first_name} {physician.last_name} - {physician.specialization}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+            {physicians.length === 0 && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={fetchPhysicians}
+                className="mt-2"
+              >
+                Refresh Physicians
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
