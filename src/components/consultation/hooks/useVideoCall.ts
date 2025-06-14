@@ -17,6 +17,8 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
   const [connectionState, setConnectionState] = useState<string>('new');
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [incomingCall, setIncomingCall] = useState(false);
+  const [callInitiator, setCallInitiator] = useState<string>('');
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -64,27 +66,40 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     };
   }, [toast]);
 
-  // Auto-connect when session status changes to 'in_progress'
+  // Listen for call invitations
   useEffect(() => {
-    if (sessionStatus === 'in_progress' && !isCallActive) {
-      console.log('Session is in progress, checking if should auto-connect...');
-      // Auto-connect with a slight delay to ensure both users are ready
-      const timeout = setTimeout(() => {
-        startCall();
-      }, 2000);
-      
-      return () => clearTimeout(timeout);
-    } else if (sessionStatus !== 'in_progress' && isCallActive) {
-      console.log('Session ended, disconnecting video call...');
-      endCall();
+    if (sessionStatus === 'in_progress') {
+      setupSignaling();
     }
-  }, [sessionStatus, isCallActive]);
+  }, [sessionStatus]);
 
   const setupSignaling = () => {
     const channelName = `consultation_${sessionId}`;
     signalingChannel.current = supabase.channel(channelName);
 
     signalingChannel.current
+      .on('broadcast', { event: 'call-invitation' }, (payload: any) => {
+        const { sender, senderName } = payload.payload;
+        
+        // Don't process our own messages
+        if (sender === userId) return;
+
+        console.log('Received call invitation from:', senderName);
+        setCallInitiator(senderName || 'Unknown User');
+        setIncomingCall(true);
+      })
+      .on('broadcast', { event: 'call-declined' }, (payload: any) => {
+        const { sender } = payload.payload;
+        
+        if (sender === userId) return;
+
+        toast({
+          title: "Call Declined",
+          description: "The other participant declined the call.",
+          variant: "destructive"
+        });
+        setIsCallActive(false);
+      })
       .on('broadcast', { event: 'webrtc-signal' }, async (payload: any) => {
         const { type, data, sender } = payload.payload;
         
@@ -132,19 +147,45 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     }
   };
 
-  const startCall = async () => {
+  const initiateCall = async (callerName: string) => {
     try {
-      if (!webRTCService.current || isCallActive) return;
+      console.log('Initiating call for user:', userId, 'role:', userRole);
+      
+      // Send call invitation to other user
+      if (signalingChannel.current) {
+        signalingChannel.current.send({
+          type: 'broadcast',
+          event: 'call-invitation',
+          payload: { sender: userId, senderName: callerName }
+        });
+      }
 
-      console.log('Starting video call for user:', userId, 'role:', userRole);
+      toast({
+        title: "Calling...",
+        description: "Sending call invitation to the other participant.",
+      });
+    } catch (error) {
+      console.error('Error initiating call:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate call.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const answerCall = async () => {
+    try {
+      if (!webRTCService.current) return;
+
+      console.log('Answering call for user:', userId, 'role:', userRole);
       
       await webRTCService.current.startLocalVideo();
-      setupSignaling();
       setIsCallActive(true);
+      setIncomingCall(false);
 
-      // Patient initiates the call by creating an offer
+      // If physician, wait for offer. If patient, create offer
       if (userRole === 'patient') {
-        // Small delay to ensure signaling is set up
         setTimeout(async () => {
           const offer = await webRTCService.current!.createOffer();
           signalingChannel.current.send({
@@ -156,43 +197,35 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
       }
 
       toast({
-        title: "Video Call Started",
-        description: "Connecting to the other participant...",
+        title: "Call Answered",
+        description: "Connecting to video call...",
       });
     } catch (error) {
-      console.error('Error starting video call:', error);
+      console.error('Error answering call:', error);
       toast({
         title: "Error",
-        description: "Failed to start video call. Please check your camera and microphone permissions.",
+        description: "Failed to answer call. Please check your camera and microphone permissions.",
         variant: "destructive"
       });
     }
   };
 
-  const joinCall = async () => {
-    // Join an existing call - same as starting but with different messaging
-    try {
-      if (!webRTCService.current || isCallActive) return;
-
-      console.log('Joining video call for user:', userId, 'role:', userRole);
-      
-      await webRTCService.current.startLocalVideo();
-      setupSignaling();
-      setIsCallActive(true);
-
-      // Physician joins by being ready to receive offer
-      toast({
-        title: "Joining Call",
-        description: "Connecting to the consultation...",
-      });
-    } catch (error) {
-      console.error('Error joining video call:', error);
-      toast({
-        title: "Error",
-        description: "Failed to join video call. Please check your camera and microphone permissions.",
-        variant: "destructive"
+  const declineCall = () => {
+    setIncomingCall(false);
+    
+    // Send decline notification
+    if (signalingChannel.current) {
+      signalingChannel.current.send({
+        type: 'broadcast',
+        event: 'call-declined',
+        payload: { sender: userId }
       });
     }
+
+    toast({
+      title: "Call Declined",
+      description: "You declined the incoming call.",
+    });
   };
 
   const endCall = () => {
@@ -204,6 +237,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
       signalingChannel.current = null;
     }
     setIsCallActive(false);
+    setIncomingCall(false);
     setConnectionState('new');
   };
 
@@ -228,10 +262,13 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     connectionState,
     videoEnabled,
     audioEnabled,
+    incomingCall,
+    callInitiator,
     localVideoRef,
     remoteVideoRef,
-    startCall,
-    joinCall,
+    initiateCall,
+    answerCall,
+    declineCall,
     endCall,
     toggleVideo,
     toggleAudio
