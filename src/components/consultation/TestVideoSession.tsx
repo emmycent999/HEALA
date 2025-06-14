@@ -61,7 +61,7 @@ export const TestVideoSession: React.FC = () => {
 
       console.log('Appointment created:', appointmentData);
 
-      // Create a video consultation session
+      // Create a video consultation session with video type explicitly
       const { data: sessionData, error: sessionError } = await supabase
         .from('consultation_sessions')
         .insert({
@@ -69,7 +69,7 @@ export const TestVideoSession: React.FC = () => {
           patient_id: patientId,
           physician_id: physicianId,
           consultation_rate: 5000,
-          session_type: 'video',
+          session_type: 'video', // Explicitly set to video
           status: 'scheduled',
           payment_status: 'pending'
         })
@@ -81,10 +81,10 @@ export const TestVideoSession: React.FC = () => {
         throw new Error(`Failed to create session: ${sessionError.message}`);
       }
 
-      console.log('Session created:', sessionData);
+      console.log('Session created with type:', sessionData.session_type);
 
       toast({
-        title: "Test Session Created",
+        title: "Test Video Session Created",
         description: `Video consultation session created with ID: ${sessionData.id}. Refresh the page to see it in the list.`,
       });
 
@@ -113,7 +113,8 @@ export const TestVideoSession: React.FC = () => {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-gray-600 mb-4">
-          Create a test video consultation session to see the new UI changes.
+          Create a test video consultation session to test the doctor-patient flow. 
+          {profile?.role === 'physician' ? ' You will be the doctor, and a test patient will be assigned.' : ' You will be the patient, and a test doctor will be assigned.'}
         </p>
         <Button onClick={createTestVideoSession} className="w-full">
           <Plus className="w-4 h-4 mr-2" />
