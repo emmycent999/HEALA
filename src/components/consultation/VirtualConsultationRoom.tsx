@@ -23,6 +23,15 @@ interface ConsultationSession {
   ended_at?: string;
   duration_minutes?: number;
   payment_status: string;
+  patient?: {
+    first_name: string;
+    last_name: string;
+  };
+  physician?: {
+    first_name: string;
+    last_name: string;
+    specialization?: string;
+  };
 }
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
@@ -282,8 +291,8 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
               <span className="text-sm">
                 {profile?.role === 'patient' ? 'Dr. ' : ''}
                 {profile?.role === 'patient' 
-                  ? `${session.physician?.first_name} ${session.physician?.last_name}`
-                  : `${session.patient?.first_name} ${session.patient?.last_name}`
+                  ? `${session.physician?.first_name || 'Unknown'} ${session.physician?.last_name || ''}`
+                  : `${session.patient?.first_name || 'Unknown'} ${session.patient?.last_name || ''}`
                 }
               </span>
             </div>
