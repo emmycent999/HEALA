@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,11 +79,14 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
           physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name, specialization)
         `)
         .eq('id', sessionId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setSession(data);
-      setConnectionStatus('connected');
+      
+      if (data) {
+        setSession(data);
+        setConnectionStatus('connected');
+      }
     } catch (error) {
       console.error('Error fetching session:', error);
       toast({
