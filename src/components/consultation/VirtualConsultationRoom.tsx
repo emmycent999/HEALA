@@ -7,6 +7,7 @@ import { VideoInterface } from './VideoInterface';
 import { SessionSummary } from './SessionSummary';
 import { EmptySessionState } from './EmptySessionState';
 import { SessionList } from './SessionList';
+import { TestVideoSession } from './TestVideoSession';
 import { VirtualConsultationRoomProps } from './types';
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId: initialSessionId }) => {
@@ -58,6 +59,7 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
   if (!currentSessionId) {
     return (
       <div className="space-y-6">
+        <TestVideoSession />
         <SessionList onSelectSession={handleSelectSession} />
         <EmptySessionState />
       </div>

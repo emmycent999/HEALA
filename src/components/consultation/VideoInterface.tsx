@@ -12,7 +12,7 @@ import { VideoControls } from './VideoControls';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Video } from 'lucide-react';
+import { Video, Clock, UserCheck } from 'lucide-react';
 
 interface VideoInterfaceProps {
   session: ConsultationSession;
@@ -32,6 +32,12 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
+
+  console.log('VideoInterface - Current user role:', profile?.role);
+  console.log('VideoInterface - Session status:', session.status);
+  console.log('VideoInterface - Session type:', session.session_type);
+  console.log('VideoInterface - Is physician:', isPhysician);
+  console.log('VideoInterface - Is patient:', isPatient);
 
   const {
     isCallActive,
@@ -60,6 +66,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     const channel = supabase
       .channel(`consultation_${session.id}`)
       .on('broadcast', { event: 'consultation-started' }, (payload) => {
+        console.log('Received consultation-started event:', payload);
         if (payload.payload.startedBy !== user?.id) {
           setConsultationStarted(true);
           if (isPatient) {
@@ -72,6 +79,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         }
       })
       .on('broadcast', { event: 'patient-joined' }, (payload) => {
+        console.log('Received patient-joined event:', payload);
         if (payload.payload.patientId !== user?.id && isPhysician) {
           toast({
             title: "Patient Joined",
@@ -88,6 +96,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   // Check if consultation was already started
   useEffect(() => {
+    console.log('Checking session status on mount:', session.status);
     if (session.status === 'in_progress') {
       setConsultationStarted(true);
       if (isPatient) {
@@ -98,6 +107,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   const handleStartConsultation = async () => {
     try {
+      console.log('Doctor starting consultation...');
+      
       // Start the session in database
       await onStartSession();
       
@@ -127,6 +138,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
   const handlePatientJoin = async () => {
     try {
+      console.log('Patient joining consultation...');
+      
       // Notify physician that patient joined
       const channel = supabase.channel(`consultation_${session.id}`);
       await channel.send({
@@ -182,35 +195,48 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   };
 
   const renderContent = () => {
+    console.log('Rendering content - Session status:', session.status, 'User role:', profile?.role);
+    
     // Session not started yet
     if (session.status === 'scheduled') {
       if (isPhysician) {
+        console.log('Rendering: Physician - session not started');
         return (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white text-center">
-              <Video className="w-16 h-16 mx-auto mb-6 opacity-50" />
-              <h3 className="text-xl font-semibold mb-4">Ready to Start Consultation</h3>
-              <p className="text-sm opacity-75 mb-6">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-blue-200">
+              <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Start Consultation</h3>
+              <p className="text-gray-600 mb-6 max-w-md">
                 Click "Start Consultation" to begin the session and notify the patient.
               </p>
               <Button
                 onClick={handleStartConsultation}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                size="lg"
               >
+                <UserCheck className="w-5 h-5 mr-2" />
                 Start Consultation
               </Button>
+              <div className="mt-4 text-sm text-gray-500">
+                Patient will be notified when you start
+              </div>
             </div>
           </div>
         );
       } else {
+        console.log('Rendering: Patient - waiting for doctor');
         return (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white text-center">
-              <Video className="w-16 h-16 mx-auto mb-6 opacity-50" />
-              <h3 className="text-xl font-semibold mb-4">Waiting for Doctor</h3>
-              <p className="text-sm opacity-75">
-                The consultation has not started yet. Please wait for the doctor to begin.
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+            <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-gray-200">
+              <Clock className="w-20 h-20 mx-auto mb-6 text-gray-400 animate-pulse" />
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">Waiting for Doctor</h3>
+              <p className="text-gray-600 max-w-md">
+                The consultation has not started yet. You will be notified when the doctor begins the session.
               </p>
+              <div className="mt-6 flex items-center justify-center text-sm text-gray-500">
+                <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full mr-2"></div>
+                Waiting for doctor to start...
+              </div>
             </div>
           </div>
         );
@@ -219,20 +245,26 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
     // Session started - patient needs to join
     if (session.status === 'in_progress' && isPatient && showJoinButton && !isCallActive) {
+      console.log('Rendering: Patient - join now button');
       return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-white text-center">
-            <Video className="w-16 h-16 mx-auto mb-6 text-green-400" />
-            <h3 className="text-xl font-semibold mb-4">Consultation Started!</h3>
-            <p className="text-sm opacity-75 mb-6">
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+          <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 animate-pulse">
+            <Video className="w-20 h-20 mx-auto mb-6 text-green-500 animate-bounce" />
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">Consultation Started!</h3>
+            <p className="text-gray-600 mb-6 max-w-md">
               The doctor has started the consultation. Click below to join the video call.
             </p>
             <Button
               onClick={handlePatientJoin}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+              size="lg"
             >
+              <Video className="w-5 h-5 mr-2" />
               Join Now
             </Button>
+            <div className="mt-4 text-sm text-green-600 font-medium">
+              Doctor is waiting for you!
+            </div>
           </div>
         </div>
       );
@@ -240,6 +272,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
     // Session started - physician waiting or call active
     if (session.status === 'in_progress') {
+      console.log('Rendering: In progress - call active:', isCallActive);
       return (
         <>
           <VideoStreams
@@ -250,19 +283,25 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           />
 
           {!isCallActive && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-white text-center">
-                <Video className="w-16 h-16 mx-auto mb-6 opacity-50" />
-                <p className="text-lg mb-4">
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
+              <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-purple-200">
+                <Video className="w-20 h-20 mx-auto mb-6 text-purple-500" />
+                <h3 className="text-xl font-bold text-gray-800 mb-4">
                   {isPhysician ? 'Waiting for patient to join...' : 'Preparing video call...'}
-                </p>
+                </h3>
                 {isPhysician && (
-                  <Button
-                    onClick={handleStartCall}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    Start Video Call
-                  </Button>
+                  <>
+                    <p className="text-gray-600 mb-6">
+                      The patient will join automatically. You can also start the video call manually.
+                    </p>
+                    <Button
+                      onClick={handleStartCall}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                    >
+                      <Video className="w-4 h-4 mr-2" />
+                      Start Video Call
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -289,6 +328,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
 
     // Default fallback
+    console.log('Rendering: Default fallback');
     return (
       <VideoPlaceholder
         isCallActive={isCallActive}
@@ -311,7 +351,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
       <Card>
         <CardContent className="p-0">
-          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden">
+          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
             {renderContent()}
           </div>
         </CardContent>
