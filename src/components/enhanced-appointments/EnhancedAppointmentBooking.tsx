@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -215,7 +216,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       const appointmentData = {
         patient_id: user.id,
         physician_id: formData.physician_id,
-        hospital_id: selectedPhysician?.hospital_id,
+        hospital_id: selectedPhysician?.hospital_id || null, // Fix: Use null instead of empty string
         appointment_date: formData.appointment_date,
         appointment_time: formData.appointment_time,
         notes: formData.reason,
