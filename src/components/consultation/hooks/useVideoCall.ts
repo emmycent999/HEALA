@@ -40,7 +40,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     endCall: webRTCEndCall
   } = useWebRTCManager(setConnectionState);
 
-  // Setup signaling when session is in progress
+  // Setup signaling when session is in progress and both participants are ready
   useEffect(() => {
     if (sessionStatus === 'in_progress') {
       setupSignaling();
@@ -105,6 +105,10 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
     try {
       console.log('Initiating call for user:', userId, 'role:', userRole);
       
+      // Start local video first
+      await startLocalVideo();
+      
+      // Send call invitation
       signalingService.current?.sendCallInvitation(callerName);
 
       toast({
@@ -115,7 +119,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
       console.error('Error initiating call:', error);
       toast({
         title: "Error",
-        description: "Failed to initiate call.",
+        description: "Failed to initiate call. Please check your camera and microphone permissions.",
         variant: "destructive"
       });
     }
@@ -129,6 +133,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
       setIsCallActive(true);
       setIncomingCall(false);
 
+      // Create offer/answer based on role
       if (userRole === 'patient') {
         setTimeout(async () => {
           const offer = await createOffer();
@@ -137,8 +142,8 @@ export const useVideoCall = ({ sessionId, userId, userRole, sessionStatus }: Use
       }
 
       toast({
-        title: "Call Answered",
-        description: "Connecting to video call...",
+        title: "Call Connected",
+        description: "You are now connected to the video call.",
       });
     } catch (error) {
       console.error('Error answering call:', error);
