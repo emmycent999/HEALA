@@ -25,12 +25,12 @@ interface ConsultationSession {
   patient?: {
     first_name: string;
     last_name: string;
-  };
+  } | null;
   physician?: {
     first_name: string;
     last_name: string;
     specialization?: string;
-  };
+  } | null;
 }
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId }) => {
@@ -84,7 +84,14 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
       if (error) throw error;
       
       if (data) {
-        setSession(data);
+        // Type guard to ensure we have valid data structure
+        const sessionData: ConsultationSession = {
+          ...data,
+          patient: Array.isArray(data.patient) ? data.patient[0] : data.patient,
+          physician: Array.isArray(data.physician) ? data.physician[0] : data.physician
+        };
+        
+        setSession(sessionData);
         setConnectionStatus('connected');
       }
     } catch (error) {
