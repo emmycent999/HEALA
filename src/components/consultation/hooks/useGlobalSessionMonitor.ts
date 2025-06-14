@@ -134,10 +134,11 @@ export const useGlobalSessionMonitor = ({
       setLastUpdate(new Date());
     }
     
-    // Check for status change to in_progress
+    // Check for status change to in_progress with proper type checking
     if (payload.eventType === 'UPDATE' && 
-        oldSession?.status === 'scheduled' && 
-        newSession?.status === 'in_progress') {
+        oldSession && newSession &&
+        oldSession.status === 'scheduled' && 
+        newSession.status === 'in_progress') {
       
       console.log('🚨 [GlobalSessionMonitor] CONSULTATION STARTED! Session:', newSession.id);
       showNotificationAndRedirect(newSession);
