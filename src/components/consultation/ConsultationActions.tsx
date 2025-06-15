@@ -28,16 +28,19 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
   onPatientJoin,
   onStartCall
 }) => {
-  console.log('🎬 [ConsultationActions] Rendering:', {
+  console.log('🎬 [ConsultationActions] Rendering with props:', {
     sessionStatus,
     isPhysician,
     isPatient,
     consultationStarted,
-    showJoinButton
+    showJoinButton,
+    isCallActive
   });
 
   // Session not started yet
   if (sessionStatus === 'scheduled') {
+    console.log('🎬 [ConsultationActions] Showing scheduled state');
+    
     if (isPhysician) {
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -80,7 +83,10 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
 
   // Session started - show different options for patient vs physician
   if (sessionStatus === 'in_progress' && !isCallActive) {
+    console.log('🎬 [ConsultationActions] Showing in_progress state');
+    
     if (isPatient) {
+      console.log('🎬 [ConsultationActions] Rendering JOIN NOW button for patient');
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
           <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
@@ -92,7 +98,10 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
               The doctor is ready for you. Join the video call now.
             </p>
             <Button
-              onClick={onPatientJoin}
+              onClick={() => {
+                console.log('🔘 [ConsultationActions] Patient clicked Join Now');
+                onPatientJoin();
+              }}
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
               size="lg"
             >
@@ -104,6 +113,7 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
       );
     } else {
       // For physician when session is in progress but video not started
+      console.log('🎬 [ConsultationActions] Rendering start video button for physician');
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
           <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
@@ -115,7 +125,10 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
               The consultation is ready. Start your video now.
             </p>
             <Button
-              onClick={onStartCall}
+              onClick={() => {
+                console.log('🔘 [ConsultationActions] Physician clicked Start Video Call');
+                onStartCall();
+              }}
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
               size="lg"
             >
@@ -128,5 +141,6 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
     }
   }
 
+  console.log('🎬 [ConsultationActions] No matching state, returning null');
   return null;
 };

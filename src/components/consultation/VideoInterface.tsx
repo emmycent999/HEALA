@@ -37,15 +37,57 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     sessionId: currentSession.id
   });
 
-  // Auto-start video for patients when session is in progress
+  // Update session when prop changes
   useEffect(() => {
+    console.log('🔄 [VideoInterface] Session prop updated:', session.status);
     setCurrentSession(session);
+  }, [session]);
+
+  // Set up real-time session monitoring
+  useEffect(() => {
+    if (!currentSession.id) return;
+
+    console.log('📡 [VideoInterface] Setting up real-time session monitoring');
     
-    if (session.status === 'in_progress' && !videoStarted && isPatient) {
-      console.log('🎥 [VideoInterface] Auto-starting video for patient');
-      setVideoStarted(true);
-    }
-  }, [session, videoStarted, isPatient]);
+    const channel = supabase
+      .channel(`session_${currentSession.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'consultation_sessions',
+          filter: `id=eq.${currentSession.id}`
+        },
+        (payload) => {
+          console.log('📨 [VideoInterface] Session update received:', payload);
+          const updatedSession = payload.new as any;
+          
+          setCurrentSession(prev => ({
+            ...prev,
+            ...updatedSession
+          }));
+
+          // If patient and session just started, show notification
+          if (isPatient && updatedSession.status === 'in_progress' && currentSession.status === 'scheduled') {
+            console.log('🎯 [VideoInterface] Patient notified of consultation start');
+            toast({
+              title: "🚨 Doctor Started Consultation!",
+              description: "Click 'Join Now' to enter the video call",
+              duration: 8000,
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 [VideoInterface] Real-time subscription status:', status);
+      });
+
+    return () => {
+      console.log('🧹 [VideoInterface] Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [currentSession.id, isPatient, currentSession.status]);
 
   const {
     isCallActive,
@@ -63,12 +105,12 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     sessionId: currentSession.id,
     userId: user?.id || '',
     userRole: isPhysician ? 'physician' : 'patient',
-    autoStart: videoStarted
+    autoStart: false // Don't auto-start, let user control
   });
 
   const handleStartConsultation = async () => {
     try {
-      console.log('👨‍⚕️ [VideoInterface] Starting consultation');
+      console.log('👨‍⚕️ [VideoInterface] Physician starting consultation');
       
       const { error } = await supabase
         .from('consultation_sessions')
@@ -80,24 +122,23 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
 
       if (error) throw error;
       
-      setCurrentSession(prev => ({ 
-        ...prev, 
-        status: 'in_progress',
+      // Update local state immediately
+      const updatedSession = {
+        ...currentSession,
+        status: 'in_progress' as const,
         started_at: new Date().toISOString()
-      }));
+      };
+      
+      setCurrentSession(updatedSession);
       
       await onStartSession();
       
       toast({
         title: "🚀 Consultation Started",
-        description: "Video call is starting now",
+        description: "Session is now active. Start your video when ready.",
       });
 
-      // Start video immediately for physician
-      if (isPhysician) {
-        setVideoStarted(true);
-        setTimeout(() => startCall(), 500);
-      }
+      // Don't auto-start video, let physician control it
       
     } catch (error) {
       console.error('❌ [VideoInterface] Error starting consultation:', error);
@@ -107,6 +148,17 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         variant: "destructive"
       });
     }
+  };
+
+  const handlePatientJoin = () => {
+    console.log('👤 [VideoInterface] Patient joining video call');
+    setVideoStarted(true);
+    startCall();
+    
+    toast({
+      title: "📞 Joining Video Call",
+      description: "Connecting to the consultation...",
+    });
   };
 
   const handleStartCall = () => {
@@ -182,6 +234,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
               <div>Status: {currentSession.status}</div>
               <div>Connection: {connectionState}</div>
               <div>Call Active: {isCallActive ? 'Yes' : 'No'}</div>
+              <div>Video Started: {videoStarted ? 'Yes' : 'No'}</div>
             </div>
           </div>
         </CardContent>
@@ -203,10 +256,18 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
             isCallActive={isCallActive}
             autoJoinAttempted={false}
             onStartConsultation={handleStartConsultation}
-            onPatientJoin={handleStartCall}
+            onPatientJoin={handlePatientJoin}
             onStartCall={handleStartCall}
             onEnableManualJoin={() => {}}
           />
+
+          {/* Debug info overlay for actions */}
+          <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded z-10">
+            <div>Role: {profile?.role}</div>
+            <div>Status: {currentSession.status}</div>
+            <div>Show Join: {currentSession.status === 'in_progress' ? 'Yes' : 'No'}</div>
+            <div>Is Patient: {isPatient ? 'Yes' : 'No'}</div>
+          </div>
         </div>
       </CardContent>
     </Card>
