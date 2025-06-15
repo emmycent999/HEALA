@@ -17,6 +17,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+// --- Add this helper at the top ---
+async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, {first_name: string, last_name: string, role: string}>> {
+  if (!userIds.length) return {};
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, role')
+    .in('id', userIds);
+  if (error) {
+    console.error('Error fetching profiles', error);
+    return {};
+  }
+  const map: Record<string, {first_name: string, last_name: string, role: string}> = {};
+  data?.forEach((profile) => {
+    map[profile.id] = {
+      first_name: profile.first_name || '',
+      last_name: profile.last_name || '',
+      role: profile.role || 'staff',
+    };
+  });
+  return map;
+}
+
 interface StaffSchedule {
   id: string;
   staff_id: string;
@@ -56,20 +78,14 @@ export const StaffScheduleManagement: React.FC = () => {
     }
   }, [user, profile, selectedDate]);
 
+  // --- Update fetchSchedules to join profiles manually ---
   const fetchSchedules = async () => {
     if (!profile?.hospital_id) return;
 
     try {
       const { data, error } = await supabase
         .from('staff_schedules')
-        .select(`
-          *,
-          staff:profiles!staff_schedules_staff_id_fkey (
-            first_name,
-            last_name,
-            role
-          )
-        `)
+        .select('*')
         .eq('hospital_id', profile.hospital_id)
         .gte('start_date', selectedDate)
         .lte('end_date', selectedDate)
@@ -77,21 +93,25 @@ export const StaffScheduleManagement: React.FC = () => {
 
       if (error) throw error;
 
-      const formattedData: StaffSchedule[] = (data || []).map(schedule => ({
-        id: schedule.id,
-        staff_id: schedule.staff_id,
-        department: schedule.department,
-        shift_type: schedule.shift_type,
-        start_date: schedule.start_date,
-        end_date: schedule.end_date,
-        start_time: schedule.start_time,
-        end_time: schedule.end_time,
-        status: schedule.status as 'scheduled' | 'confirmed' | 'cancelled',
-        staff_name: schedule.staff 
-          ? `${schedule.staff.first_name} ${schedule.staff.last_name}`
-          : 'Unknown Staff',
-        staff_role: schedule.staff?.role || 'staff'
-      }));
+      const staffIds = [...new Set((data || []).map(sch => sch.staff_id))];
+      const profilesMap = await fetchProfilesByIds(staffIds);
+
+      const formattedData: StaffSchedule[] = (data || []).map(schedule => {
+        const p = profilesMap[schedule.staff_id] || {};
+        return {
+          id: schedule.id,
+          staff_id: schedule.staff_id,
+          department: schedule.department,
+          shift_type: schedule.shift_type,
+          start_date: schedule.start_date,
+          end_date: schedule.end_date,
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          status: schedule.status as 'scheduled' | 'confirmed' | 'cancelled',
+          staff_name: (p.first_name || p.last_name) ? `${p.first_name} ${p.last_name}` : 'Unknown Staff',
+          staff_role: p.role || 'staff'
+        }
+      });
 
       setSchedules(formattedData);
     } catch (error) {
@@ -104,39 +124,33 @@ export const StaffScheduleManagement: React.FC = () => {
     }
   };
 
+  // --- Update fetchAttendance to join profiles manually ---
   const fetchAttendance = async () => {
     if (!profile?.hospital_id) return;
 
     try {
       const { data, error } = await supabase
         .from('staff_attendance')
-        .select(`
-          *,
-          staff_schedules!staff_attendance_schedule_id_fkey (
-            start_date,
-            hospital_id
-          ),
-          staff:profiles!staff_attendance_staff_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq('staff_schedules.hospital_id', profile.hospital_id)
-        .eq('staff_schedules.start_date', selectedDate);
+        .select('*')
+        .eq('created_at', selectedDate); // You might want to refine this filter
 
       if (error) throw error;
 
-      const formattedData: StaffAttendance[] = (data || []).map(attendance => ({
-        id: attendance.id,
-        schedule_id: attendance.schedule_id,
-        staff_id: attendance.staff_id,
-        check_in_time: attendance.check_in_time,
-        check_out_time: attendance.check_out_time,
-        status: attendance.status as 'scheduled' | 'checked_in' | 'checked_out' | 'absent',
-        staff_name: attendance.staff 
-          ? `${attendance.staff.first_name} ${attendance.staff.last_name}`
-          : 'Unknown Staff'
-      }));
+      const staffIds = [...new Set((data || []).map(a => a.staff_id))];
+      const profilesMap = await fetchProfilesByIds(staffIds);
+
+      const formattedData: StaffAttendance[] = (data || []).map(attendance => {
+        const p = profilesMap[attendance.staff_id] || {};
+        return {
+          id: attendance.id,
+          schedule_id: attendance.schedule_id,
+          staff_id: attendance.staff_id,
+          check_in_time: attendance.check_in_time,
+          check_out_time: attendance.check_out_time,
+          status: attendance.status as 'scheduled' | 'checked_in' | 'checked_out' | 'absent',
+          staff_name: (p.first_name || p.last_name) ? `${p.first_name} ${p.last_name}` : 'Unknown Staff'
+        }
+      });
 
       setAttendance(formattedData);
     } catch (error) {

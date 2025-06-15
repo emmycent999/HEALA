@@ -30,6 +30,27 @@ interface WaitlistEntry {
   patient_phone?: string;
 }
 
+async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, {first_name: string, last_name: string, phone: string}>> {
+  if (!userIds.length) return {};
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, phone')
+    .in('id', userIds);
+  if (error) {
+    console.error('Error fetching profiles', error);
+    return {};
+  }
+  const map: Record<string, {first_name: string, last_name: string, phone: string}> = {};
+  data?.forEach((profile) => {
+    map[profile.id] = {
+      first_name: profile.first_name || '',
+      last_name: profile.last_name || '',
+      phone: profile.phone || '',
+    };
+  });
+  return map;
+}
+
 export const PatientWaitlistManagement: React.FC = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -66,33 +87,31 @@ export const PatientWaitlistManagement: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('patient_waitlist')
-        .select(`
-          *,
-          patient:profiles!patient_waitlist_patient_id_fkey (
-            first_name,
-            last_name,
-            phone
-          )
-        `)
+        .select('*')
         .eq('hospital_id', profile.hospital_id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      const formattedData: WaitlistEntry[] = (data || []).map(entry => ({
-        id: entry.id,
-        patient_id: entry.patient_id,
-        department: entry.department,
-        priority: entry.priority as 'low' | 'medium' | 'high' | 'urgent',
-        reason: entry.reason,
-        estimated_wait_time: entry.estimated_wait_time || 0,
-        status: entry.status as 'waiting' | 'called' | 'in_progress' | 'completed' | 'cancelled',
-        created_at: entry.created_at,
-        patient_name: entry.patient 
-          ? `${entry.patient.first_name} ${entry.patient.last_name}`
-          : 'Unknown Patient',
-        patient_phone: entry.patient?.phone || ''
-      }));
+      // Gather unique patient_ids
+      const patientIds = [...new Set((data || []).map(row => row.patient_id))];
+      const profilesMap = await fetchProfilesByIds(patientIds);
+
+      const formattedData: WaitlistEntry[] = (data || []).map(entry => {
+        const p = profilesMap[entry.patient_id] || {};
+        return {
+          id: entry.id,
+          patient_id: entry.patient_id,
+          department: entry.department,
+          priority: entry.priority as 'low' | 'medium' | 'high' | 'urgent',
+          reason: entry.reason,
+          estimated_wait_time: entry.estimated_wait_time || 0,
+          status: entry.status as 'waiting' | 'called' | 'in_progress' | 'completed' | 'cancelled',
+          created_at: entry.created_at,
+          patient_name: (p.first_name || p.last_name) ? `${p.first_name} ${p.last_name}` : 'Unknown Patient',
+          patient_phone: p.phone || ''
+        };
+      });
 
       setWaitlist(formattedData);
     } catch (error) {
