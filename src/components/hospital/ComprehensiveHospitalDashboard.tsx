@@ -17,6 +17,7 @@ import { HospitalSecurityManagement } from './HospitalSecurityManagement';
 import { HospitalComplianceManagement } from './HospitalComplianceManagement';
 import { HospitalResourceManagement } from './HospitalResourceManagement';
 import { HospitalAdvancedSettings } from './HospitalAdvancedSettings';
+import { PatientManagement } from './PatientManagement';
 import { useSearchParams } from 'react-router-dom';
 
 export const ComprehensiveHospitalDashboard: React.FC = () => {
@@ -67,7 +68,7 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
       case 'appointments':
         return <AppointmentManagement />;
       case 'patients':
-        return <div>Patient management coming soon...</div>;
+        return <PatientManagement />;
       case 'emergency':
         return <EmergencyCoordination />;
       case 'financial':

@@ -1,14 +1,19 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Bed, 
   Stethoscope, 
   Truck, 
   Activity,
-  Heart
+  Heart,
+  Edit,
+  Save,
+  X
 } from 'lucide-react';
 
 export interface Resource {
@@ -24,9 +29,18 @@ export interface Resource {
 
 interface ResourceCardProps {
   resource: Resource;
+  onUpdate?: (resourceId: string, updates: Partial<Resource>) => void;
 }
 
-export const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
+export const ResourceCard: React.FC<ResourceCardProps> = ({ resource, onUpdate }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    total: resource.total,
+    available: resource.available,
+    inUse: resource.inUse,
+    maintenance: resource.maintenance
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available':
@@ -59,6 +73,23 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
     return Math.round((resource.inUse / resource.total) * 100);
   };
 
+  const handleSave = () => {
+    if (onUpdate) {
+      onUpdate(resource.id, editData);
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditData({
+      total: resource.total,
+      available: resource.available,
+      inUse: resource.inUse,
+      maintenance: resource.maintenance
+    });
+    setIsEditing(false);
+  };
+
   return (
     <Card>
       <CardContent className="p-4">
@@ -70,27 +101,81 @@ export const ResourceCard: React.FC<ResourceCardProps> = ({ resource }) => {
               <p className="text-sm text-gray-600 capitalize">{resource.category}</p>
             </div>
           </div>
-          <Badge className={getStatusColor(resource.status)}>
-            {resource.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={getStatusColor(resource.status)}>
+              {resource.status}
+            </Badge>
+            {onUpdate && (
+              !isEditing ? (
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit className="w-4 h-4" />
+                </Button>
+              ) : (
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" onClick={handleSave}>
+                    <Save className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleCancel}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-4">
           <div className="text-center">
             <p className="text-sm text-gray-600">Total</p>
-            <p className="text-lg font-bold">{resource.total}</p>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={editData.total}
+                onChange={(e) => setEditData({...editData, total: parseInt(e.target.value) || 0})}
+                className="h-8 text-center"
+              />
+            ) : (
+              <p className="text-lg font-bold">{resource.total}</p>
+            )}
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-600">Available</p>
-            <p className="text-lg font-bold text-green-600">{resource.available}</p>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={editData.available}
+                onChange={(e) => setEditData({...editData, available: parseInt(e.target.value) || 0})}
+                className="h-8 text-center"
+              />
+            ) : (
+              <p className="text-lg font-bold text-green-600">{resource.available}</p>
+            )}
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-600">In Use</p>
-            <p className="text-lg font-bold text-blue-600">{resource.inUse}</p>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={editData.inUse}
+                onChange={(e) => setEditData({...editData, inUse: parseInt(e.target.value) || 0})}
+                className="h-8 text-center"
+              />
+            ) : (
+              <p className="text-lg font-bold text-blue-600">{resource.inUse}</p>
+            )}
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-600">Maintenance</p>
-            <p className="text-lg font-bold text-orange-600">{resource.maintenance}</p>
+            {isEditing ? (
+              <Input
+                type="number"
+                value={editData.maintenance}
+                onChange={(e) => setEditData({...editData, maintenance: parseInt(e.target.value) || 0})}
+                className="h-8 text-center"
+              />
+            ) : (
+              <p className="text-lg font-bold text-orange-600">{resource.maintenance}</p>
+            )}
           </div>
         </div>
 

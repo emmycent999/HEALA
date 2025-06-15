@@ -5,9 +5,10 @@ import { Resource, ResourceCard } from './ResourceCard';
 
 interface ResourceCategoryTabsProps {
   resources: Resource[];
+  onUpdateResource: (resourceId: string, updates: Partial<Resource>) => void;
 }
 
-export const ResourceCategoryTabs: React.FC<ResourceCategoryTabsProps> = ({ resources }) => {
+export const ResourceCategoryTabs: React.FC<ResourceCategoryTabsProps> = ({ resources, onUpdateResource }) => {
   const resourcesByCategory = resources.reduce((acc, resource) => {
     if (!acc[resource.category]) {
       acc[resource.category] = [];
@@ -29,7 +30,11 @@ export const ResourceCategoryTabs: React.FC<ResourceCategoryTabsProps> = ({ reso
       <TabsContent value="all">
         <div className="grid gap-4">
           {resources.map((resource) => (
-            <ResourceCard key={resource.id} resource={resource} />
+            <ResourceCard 
+              key={resource.id} 
+              resource={resource} 
+              onUpdate={onUpdateResource}
+            />
           ))}
         </div>
       </TabsContent>
@@ -38,7 +43,11 @@ export const ResourceCategoryTabs: React.FC<ResourceCategoryTabsProps> = ({ reso
         <TabsContent key={category} value={category}>
           <div className="grid gap-4">
             {categoryResources.map((resource) => (
-              <ResourceCard key={resource.id} resource={resource} />
+              <ResourceCard 
+                key={resource.id} 
+                resource={resource} 
+                onUpdate={onUpdateResource}
+              />
             ))}
           </div>
         </TabsContent>
