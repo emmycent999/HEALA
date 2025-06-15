@@ -189,13 +189,13 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     
     // For patients - always active variant
     if (!isPhysician) {
-      return 'default';
+      return 'default' as const;
     }
     
     if (session.status === 'in_progress') {
-      return 'default'; // Active look for in-progress sessions
+      return 'default' as const; // Active look for in-progress sessions
     }
-    return 'default';
+    return 'default' as const;
   };
 
   const isButtonDisabled = (session: ConsultationSession) => {
@@ -213,20 +213,28 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
     return isPhysician ? <Video className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />;
   };
 
-  const getButtonClassName = (session: ConsultationSession) => {
+  const getButtonStyle = (session: ConsultationSession) => {
     const isPhysician = profile?.role === 'physician';
     
     // For patients - always show pulsing green button
     if (!isPhysician) {
-      return "bg-green-600 hover:bg-green-700 animate-pulse";
+      return {
+        backgroundColor: '#16a34a',
+        color: 'white',
+        animation: 'pulse 2s infinite'
+      };
     }
     
     // For physicians - pulse if in progress
     if (session.status === 'in_progress') {
-      return "bg-blue-600 hover:bg-blue-700 animate-pulse";
+      return {
+        backgroundColor: '#2563eb',
+        color: 'white',
+        animation: 'pulse 2s infinite'
+      };
     }
     
-    return "";
+    return {};
   };
 
   if (loading) {
@@ -319,7 +327,7 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
                       }}
                       variant={getButtonVariant(session)}
                       disabled={isButtonDisabled(session)}
-                      className={getButtonClassName(session)}
+                      style={getButtonStyle(session)}
                     >
                       {getButtonIcon()}
                       {getButtonText(session)}
