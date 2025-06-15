@@ -66,13 +66,21 @@ export const useNotificationManager = ({
     // Set up broadcast listener - BACKUP notification method
     const broadcastChannel = supabase
       .channel(`consultation_broadcast_${sessionId}_${userId}`)
-      .on('broadcast', { event: 'consultation-started' }, (payload) => {
-        console.log('📢 [NotificationManager] Consultation-started broadcast received:', payload);
-        handleConsultationStartedBroadcast(payload);
+      .on('broadcast', { event: 'consultation-started' }, (broadcastEvent) => {
+        console.log('📢 [NotificationManager] Consultation-started broadcast received:', broadcastEvent);
+        // Transform the broadcast event to match our expected payload structure
+        const transformedPayload = {
+          payload: broadcastEvent.payload || {}
+        };
+        handleConsultationStartedBroadcast(transformedPayload);
       })
-      .on('broadcast', { event: 'patient-joined' }, (payload) => {
-        console.log('📢 [NotificationManager] Patient-joined broadcast received:', payload);
-        handlePatientJoinedBroadcast(payload);
+      .on('broadcast', { event: 'patient-joined' }, (broadcastEvent) => {
+        console.log('📢 [NotificationManager] Patient-joined broadcast received:', broadcastEvent);
+        // Transform the broadcast event to match our expected payload structure
+        const transformedPayload = {
+          payload: broadcastEvent.payload || {}
+        };
+        handlePatientJoinedBroadcast(transformedPayload);
       })
       .subscribe((status) => {
         console.log('📢 [NotificationManager] Broadcast subscription status:', status);
