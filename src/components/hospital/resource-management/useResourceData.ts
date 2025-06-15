@@ -15,7 +15,10 @@ export const useResourceData = () => {
     if (!profile?.hospital_id) return;
 
     try {
-      const { data, error } = await supabase
+      console.log('Fetching resources for hospital:', profile.hospital_id);
+      
+      // Using any type temporarily until Supabase types are regenerated
+      const { data, error } = await (supabase as any)
         .from('hospital_resources')
         .select('*')
         .eq('hospital_id', profile.hospital_id)
@@ -23,7 +26,9 @@ export const useResourceData = () => {
 
       if (error) throw error;
 
-      const formattedData: Resource[] = (data || []).map(resource => ({
+      console.log('Raw resource data:', data);
+
+      const formattedData: Resource[] = (data || []).map((resource: any) => ({
         id: resource.id,
         name: resource.name,
         category: resource.category,
@@ -34,6 +39,7 @@ export const useResourceData = () => {
         status: resource.status as 'available' | 'limited' | 'critical'
       }));
 
+      console.log('Formatted resource data:', formattedData);
       setResources(formattedData);
     } catch (error) {
       console.error('Error fetching resources:', error);
@@ -51,7 +57,9 @@ export const useResourceData = () => {
     if (!profile?.hospital_id) return;
 
     try {
-      const { error } = await supabase
+      console.log('Adding resource:', resourceData);
+      
+      const { error } = await (supabase as any)
         .from('hospital_resources')
         .insert({
           hospital_id: profile.hospital_id,
@@ -84,7 +92,9 @@ export const useResourceData = () => {
 
   const updateResource = async (resourceId: string, updates: Partial<Resource>) => {
     try {
-      const { error } = await supabase
+      console.log('Updating resource:', { resourceId, updates });
+      
+      const { error } = await (supabase as any)
         .from('hospital_resources')
         .update({
           name: updates.name,
@@ -120,6 +130,7 @@ export const useResourceData = () => {
     if (user && profile?.hospital_id) {
       fetchResources();
       
+      // Set up real-time subscription
       const channel = supabase
         .channel('hospital_resources_updates')
         .on('postgres_changes', {
@@ -128,11 +139,13 @@ export const useResourceData = () => {
           table: 'hospital_resources',
           filter: `hospital_id=eq.${profile.hospital_id}`
         }, () => {
+          console.log('Real-time update received for hospital_resources');
           fetchResources();
         })
         .subscribe();
 
       return () => {
+        console.log('Cleaning up hospital_resources subscription');
         supabase.removeChannel(channel);
       };
     }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Alert } from 'lucide-react';
+import { AlertTriangle, AlertCircle } from 'lucide-react';
 import { Resource } from './ResourceCard';
 
 interface CriticalAlertsProps {
@@ -45,7 +45,7 @@ export const CriticalAlerts: React.FC<CriticalAlertsProps> = ({ resources }) => 
         <Card className="border-yellow-200 bg-yellow-50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-yellow-700">
-              <Alert className="w-5 h-5" />
+              <AlertCircle className="w-5 h-5" />
               Limited Resources
             </CardTitle>
           </CardHeader>

@@ -15,7 +15,10 @@ export const usePatientManagement = () => {
     if (!profile?.hospital_id) return;
 
     try {
-      const { data, error } = await supabase
+      console.log('Fetching patients for hospital:', profile.hospital_id);
+      
+      // Using any type temporarily until Supabase types are regenerated
+      const { data, error } = await (supabase as any)
         .from('hospital_patients')
         .select(`
           *,
@@ -35,7 +38,9 @@ export const usePatientManagement = () => {
 
       if (error) throw error;
 
-      const formattedData: Patient[] = (data || []).map(entry => {
+      console.log('Raw patient data:', data);
+
+      const formattedData: Patient[] = (data || []).map((entry: any) => {
         const patient = entry.patient || { first_name: '', last_name: '', phone: '', email: '' };
         const physician = entry.physician || { first_name: '', last_name: '' };
         
@@ -60,6 +65,7 @@ export const usePatientManagement = () => {
         };
       });
 
+      console.log('Formatted patient data:', formattedData);
       setPatients(formattedData);
     } catch (error) {
       console.error('Error fetching patients:', error);
@@ -77,7 +83,9 @@ export const usePatientManagement = () => {
     if (!profile?.hospital_id) return;
 
     try {
-      const { error } = await supabase
+      console.log('Adding patient:', patientData);
+      
+      const { error } = await (supabase as any)
         .from('hospital_patients')
         .insert({
           ...patientData,
@@ -105,6 +113,8 @@ export const usePatientManagement = () => {
 
   const updatePatientStatus = async (patientId: string, newStatus: string, additionalData?: Partial<PatientFormData>) => {
     try {
+      console.log('Updating patient status:', { patientId, newStatus, additionalData });
+      
       const updateData: any = { 
         status: newStatus,
         updated_at: new Date().toISOString(),
@@ -115,7 +125,7 @@ export const usePatientManagement = () => {
         updateData.discharge_date = new Date().toISOString().split('T')[0];
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('hospital_patients')
         .update(updateData)
         .eq('id', patientId);
@@ -142,6 +152,7 @@ export const usePatientManagement = () => {
     if (user && profile?.hospital_id) {
       fetchPatients();
       
+      // Set up real-time subscription
       const channel = supabase
         .channel('hospital_patients_updates')
         .on('postgres_changes', {
@@ -150,11 +161,13 @@ export const usePatientManagement = () => {
           table: 'hospital_patients',
           filter: `hospital_id=eq.${profile.hospital_id}`
         }, () => {
+          console.log('Real-time update received for hospital_patients');
           fetchPatients();
         })
         .subscribe();
 
       return () => {
+        console.log('Cleaning up hospital_patients subscription');
         supabase.removeChannel(channel);
       };
     }
