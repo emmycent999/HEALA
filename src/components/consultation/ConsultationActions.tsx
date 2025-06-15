@@ -48,16 +48,22 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
             <Video className="w-20 h-20 mx-auto mb-6 text-blue-500" />
             <h3 className="text-2xl font-bold text-gray-800 mb-4">Ready to Start</h3>
             <p className="text-gray-600 mb-6">
-              Click below to start the video consultation immediately.
+              Click below to start the video consultation and notify the patient.
             </p>
             <Button
-              onClick={onStartConsultation}
+              onClick={() => {
+                console.log('🔘 [ConsultationActions] Physician clicked Start Video Consultation');
+                onStartConsultation();
+              }}
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
               size="lg"
             >
               <UserCheck className="w-5 h-5 mr-2" />
               Start Video Consultation
             </Button>
+            <p className="text-xs text-gray-500 mt-4">
+              This will notify the patient and allow them to join
+            </p>
           </div>
         </div>
       );
@@ -72,7 +78,7 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-700">
-                📱 You'll be able to join when the doctor starts.
+                📱 You'll receive a notification when the doctor starts the consultation.
               </p>
             </div>
           </div>
@@ -90,7 +96,7 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
       return (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
           <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-green-200 max-w-md">
-            <Video className="w-20 h-20 mx-auto mb-6 text-green-500" />
+            <Video className="w-20 h-20 mx-auto mb-6 text-green-500 animate-pulse" />
             <h3 className="text-2xl font-bold text-gray-800 mb-4">
               Doctor Started Consultation!
             </h3>
@@ -102,12 +108,15 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
                 console.log('🔘 [ConsultationActions] Patient clicked Join Now');
                 onPatientJoin();
               }}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg w-full animate-pulse"
               size="lg"
             >
               <Play className="w-5 h-5 mr-2" />
-              Join Now
+              Join Video Call Now
             </Button>
+            <p className="text-xs text-green-600 mt-4">
+              🎥 Your camera and microphone will be activated
+            </p>
           </div>
         </div>
       );
@@ -122,7 +131,7 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
               Start Video Call
             </h3>
             <p className="text-gray-600 mb-6">
-              The consultation is ready. Start your video now.
+              The consultation is ready. Start your video call now.
             </p>
             <Button
               onClick={() => {
@@ -135,6 +144,9 @@ export const ConsultationActions: React.FC<ConsultationActionsProps> = ({
               <Play className="w-5 h-5 mr-2" />
               Start Video Call
             </Button>
+            <p className="text-xs text-green-600 mt-4">
+              Patient has been notified and can join
+            </p>
           </div>
         </div>
       );

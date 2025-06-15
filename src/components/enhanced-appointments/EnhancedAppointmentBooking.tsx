@@ -216,7 +216,7 @@ export const EnhancedAppointmentBooking: React.FC = () => {
       const appointmentData = {
         patient_id: user.id,
         physician_id: formData.physician_id,
-        hospital_id: selectedPhysician?.hospital_id || null, // Fix: Use null instead of empty string
+        hospital_id: selectedPhysician?.hospital_id || null,
         appointment_date: formData.appointment_date,
         appointment_time: formData.appointment_time,
         notes: formData.reason,
@@ -237,14 +237,17 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
       console.log('Appointment booked successfully');
 
-      // If it's a virtual consultation, create a consultation session
+      // Create consultation session for virtual consultations
       if (formData.consultation_type === 'virtual' && selectedPhysician) {
+        console.log('Creating consultation session for virtual appointment');
+        
         const sessionData = {
           patient_id: user.id,
           physician_id: formData.physician_id,
           consultation_rate: selectedPhysician.current_consultation_rate,
-          session_type: 'chat',
-          status: 'scheduled'
+          session_type: 'video', // Changed from 'chat' to 'video'
+          status: 'scheduled',
+          payment_status: 'pending'
         };
 
         const { error: sessionError } = await supabase
@@ -253,6 +256,8 @@ export const EnhancedAppointmentBooking: React.FC = () => {
 
         if (sessionError) {
           console.error('Error creating consultation session:', sessionError);
+        } else {
+          console.log('Video consultation session created successfully');
         }
       }
 

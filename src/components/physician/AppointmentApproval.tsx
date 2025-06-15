@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,37 +83,49 @@ export const AppointmentApproval: React.FC = () => {
 
   const createConsultationSession = async (appointment: PendingAppointment) => {
     try {
-      const { data: sessionData, error: sessionError } = await supabase
+      console.log('Creating consultation session for appointment:', appointment.id);
+      
+      const sessionData = {
+        appointment_id: appointment.id,
+        patient_id: appointment.patient_id,
+        physician_id: user?.id,
+        consultation_rate: profile?.current_consultation_rate || 5000,
+        session_type: appointment.consultation_type === 'virtual' ? 'video' : 'chat', // Use video for virtual consultations
+        status: 'scheduled',
+        payment_status: 'pending'
+      };
+
+      console.log('Creating session with data:', sessionData);
+
+      const { data: sessionData_result, error: sessionError } = await supabase
         .from('consultation_sessions')
-        .insert({
-          appointment_id: appointment.id,
-          patient_id: appointment.patient_id,
-          physician_id: user?.id,
-          consultation_rate: profile?.current_consultation_rate || 5000,
-          session_type: 'video',
-          status: 'scheduled',
-          payment_status: 'pending'
-        })
+        .insert(sessionData)
         .select()
         .single();
 
       if (sessionError) throw sessionError;
 
-      // Create a consultation room for the session
-      const { error: roomError } = await supabase
-        .from('consultation_rooms')
-        .insert({
-          session_id: sessionData.id,
-          room_token: `room_${sessionData.id}`,
-          room_status: 'waiting'
-        });
+      console.log('Consultation session created:', sessionData_result);
 
-      if (roomError) {
-        console.error('Error creating consultation room:', roomError);
-        // Don't throw here as the session was created successfully
+      // Create a consultation room for video sessions
+      if (appointment.consultation_type === 'virtual') {
+        const { error: roomError } = await supabase
+          .from('consultation_rooms')
+          .insert({
+            session_id: sessionData_result.id,
+            room_token: `room_${sessionData_result.id}`,
+            room_status: 'waiting'
+          });
+
+        if (roomError) {
+          console.error('Error creating consultation room:', roomError);
+          // Don't throw here as the session was created successfully
+        } else {
+          console.log('Consultation room created for video session');
+        }
       }
 
-      return sessionData;
+      return sessionData_result;
     } catch (error) {
       console.error('Error creating consultation session:', error);
       throw error;
@@ -128,14 +141,14 @@ export const AppointmentApproval: React.FC = () => {
 
       if (error) throw error;
 
-      // If appointment is accepted and it's virtual, create a consultation session
+      // If appointment is accepted and it's virtual, create a video consultation session
       if (action === 'accepted' && appointment.consultation_type === 'virtual') {
         try {
           await createConsultationSession(appointment);
           
           toast({
             title: "Virtual Consultation Scheduled",
-            description: `Virtual consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
+            description: `Video consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
           });
         } catch (sessionError) {
           console.error('Error creating consultation session:', sessionError);

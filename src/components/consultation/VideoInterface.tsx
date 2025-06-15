@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
@@ -31,7 +32,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   console.log('🖥️ [VideoInterface] Render:', { 
     sessionStatus: currentSession.status, 
     userRole: profile?.role,
-    sessionId: currentSession.id
+    sessionId: currentSession.id,
+    sessionType: currentSession.session_type
   });
 
   // Update session when prop changes
@@ -111,12 +113,21 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     try {
       console.log('👨‍⚕️ [VideoInterface] Physician starting consultation');
       
+      // Update session to in_progress and ensure it's video type
+      const updateData: any = {
+        status: 'in_progress',
+        started_at: new Date().toISOString()
+      };
+
+      // Convert chat sessions to video when physician starts video
+      if (currentSession.session_type === 'chat') {
+        updateData.session_type = 'video';
+        console.log('🔄 [VideoInterface] Converting chat session to video');
+      }
+
       const { error } = await supabase
         .from('consultation_sessions')
-        .update({ 
-          status: 'in_progress',
-          started_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', currentSession.id);
 
       if (error) throw error;
@@ -125,6 +136,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
       const updatedSession = {
         ...currentSession,
         status: 'in_progress' as const,
+        session_type: 'video' as const,
         started_at: new Date().toISOString()
       };
       
@@ -197,6 +209,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
             <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
               <div>Role: {profile?.role}</div>
               <div>Status: {currentSession.status}</div>
+              <div>Type: {currentSession.session_type}</div>
               <div>Connection: {connectionState}</div>
               <div>Call Active: {isCallActive ? 'Yes' : 'No'}</div>
               <div>Connecting: {isConnecting ? 'Yes' : 'No'}</div>
@@ -230,6 +243,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded z-10">
             <div>Role: {profile?.role}</div>
             <div>Status: {currentSession.status}</div>
+            <div>Type: {currentSession.session_type}</div>
             <div>Show Join: {currentSession.status === 'in_progress' ? 'Yes' : 'No'}</div>
             <div>Is Patient: {isPatient ? 'Yes' : 'No'}</div>
           </div>
