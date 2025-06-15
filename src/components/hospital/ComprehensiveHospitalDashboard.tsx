@@ -1,15 +1,28 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle, Building } from 'lucide-react';
 import { useHospitalData } from './hooks/useHospitalData';
 import { HospitalDashboardHeader } from './HospitalDashboardHeader';
 import { HospitalDashboardStats } from './HospitalDashboardStats';
-import { HospitalDashboardTabs } from './HospitalDashboardTabs';
+import { HospitalOverview } from './HospitalOverview';
+import { HospitalAnalytics } from './HospitalAnalytics';
+import { HospitalOperationsManagement } from './HospitalOperationsManagement';
+import { HospitalNotificationCenter } from './HospitalNotificationCenter';
+import { PhysicianManagement } from './PhysicianManagement';
+import { AppointmentManagement } from './AppointmentManagement';
+import { EmergencyCoordination } from './EmergencyCoordination';
+import { HospitalFinancialManagement } from './HospitalFinancialManagement';
+import { HospitalSecurityManagement } from './HospitalSecurityManagement';
+import { HospitalComplianceManagement } from './HospitalComplianceManagement';
+import { HospitalResourceManagement } from './HospitalResourceManagement';
+import { HospitalAdvancedSettings } from './HospitalAdvancedSettings';
+import { useSearchParams } from 'react-router-dom';
 
 export const ComprehensiveHospitalDashboard: React.FC = () => {
   const { hospitalInfo, stats, loading, profile } = useHospitalData();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
 
   if (profile?.role !== 'hospital_admin') {
     return (
@@ -39,15 +52,54 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
     return <div className="p-6">Loading hospital dashboard...</div>;
   }
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div className="space-y-6">
+            <HospitalDashboardHeader hospitalInfo={hospitalInfo} />
+            <HospitalDashboardStats stats={stats} />
+            <HospitalOverview />
+          </div>
+        );
+      case 'physicians':
+        return <PhysicianManagement />;
+      case 'appointments':
+        return <AppointmentManagement />;
+      case 'patients':
+        return <div>Patient management coming soon...</div>;
+      case 'emergency':
+        return <EmergencyCoordination />;
+      case 'financial':
+        return <HospitalFinancialManagement />;
+      case 'security':
+        return <HospitalSecurityManagement />;
+      case 'compliance':
+        return <HospitalComplianceManagement />;
+      case 'analytics':
+        return <HospitalAnalytics />;
+      case 'operations':
+        return <HospitalOperationsManagement />;
+      case 'notifications':
+        return <HospitalNotificationCenter />;
+      case 'resources':
+        return <HospitalResourceManagement />;
+      case 'settings':
+        return <HospitalAdvancedSettings />;
+      default:
+        return (
+          <div className="space-y-6">
+            <HospitalDashboardHeader hospitalInfo={hospitalInfo} />
+            <HospitalDashboardStats stats={stats} />
+            <HospitalOverview />
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <HospitalDashboardHeader hospitalInfo={hospitalInfo} />
-      <HospitalDashboardStats stats={stats} />
-      <HospitalDashboardTabs 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        stats={stats} 
-      />
+      {renderContent()}
     </div>
   );
 };

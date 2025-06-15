@@ -68,7 +68,7 @@ export const PatientWaitlistManagement: React.FC = () => {
         .from('patient_waitlist')
         .select(`
           *,
-          profiles!patient_waitlist_patient_id_fkey (
+          patient:profiles!patient_waitlist_patient_id_fkey (
             first_name,
             last_name,
             phone
@@ -88,10 +88,10 @@ export const PatientWaitlistManagement: React.FC = () => {
         estimated_wait_time: entry.estimated_wait_time || 0,
         status: entry.status as 'waiting' | 'called' | 'in_progress' | 'completed' | 'cancelled',
         created_at: entry.created_at,
-        patient_name: entry.profiles 
-          ? `${entry.profiles.first_name} ${entry.profiles.last_name}`
+        patient_name: entry.patient 
+          ? `${entry.patient.first_name} ${entry.patient.last_name}`
           : 'Unknown Patient',
-        patient_phone: entry.profiles?.phone || ''
+        patient_phone: entry.patient?.phone || ''
       }));
 
       setWaitlist(formattedData);

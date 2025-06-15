@@ -64,7 +64,7 @@ export const StaffScheduleManagement: React.FC = () => {
         .from('staff_schedules')
         .select(`
           *,
-          profiles!staff_schedules_staff_id_fkey (
+          staff:profiles!staff_schedules_staff_id_fkey (
             first_name,
             last_name,
             role
@@ -87,10 +87,10 @@ export const StaffScheduleManagement: React.FC = () => {
         start_time: schedule.start_time,
         end_time: schedule.end_time,
         status: schedule.status as 'scheduled' | 'confirmed' | 'cancelled',
-        staff_name: schedule.profiles 
-          ? `${schedule.profiles.first_name} ${schedule.profiles.last_name}`
+        staff_name: schedule.staff 
+          ? `${schedule.staff.first_name} ${schedule.staff.last_name}`
           : 'Unknown Staff',
-        staff_role: schedule.profiles?.role || 'staff'
+        staff_role: schedule.staff?.role || 'staff'
       }));
 
       setSchedules(formattedData);
@@ -116,7 +116,7 @@ export const StaffScheduleManagement: React.FC = () => {
             start_date,
             hospital_id
           ),
-          profiles!staff_attendance_staff_id_fkey (
+          staff:profiles!staff_attendance_staff_id_fkey (
             first_name,
             last_name
           )
@@ -133,8 +133,8 @@ export const StaffScheduleManagement: React.FC = () => {
         check_in_time: attendance.check_in_time,
         check_out_time: attendance.check_out_time,
         status: attendance.status as 'scheduled' | 'checked_in' | 'checked_out' | 'absent',
-        staff_name: attendance.profiles 
-          ? `${attendance.profiles.first_name} ${attendance.profiles.last_name}`
+        staff_name: attendance.staff 
+          ? `${attendance.staff.first_name} ${attendance.staff.last_name}`
           : 'Unknown Staff'
       }));
 

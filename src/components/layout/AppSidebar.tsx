@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard, Activity, AlertTriangle, DollarSign, FileCheck, Monitor, Siren } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard, Activity, AlertTriangle, DollarSign, FileCheck, Monitor, Siren, Building, TrendingUp, BarChart3, Bell, Clipboard, UserCheck, Package } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -49,11 +49,19 @@ const physicianMenuItems = [
 ];
 
 const hospitalMenuItems = [
-  { title: 'Overview', url: '/hospital?tab=overview', icon: Calendar },
+  { title: 'Overview', url: '/hospital?tab=overview', icon: TrendingUp },
   { title: 'Physicians', url: '/hospital?tab=physicians', icon: Users },
   { title: 'Appointments', url: '/hospital?tab=appointments', icon: Calendar },
-  { title: 'Emergency', url: '/hospital?tab=emergency', icon: Heart },
-  { title: 'Analytics', url: '/hospital?tab=analytics', icon: FileText },
+  { title: 'Patients', url: '/hospital?tab=patients', icon: Heart },
+  { title: 'Emergency', url: '/hospital?tab=emergency', icon: AlertTriangle },
+  { title: 'Financial', url: '/hospital?tab=financial', icon: DollarSign },
+  { title: 'Security', url: '/hospital?tab=security', icon: Shield },
+  { title: 'Compliance', url: '/hospital?tab=compliance', icon: FileCheck },
+  { title: 'Analytics', url: '/hospital?tab=analytics', icon: BarChart3 },
+  { title: 'Operations', url: '/hospital?tab=operations', icon: Activity },
+  { title: 'Notifications', url: '/hospital?tab=notifications', icon: Bell },
+  { title: 'Resources', url: '/hospital?tab=resources', icon: Package },
+  { title: 'Settings', url: '/hospital?tab=settings', icon: Settings },
 ];
 
 const agentMenuItems = [
