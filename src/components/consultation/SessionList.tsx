@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, Video, Wifi, WifiOff } from 'lucide-react';
+import { Calendar, Clock, User, Video, Wifi, WifiOff, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -170,10 +170,16 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
   const getButtonText = (session: ConsultationSession) => {
     const isPhysician = profile?.role === 'physician';
     
+    // For patients - always show "Enter Video Call"
+    if (!isPhysician) {
+      return 'Enter Video Call';
+    }
+    
+    // For physicians
     if (session.status === 'scheduled') {
-      return isPhysician ? 'Start Video Consultation' : 'Wait for Doctor';
+      return 'Start Video Consultation';
     } else if (session.status === 'in_progress') {
-      return isPhysician ? 'Join Session' : 'Join Video Call';
+      return 'Join Session';
     }
     return 'View Session';
   };
@@ -181,9 +187,11 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
   const getButtonVariant = (session: ConsultationSession) => {
     const isPhysician = profile?.role === 'physician';
     
-    if (session.status === 'scheduled' && !isPhysician) {
-      return 'secondary'; // Disabled look for patients waiting
+    // For patients - always active variant
+    if (!isPhysician) {
+      return 'default';
     }
+    
     if (session.status === 'in_progress') {
       return 'default'; // Active look for in-progress sessions
     }
@@ -191,9 +199,34 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
   };
 
   const isButtonDisabled = (session: ConsultationSession) => {
+    // Never disable buttons for patients - they can always enter the video call
+    if (profile?.role === 'patient') {
+      return false;
+    }
+    
+    // For physicians, no restrictions
+    return false;
+  };
+
+  const getButtonIcon = () => {
     const isPhysician = profile?.role === 'physician';
-    // Patients can't start scheduled sessions, only physicians can
-    return session.status === 'scheduled' && !isPhysician;
+    return isPhysician ? <Video className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />;
+  };
+
+  const getButtonClassName = (session: ConsultationSession) => {
+    const isPhysician = profile?.role === 'physician';
+    
+    // For patients - always show pulsing green button
+    if (!isPhysician) {
+      return "bg-green-600 hover:bg-green-700 animate-pulse";
+    }
+    
+    // For physicians - pulse if in progress
+    if (session.status === 'in_progress') {
+      return "bg-blue-600 hover:bg-blue-700 animate-pulse";
+    }
+    
+    return "";
   };
 
   if (loading) {
@@ -280,12 +313,15 @@ export const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => 
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      onClick={() => onSelectSession(session.id)}
+                      onClick={() => {
+                        console.log('🔘 [SessionList] Button clicked - selecting session:', session.id);
+                        onSelectSession(session.id);
+                      }}
                       variant={getButtonVariant(session)}
                       disabled={isButtonDisabled(session)}
-                      className={session.status === 'in_progress' ? "bg-blue-600 hover:bg-blue-700 animate-pulse" : ""}
+                      className={getButtonClassName(session)}
                     >
-                      <Video className="w-4 h-4 mr-1" />
+                      {getButtonIcon()}
                       {getButtonText(session)}
                     </Button>
                   </div>
