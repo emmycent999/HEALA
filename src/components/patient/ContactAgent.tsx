@@ -37,26 +37,40 @@ export const ContactAgent: React.FC = () => {
   const fetchAgents = async () => {
     try {
       setLoading(true);
+      console.log('Fetching agents...');
+      
+      // First, let's try to get all users with role 'agent' regardless of is_active status to debug
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, phone, location, city, state, is_active')
+        .select('id, first_name, last_name, phone, location, city, state, is_active, role')
         .eq('role', 'agent')
-        .eq('is_active', true)
         .order('first_name');
 
-      if (error) throw error;
+      console.log('Query result:', { data, error });
 
-      const typedAgents = (data || []).map(agent => ({
-        ...agent,
-        first_name: agent.first_name || 'Unknown',
-        last_name: agent.last_name || 'Agent',
-        phone: agent.phone || 'Not available',
-        location: agent.location || 'Not specified',
-        city: agent.city || 'Not specified',
-        state: agent.state || 'Not specified'
-      })) as Agent[];
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      setAgents(typedAgents);
+      // Log all agents found for debugging
+      console.log('All agents found:', data);
+
+      // Filter for active agents and provide defaults for missing data
+      const activeAgents = (data || [])
+        .filter(agent => agent.is_active !== false) // Include null/undefined as active
+        .map(agent => ({
+          ...agent,
+          first_name: agent.first_name || 'Unknown',
+          last_name: agent.last_name || 'Agent',
+          phone: agent.phone || 'Not available',
+          location: agent.location || 'Not specified',
+          city: agent.city || 'Not specified',
+          state: agent.state || 'Not specified'
+        })) as Agent[];
+
+      console.log('Active agents after processing:', activeAgents);
+      setAgents(activeAgents);
     } catch (error) {
       console.error('Error fetching agents:', error);
       toast({
@@ -146,6 +160,14 @@ export const ContactAgent: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* Debug info - remove this after testing */}
+          <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+            <p><strong>Debug Info:</strong></p>
+            <p>Total agents found: {agents.length}</p>
+            <p>Filtered agents: {filteredAgents.length}</p>
+            <p>Search term: "{searchTerm}"</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -163,6 +185,11 @@ export const ContactAgent: React.FC = () => {
                   : 'There are currently no agents registered in the system.'
                 }
               </p>
+              {agents.length > 0 && (
+                <p className="text-sm text-blue-600 mt-2">
+                  Found {agents.length} total agents, but none match your search.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
