@@ -1,40 +1,16 @@
+
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-
-export interface ComplianceTracking {
-  id: string;
-  hospital_id: string;
-  compliance_type: string;
-  status: 'compliant' | 'non_compliant' | 'pending' | 'under_review';
-  score: number;
-  last_assessment_date: string;
-  next_assessment_due?: string;
-  assessment_details: any;
-  violations: any[];
-  corrective_actions: any[];
-  assessed_by?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ComplianceAlert {
-  id: string;
-  hospital_id: string;
-  compliance_type: string;
-  alert_type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  title: string;
-  message: string;
-  compliance_score?: number;
-  due_date?: string;
-  metadata: any;
-  is_resolved: boolean;
-  resolved_at?: string;
-  resolved_by?: string;
-  created_at: string;
-}
+import type { ComplianceTracking, ComplianceAlert } from './types';
+import {
+  fetchComplianceTracking,
+  fetchComplianceAlerts,
+  updateComplianceStatus as updateComplianceStatusService,
+  resolveComplianceAlert as resolveComplianceAlertService,
+  calculateOverallComplianceScore
+} from './complianceService';
+import { getComplianceSummary } from './complianceUtils';
 
 export const useHospitalComplianceData = () => {
   const { profile } = useAuth();
@@ -49,39 +25,13 @@ export const useHospitalComplianceData = () => {
     try {
       setLoading(true);
 
-      // Fetch compliance tracking data
-      const { data: complianceTracking, error: complianceError } = await supabase
-        .from('hospital_compliance_tracking')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id)
-        .order('last_assessment_date', { ascending: false });
+      const [complianceTracking, alertData] = await Promise.all([
+        fetchComplianceTracking(profile.hospital_id),
+        fetchComplianceAlerts(profile.hospital_id)
+      ]);
 
-      if (complianceError) throw complianceError;
-
-      // Fetch compliance alerts
-      const { data: alertData, error: alertError } = await supabase
-        .from('compliance_alerts')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id)
-        .eq('is_resolved', false)
-        .order('created_at', { ascending: false });
-
-      if (alertError) throw alertError;
-
-      // Type-cast the data to match our interfaces
-      setComplianceData((complianceTracking || []).map(c => ({
-        ...c,
-        status: c.status as ComplianceTracking['status'],
-        violations: Array.isArray(c.violations) ? c.violations : [],
-        corrective_actions: Array.isArray(c.corrective_actions) ? c.corrective_actions : [],
-        assessment_details: c.assessment_details || {}
-      })));
-      
-      setAlerts((alertData || []).map(a => ({
-        ...a,
-        severity: a.severity as ComplianceAlert['severity'],
-        metadata: a.metadata || {}
-      })));
+      setComplianceData(complianceTracking);
+      setAlerts(alertData);
     } catch (error) {
       console.error('Error fetching compliance data:', error);
       toast({
@@ -102,22 +52,14 @@ export const useHospitalComplianceData = () => {
     correctiveActions?: any[]
   ) => {
     try {
-      const updateData: any = {
+      await updateComplianceStatusService(
+        complianceId,
         status,
-        last_assessment_date: new Date().toISOString().split('T')[0],
-        assessed_by: profile?.id
-      };
-
-      if (score !== undefined) updateData.score = score;
-      if (violations) updateData.violations = violations;
-      if (correctiveActions) updateData.corrective_actions = correctiveActions;
-
-      const { error } = await supabase
-        .from('hospital_compliance_tracking')
-        .update(updateData)
-        .eq('id', complianceId);
-
-      if (error) throw error;
+        profile?.id,
+        score,
+        violations,
+        correctiveActions
+      );
 
       toast({
         title: "Success",
@@ -137,16 +79,7 @@ export const useHospitalComplianceData = () => {
 
   const resolveAlert = async (alertId: string) => {
     try {
-      const { error } = await supabase
-        .from('compliance_alerts')
-        .update({
-          is_resolved: true,
-          resolved_at: new Date().toISOString(),
-          resolved_by: profile?.id
-        })
-        .eq('id', alertId);
-
-      if (error) throw error;
+      await resolveComplianceAlertService(alertId, profile?.id);
 
       toast({
         title: "Success",
@@ -168,35 +101,11 @@ export const useHospitalComplianceData = () => {
     if (!profile?.hospital_id) return 0;
 
     try {
-      const { data, error } = await supabase
-        .rpc('calculate_hospital_compliance_score', {
-          hospital_uuid: profile.hospital_id
-        });
-
-      if (error) throw error;
-      return data || 0;
+      return await calculateOverallComplianceScore(profile.hospital_id);
     } catch (error) {
       console.error('Error calculating compliance score:', error);
       return 0;
     }
-  };
-
-  const getComplianceSummary = () => {
-    const compliantCount = complianceData.filter(c => c.status === 'compliant').length;
-    const nonCompliantCount = complianceData.filter(c => c.status === 'non_compliant').length;
-    const pendingCount = complianceData.filter(c => c.status === 'pending').length;
-    const averageScore = complianceData.length > 0 
-      ? complianceData.reduce((sum, c) => sum + c.score, 0) / complianceData.length 
-      : 0;
-
-    return {
-      compliantCount,
-      nonCompliantCount,
-      pendingCount,
-      averageScore: Math.round(averageScore),
-      totalItems: complianceData.length,
-      alertCount: alerts.length
-    };
   };
 
   useEffect(() => {
@@ -211,6 +120,6 @@ export const useHospitalComplianceData = () => {
     resolveAlert,
     calculateOverallScore,
     refetch: fetchComplianceData,
-    summary: getComplianceSummary()
+    summary: getComplianceSummary(complianceData, alerts)
   };
 };
