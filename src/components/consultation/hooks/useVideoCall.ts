@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +9,8 @@ interface VideoCallProps {
   autoStart?: boolean;
 }
 
+// DEPRECATED: This hook is replaced by useWebRTCVideoCall
+// This is kept for backward compatibility but should not be used for new features
 export const useVideoCall = ({ sessionId, userId, userRole, autoStart = false }: VideoCallProps) => {
   const { toast } = useToast();
   const [isCallActive, setIsCallActive] = useState(false);
@@ -23,15 +24,12 @@ export const useVideoCall = ({ sessionId, userId, userRole, autoStart = false }:
   const localStreamRef = useRef<MediaStream | null>(null);
   const channelRef = useRef<any>(null);
 
-  console.log(`🎥 [useVideoCall] Hook initialized for ${userRole} in session ${sessionId}`);
+  console.log(`⚠️ [useVideoCall] DEPRECATED: Use useWebRTCVideoCall instead for ${userRole} in session ${sessionId}`);
 
   // Auto-start effect
   useEffect(() => {
-    if (autoStart && !isCallActive) {
-      console.log('🚀 [useVideoCall] Auto-starting video call');
-      startCall();
-    }
-  }, [autoStart]);
+    console.log('⚠️ [useVideoCall] This hook is deprecated. Please use useWebRTCVideoCall for better video calling experience.');
+  }, []);
 
   // Setup real-time channel for signaling
   useEffect(() => {
@@ -82,6 +80,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, autoStart = false }:
   };
 
   const startCall = async () => {
+    console.log('⚠️ [useVideoCall] DEPRECATED: startCall called - please migrate to useWebRTCVideoCall');
     try {
       console.log('📞 [useVideoCall] Starting video call...');
       setError(null);
@@ -155,6 +154,7 @@ export const useVideoCall = ({ sessionId, userId, userRole, autoStart = false }:
   };
 
   const endCall = () => {
+    console.log('⚠️ [useVideoCall] DEPRECATED: endCall called');
     console.log('📞 [useVideoCall] Ending video call');
     
     // Stop local stream

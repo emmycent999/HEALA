@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
-import { useVideoCall } from './hooks/useVideoCall';
+import { useWebRTCVideoCall } from './hooks/useWebRTCVideoCall';
 import { VideoStreams } from './VideoStreams';
 import { VideoConnectionStatus } from './VideoConnectionStatus';
 import { VideoControls } from './VideoControls';
@@ -25,7 +24,6 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const [currentSession, setCurrentSession] = useState(session);
-  const [videoStarted, setVideoStarted] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
@@ -33,7 +31,6 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   console.log('🖥️ [VideoInterface] Render:', { 
     sessionStatus: currentSession.status, 
     userRole: profile?.role,
-    videoStarted,
     sessionId: currentSession.id
   });
 
@@ -65,7 +62,10 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           
           setCurrentSession(prev => ({
             ...prev,
-            ...updatedSession
+            ...updatedSession,
+            // Keep the profile data from the previous state
+            patient: prev.patient,
+            physician: prev.physician
           }));
 
           // If patient and session just started, show notification
@@ -94,18 +94,17 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     connectionState,
     videoEnabled,
     audioEnabled,
-    error,
+    isConnecting,
     localVideoRef,
     remoteVideoRef,
     startCall,
     endCall,
     toggleVideo,
     toggleAudio
-  } = useVideoCall({
+  } = useWebRTCVideoCall({
     sessionId: currentSession.id,
     userId: user?.id || '',
-    userRole: isPhysician ? 'physician' : 'patient',
-    autoStart: false // Don't auto-start, let user control
+    userRole: isPhysician ? 'physician' : 'patient'
   });
 
   const handleStartConsultation = async () => {
@@ -137,8 +136,6 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         title: "🚀 Consultation Started",
         description: "Session is now active. Start your video when ready.",
       });
-
-      // Don't auto-start video, let physician control it
       
     } catch (error) {
       console.error('❌ [VideoInterface] Error starting consultation:', error);
@@ -150,9 +147,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
   };
 
-  const handlePatientJoin = () => {
-    console.log('👤 [VideoInterface] Patient joining video call');
-    setVideoStarted(true);
+  const handleJoinCall = () => {
+    console.log('👤 [VideoInterface] User joining video call');
     startCall();
     
     toast({
@@ -161,45 +157,13 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     });
   };
 
-  const handleStartCall = () => {
-    console.log('📞 [VideoInterface] Starting video call manually');
-    setVideoStarted(true);
-    startCall();
-  };
-
   const handleEndSession = () => {
     endCall();
-    setVideoStarted(false);
     onEndSession();
   };
 
-  // Show error state if there's an error
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-0">
-          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
-            <div className="absolute inset-0 flex items-center justify-center bg-red-50">
-              <div className="text-center p-8 bg-white rounded-lg shadow-lg border-2 border-red-200 max-w-md">
-                <div className="text-red-500 text-6xl mb-4">⚠️</div>
-                <h3 className="text-xl font-bold text-red-800 mb-2">Video Call Error</h3>
-                <p className="text-red-600 mb-4">{error}</p>
-                <button 
-                  onClick={handleStartCall}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show video streams when call is active
-  if (isCallActive) {
+  // Show video interface when call is active
+  if (isCallActive || isConnecting) {
     return (
       <Card>
         <CardContent className="p-0">
@@ -214,6 +178,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
             <VideoConnectionStatus
               isCallActive={isCallActive}
               connectionState={connectionState}
+              isConnecting={isConnecting}
             />
             
             <VideoControls
@@ -224,7 +189,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
               onToggleVideo={toggleVideo}
               onToggleAudio={toggleAudio}
               onStartSession={onStartSession}
-              onStartCall={handleStartCall}
+              onStartCall={handleJoinCall}
               onEndCall={handleEndSession}
             />
 
@@ -234,7 +199,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
               <div>Status: {currentSession.status}</div>
               <div>Connection: {connectionState}</div>
               <div>Call Active: {isCallActive ? 'Yes' : 'No'}</div>
-              <div>Video Started: {videoStarted ? 'Yes' : 'No'}</div>
+              <div>Connecting: {isConnecting ? 'Yes' : 'No'}</div>
             </div>
           </div>
         </CardContent>
@@ -256,8 +221,8 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
             isCallActive={isCallActive}
             autoJoinAttempted={false}
             onStartConsultation={handleStartConsultation}
-            onPatientJoin={handlePatientJoin}
-            onStartCall={handleStartCall}
+            onPatientJoin={handleJoinCall}
+            onStartCall={handleJoinCall}
             onEnableManualJoin={() => {}}
           />
 
