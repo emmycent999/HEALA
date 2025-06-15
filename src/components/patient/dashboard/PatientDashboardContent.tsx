@@ -1,24 +1,28 @@
 
 import React from 'react';
-import { ChatInterface } from '@/components/chat/ChatInterface';
-import { TransportManagement } from '@/components/patient/TransportManagement';
-import { PatientSettings } from '@/components/patient/PatientSettings';
-import { PhysicianAssignment } from '@/components/patient/PhysicianAssignment';
-import { AmbulanceStatus } from '@/components/emergency/AmbulanceStatus';
-import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
-import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
-import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
-import { OfflineManager } from '@/components/offline/OfflineManager';
-import { ContactAgent } from '@/components/patient/ContactAgent';
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Calendar, 
+  Video, 
+  FileText, 
+  Pill, 
+  AlertTriangle, 
+  Bot, 
+  User, 
+  Wallet,
+  Settings,
+  Crown
+} from 'lucide-react';
 import { AppointmentsTab } from './AppointmentsTab';
-import { WalletTab } from './WalletTab';
 import { VirtualConsultationTab } from './VirtualConsultationTab';
-import { AIAssistantTab } from './AIAssistantTab';
-import { PrescriptionsTab } from './PrescriptionsTab';
 import { HealthRecordsTab } from './HealthRecordsTab';
+import { PrescriptionsTab } from './PrescriptionsTab';
 import { EmergencyTab } from './EmergencyTab';
+import { AIAssistantTab } from './AIAssistantTab';
 import { ProfileTab } from './ProfileTab';
+import { WalletTab } from './WalletTab';
+import { SubscriptionTab } from './SubscriptionTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -26,86 +30,141 @@ interface PatientDashboardContentProps {
 }
 
 export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = ({ activeTab }) => {
-  switch (activeTab) {
-    case 'appointments':
-      return <AppointmentsTab />;
-    case 'wallet':
-      return <WalletTab />;
-    case 'virtual-consultation':
-      return <VirtualConsultationTab />;
-    case 'chat':
-      return <ChatInterface />;
-    case 'ai-assistant':
-      return <AIAssistantTab />;
-    case 'prescriptions':
-      return <PrescriptionsTab />;
-    case 'health-records':
-      return <HealthRecordsTab />;
-    case 'symptom-checker':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Symptom Checker
-          </h2>
-          <SymptomChecker />
+  const navigate = useNavigate();
+
+  const handleTabChange = (tab: string) => {
+    navigate(`/patient?tab=${tab}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 gap-1 h-auto p-1">
+          <TabsTrigger 
+            value="appointments" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="hidden sm:inline">Appointments</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="virtual-consultation" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Video className="w-4 h-4" />
+            <span className="hidden sm:inline">Consultation</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="health-records" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Records</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="prescriptions" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Pill className="w-4 h-4" />
+            <span className="hidden sm:inline">Prescriptions</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="emergency" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span className="hidden sm:inline">Emergency</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="ai-assistant" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Bot className="w-4 h-4" />
+            <span className="hidden sm:inline">AI Assistant</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="profile" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <User className="w-4 h-4" />
+            <span className="hidden sm:inline">Profile</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="wallet" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Wallet className="w-4 h-4" />
+            <span className="hidden sm:inline">Wallet</span>
+          </TabsTrigger>
+
+          <TabsTrigger 
+            value="subscription" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Crown className="w-4 h-4" />
+            <span className="hidden sm:inline">Subscription</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="accessibility" 
+            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="mt-6">
+          <TabsContent value="appointments" className="space-y-4">
+            <AppointmentsTab />
+          </TabsContent>
+
+          <TabsContent value="virtual-consultation" className="space-y-4">
+            <VirtualConsultationTab />
+          </TabsContent>
+
+          <TabsContent value="health-records" className="space-y-4">
+            <HealthRecordsTab />
+          </TabsContent>
+
+          <TabsContent value="prescriptions" className="space-y-4">
+            <PrescriptionsTab />
+          </TabsContent>
+
+          <TabsContent value="emergency" className="space-y-4">
+            <EmergencyTab />
+          </TabsContent>
+
+          <TabsContent value="ai-assistant" className="space-y-4">
+            <AIAssistantTab />
+          </TabsContent>
+
+          <TabsContent value="profile" className="space-y-4">
+            <ProfileTab />
+          </TabsContent>
+
+          <TabsContent value="wallet" className="space-y-4">
+            <WalletTab />
+          </TabsContent>
+
+          <TabsContent value="subscription" className="space-y-4">
+            <SubscriptionTab />
+          </TabsContent>
+
+          <TabsContent value="accessibility" className="space-y-4">
+            <div className="text-center text-gray-500">
+              Accessibility settings coming soon...
+            </div>
+          </TabsContent>
         </div>
-      );
-    case 'emergency-contacts':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Emergency Contacts
-          </h2>
-          <EmergencyContacts />
-        </div>
-      );
-    case 'contact-agent':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Contact Agent
-          </h2>
-          <ContactAgent />
-        </div>
-      );
-    case 'accessibility':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Accessibility Settings
-          </h2>
-          <AccessibilitySettings />
-        </div>
-      );
-    case 'offline':
-      return (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Offline Access
-          </h2>
-          <OfflineManager />
-        </div>
-      );
-    case 'physician':
-      return <PhysicianAssignment />;
-    case 'emergency':
-      return <EmergencyTab />;
-    case 'profile':
-      return <ProfileTab />;
-    case 'transport':
-      return <TransportManagement />;
-    case 'subscription':
-      return <PatientSettings />;
-    case 'ambulance':
-      return <AmbulanceStatus />;
-    default:
-      return (
-        <div className="text-center py-8">
-          <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300">
-            Tab "{activeTab}" not found
-          </h3>
-          <p className="mt-2 text-gray-500">Please select a valid tab from the sidebar.</p>
-        </div>
-      );
-  }
+      </Tabs>
+    </div>
+  );
 };
