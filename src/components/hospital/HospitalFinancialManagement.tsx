@@ -1,124 +1,37 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, TrendingDown, Calendar, FileText, Download, BarChart3 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-
-interface FinancialMetrics {
-  totalRevenue: number;
-  monthlyRevenue: number;
-  appointmentRevenue: number;
-  emergencyRevenue: number;
-  averagePerPatient: number;
-  revenueGrowth: number;
-  outstandingPayments: number;
-  paymentSuccessRate: number;
-}
-
-interface RevenueData {
-  month: string;
-  revenue: number;
-  appointments: number;
-  emergencies: number;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
+import { useHospitalFinancialData } from './financial/useHospitalFinancialData';
+import { FinancialDashboardCard } from './financial/FinancialDashboardCard';
 
 export const HospitalFinancialManagement: React.FC = () => {
-  const { profile } = useAuth();
-  const { toast } = useToast();
-  const [metrics, setMetrics] = useState<FinancialMetrics>({
-    totalRevenue: 0,
-    monthlyRevenue: 0,
-    appointmentRevenue: 0,
-    emergencyRevenue: 0,
-    averagePerPatient: 0,
-    revenueGrowth: 0,
-    outstandingPayments: 0,
-    paymentSuccessRate: 0
-  });
-  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const { transactions, alerts, loading, summary } = useHospitalFinancialData();
 
-  useEffect(() => {
-    if (profile?.hospital_id) {
-      fetchFinancialData();
-    }
-  }, [profile?.hospital_id, selectedPeriod]);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN'
+    }).format(amount);
+  };
 
-  const fetchFinancialData = async () => {
-    if (!profile?.hospital_id) return;
-
-    try {
-      // Get current month data
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const previousMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
-
-      // Fetch appointments revenue
-      const { data: appointmentData } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id)
-        .eq('status', 'completed');
-
-      // Fetch consultation sessions for revenue calculation
-      const { data: sessionData } = await supabase
-        .from('consultation_sessions')
-        .select('consultation_rate, created_at, payment_status')
-        .eq('payment_status', 'paid');
-
-      // Calculate metrics (mock data for demonstration)
-      const currentMonthRevenue = Math.floor(Math.random() * 500000) + 200000;
-      const previousMonthRevenue = Math.floor(Math.random() * 400000) + 150000;
-      const growth = ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
-
-      setMetrics({
-        totalRevenue: currentMonthRevenue * 6, // 6 months total
-        monthlyRevenue: currentMonthRevenue,
-        appointmentRevenue: Math.floor(currentMonthRevenue * 0.7),
-        emergencyRevenue: Math.floor(currentMonthRevenue * 0.3),
-        averagePerPatient: Math.floor(currentMonthRevenue / (appointmentData?.length || 1)),
-        revenueGrowth: growth,
-        outstandingPayments: Math.floor(currentMonthRevenue * 0.05),
-        paymentSuccessRate: 96.5
-      });
-
-      // Generate mock revenue data for chart
-      const months = [];
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        months.push({
-          month: monthName,
-          revenue: Math.floor(Math.random() * 200000) + 150000,
-          appointments: Math.floor(Math.random() * 100) + 50,
-          emergencies: Math.floor(Math.random() * 20) + 5
-        });
-      }
-      setRevenueData(months);
-
-    } catch (error) {
-      console.error('Error fetching financial data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load financial data.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'appointments': return <FileText className="w-4 h-4" />;
+      case 'emergency': return <AlertTriangle className="w-4 h-4" />;
+      case 'equipment': return <DollarSign className="w-4 h-4" />;
+      default: return <TrendingUp className="w-4 h-4" />;
     }
   };
 
-  const exportFinancialReport = async () => {
-    toast({
-      title: "Generating Report",
-      description: "Financial report generation started.",
-    });
-    // Implementation for report generation would go here
+  const getTransactionTypeColor = (type: string) => {
+    switch (type) {
+      case 'revenue': return 'text-green-600';
+      case 'expense': return 'text-red-600';
+      case 'payment': return 'text-blue-600';
+      default: return 'text-gray-600';
+    }
   };
 
   if (loading) {
@@ -127,193 +40,138 @@ export const HospitalFinancialManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Financial Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold">₦{metrics.totalRevenue.toLocaleString()}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  {metrics.revenueGrowth > 0 ? (
-                    <TrendingUp className="w-3 h-3 text-green-600" />
-                  ) : (
-                    <TrendingDown className="w-3 h-3 text-red-600" />
+      {/* Financial Dashboard Cards */}
+      <FinancialDashboardCard />
+
+      {/* Detailed Financial Management */}
+      <Tabs defaultValue="transactions" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Transactions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No financial transactions recorded yet</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {transactions.slice(0, 10).map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {getCategoryIcon(transaction.category)}
+                        <div>
+                          <h4 className="font-medium">{transaction.description || transaction.category}</h4>
+                          <p className="text-sm text-gray-600 capitalize">
+                            {transaction.transaction_type} • {transaction.category}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(transaction.transaction_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${getTransactionTypeColor(transaction.transaction_type)}`}>
+                          {transaction.transaction_type === 'expense' ? '-' : '+'}
+                          {formatCurrency(transaction.amount)}
+                        </p>
+                        <p className="text-xs text-gray-500">{transaction.currency}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {transactions.length > 10 && (
+                    <div className="text-center">
+                      <Button variant="outline">
+                        View All {transactions.length} Transactions
+                      </Button>
+                    </div>
                   )}
-                  <span className={`text-xs ${metrics.revenueGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {metrics.revenueGrowth.toFixed(1)}% from last month
-                  </span>
                 </div>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Monthly Revenue</p>
-                <p className="text-2xl font-bold">₦{metrics.monthlyRevenue.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Current month</p>
-              </div>
-              <Calendar className="w-8 h-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Avg per Patient</p>
-                <p className="text-2xl font-bold">₦{metrics.averagePerPatient.toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Treatment cost</p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Payment Success</p>
-                <p className="text-2xl font-bold">{metrics.paymentSuccessRate}%</p>
-                <p className="text-xs text-gray-500">Success rate</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenue Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Sources</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>Appointments</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">₦{metrics.appointmentRevenue.toLocaleString()}</span>
-                  <Badge variant="secondary">70%</Badge>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Emergency Services</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">₦{metrics.emergencyRevenue.toLocaleString()}</span>
-                  <Badge variant="secondary">30%</Badge>
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-red-600">
-                <span>Outstanding Payments</span>
-                <span className="font-medium">₦{metrics.outstandingPayments.toLocaleString()}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {revenueData.slice(-3).map((data, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm">{data.month}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">₦{data.revenue.toLocaleString()}</span>
-                    <Badge variant="outline" className="text-xs">
-                      {data.appointments} appts
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Financial Reports */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            Financial Reports & Analytics
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setSelectedPeriod('week')}>
-                Weekly
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setSelectedPeriod('month')}>
-                Monthly
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setSelectedPeriod('year')}>
-                Yearly
-              </Button>
-              <Button size="sm" onClick={exportFinancialReport}>
-                <Download className="w-4 h-4 mr-2" />
-                Export Report
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="font-medium">Monthly Statement</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Detailed breakdown of all revenue streams
-                </p>
-                <Button size="sm" variant="outline" className="w-full">
-                  Generate Report
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Reports</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button variant="outline" className="h-20 flex flex-col">
+                  <FileText className="w-6 h-6 mb-2" />
+                  Monthly Report
                 </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="font-medium">Performance Analytics</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Revenue trends and forecasting
-                </p>
-                <Button size="sm" variant="outline" className="w-full">
-                  View Analytics
+                <Button variant="outline" className="h-20 flex flex-col">
+                  <TrendingUp className="w-6 h-6 mb-2" />
+                  Revenue Analysis
                 </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="font-medium">Tax Summary</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Tax calculations and compliance
-                </p>
-                <Button size="sm" variant="outline" className="w-full">
-                  Download Summary
+                <Button variant="outline" className="h-20 flex flex-col">
+                  <DollarSign className="w-6 h-6 mb-2" />
+                  Expense Breakdown
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
+                <Button variant="outline" className="h-20 flex flex-col">
+                  <AlertTriangle className="w-6 h-6 mb-2" />
+                  Budget vs Actual
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <Card>
+            <CardHeader>
+              <CardTitle>Financial Analytics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 border rounded-lg text-center">
+                  <h3 className="font-medium text-gray-600">Monthly Revenue</h3>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(summary.totalRevenue)}
+                  </p>
+                </div>
+                
+                <div className="p-4 border rounded-lg text-center">
+                  <h3 className="font-medium text-gray-600">Monthly Expenses</h3>
+                  <p className="text-2xl font-bold text-red-600">
+                    {formatCurrency(summary.totalExpenses)}
+                  </p>
+                </div>
+                
+                <div className="p-4 border rounded-lg text-center">
+                  <h3 className="font-medium text-gray-600">Net Income</h3>
+                  <p className={`text-2xl font-bold ${summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(summary.netIncome)}
+                  </p>
+                </div>
+                
+                <div className="p-4 border rounded-lg text-center">
+                  <h3 className="font-medium text-gray-600">Active Alerts</h3>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {summary.alertCount}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-center text-gray-500">
+                <p>Detailed analytics charts and trends coming soon...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

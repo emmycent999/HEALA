@@ -240,6 +240,65 @@ export type Database = {
           },
         ]
       }
+      compliance_alerts: {
+        Row: {
+          alert_type: string
+          compliance_score: number | null
+          compliance_type: string
+          created_at: string
+          due_date: string | null
+          hospital_id: string
+          id: string
+          is_resolved: boolean | null
+          message: string
+          metadata: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          compliance_score?: number | null
+          compliance_type: string
+          created_at?: string
+          due_date?: string | null
+          hospital_id: string
+          id?: string
+          is_resolved?: boolean | null
+          message: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          compliance_score?: number | null
+          compliance_type?: string
+          created_at?: string
+          due_date?: string | null
+          hospital_id?: string
+          id?: string
+          is_resolved?: boolean | null
+          message?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_compliance_alerts_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_reports: {
         Row: {
           created_at: string
@@ -584,6 +643,127 @@ export type Database = {
           },
         ]
       }
+      enhanced_audit_logs: {
+        Row: {
+          action_category: string
+          action_type: string
+          compliance_relevant: boolean | null
+          created_at: string
+          financial_impact: number | null
+          hospital_id: string | null
+          id: string
+          impact_level: string | null
+          ip_address: unknown | null
+          new_values: Json | null
+          old_values: Json | null
+          resource_id: string | null
+          resource_type: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action_category: string
+          action_type: string
+          compliance_relevant?: boolean | null
+          created_at?: string
+          financial_impact?: number | null
+          hospital_id?: string | null
+          id?: string
+          impact_level?: string | null
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action_category?: string
+          action_type?: string
+          compliance_relevant?: boolean | null
+          created_at?: string
+          financial_impact?: number | null
+          hospital_id?: string | null
+          id?: string
+          impact_level?: string | null
+          ip_address?: unknown | null
+          new_values?: Json | null
+          old_values?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_enhanced_audit_logs_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          current_value: number | null
+          hospital_id: string
+          id: string
+          is_resolved: boolean | null
+          message: string
+          metadata: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          threshold_value: number | null
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          current_value?: number | null
+          hospital_id: string
+          id?: string
+          is_resolved?: boolean | null
+          message: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          threshold_value?: number | null
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          current_value?: number | null
+          hospital_id?: string
+          id?: string
+          is_resolved?: boolean | null
+          message?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          threshold_value?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_financial_alerts_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_disputes: {
         Row: {
           amount: number | null
@@ -709,6 +889,118 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      hospital_compliance_tracking: {
+        Row: {
+          assessed_by: string | null
+          assessment_details: Json | null
+          compliance_type: string
+          corrective_actions: Json | null
+          created_at: string
+          hospital_id: string
+          id: string
+          last_assessment_date: string
+          next_assessment_due: string | null
+          score: number | null
+          status: string
+          updated_at: string
+          violations: Json | null
+        }
+        Insert: {
+          assessed_by?: string | null
+          assessment_details?: Json | null
+          compliance_type: string
+          corrective_actions?: Json | null
+          created_at?: string
+          hospital_id: string
+          id?: string
+          last_assessment_date?: string
+          next_assessment_due?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+          violations?: Json | null
+        }
+        Update: {
+          assessed_by?: string | null
+          assessment_details?: Json | null
+          compliance_type?: string
+          corrective_actions?: Json | null
+          created_at?: string
+          hospital_id?: string
+          id?: string
+          last_assessment_date?: string
+          next_assessment_due?: string | null
+          score?: number | null
+          status?: string
+          updated_at?: string
+          violations?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_hospital_compliance_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hospital_financial_data: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          fiscal_month: string
+          hospital_id: string
+          id: string
+          metadata: Json | null
+          reference_id: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          fiscal_month?: string
+          hospital_id: string
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          fiscal_month?: string
+          hospital_id?: string
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_hospital_financial_data_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hospital_patients: {
         Row: {
@@ -2015,6 +2307,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_hospital_compliance_score: {
+        Args: { hospital_uuid: string }
+        Returns: number
+      }
       check_inperson_booking_limit: {
         Args: { patient_uuid: string }
         Returns: {
@@ -2097,6 +2393,22 @@ export type Database = {
           target_resource_type_param?: string
           target_resource_id_param?: string
           action_details_param?: Json
+        }
+        Returns: string
+      }
+      log_enhanced_audit: {
+        Args: {
+          user_id_param: string
+          hospital_id_param?: string
+          action_category_param?: string
+          action_type_param?: string
+          resource_type_param?: string
+          resource_id_param?: string
+          old_values_param?: Json
+          new_values_param?: Json
+          impact_level_param?: string
+          compliance_relevant_param?: boolean
+          financial_impact_param?: number
         }
         Returns: string
       }
