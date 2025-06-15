@@ -1552,6 +1552,10 @@ export type Database = {
           hospital_name: string
         }[]
       }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_nearby_physicians: {
         Args: {
           patient_lat: number
