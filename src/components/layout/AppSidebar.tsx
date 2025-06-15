@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, Crown } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -18,15 +17,22 @@ import { Logo } from '@/components/ui/logo';
 
 const patientMenuItems = [
   { title: 'Appointments', url: '/patient?tab=appointments', icon: Calendar },
-  { title: 'Virtual Consultation', url: '/patient?tab=virtual-consultation', icon: Video },
-  { title: 'Health Records', url: '/patient?tab=health-records', icon: FileText },
-  { title: 'Prescriptions', url: '/patient?tab=prescriptions', icon: Pill },
-  { title: 'Emergency', url: '/patient?tab=emergency', icon: Heart },
-  { title: 'AI Assistant', url: '/patient?tab=ai-assistant', icon: Bot },
-  { title: 'Profile', url: '/patient?tab=profile', icon: Users },
   { title: 'Wallet', url: '/patient?tab=wallet', icon: Wallet },
-  { title: 'Subscription', url: '/patient?tab=subscription', icon: Crown },
+  { title: 'Virtual Consultation', url: '/patient?tab=virtual-consultation', icon: Video },
+  { title: 'Chat', url: '/patient?tab=chat', icon: MessageCircle },
+  { title: 'AI Assistant', url: '/patient?tab=ai-assistant', icon: Bot },
+  { title: 'Prescriptions', url: '/patient?tab=prescriptions', icon: Pill },
+  { title: 'Health Records', url: '/patient?tab=health-records', icon: FileText },
+  { title: 'Symptom Checker', url: '/patient?tab=symptom-checker', icon: Search },
+  { title: 'Emergency Contacts', url: '/patient?tab=emergency-contacts', icon: Phone },
+  { title: 'Contact Agent', url: '/patient?tab=contact-agent', icon: Headphones },
+  { title: 'Physician', url: '/patient?tab=physician', icon: Users },
+  { title: 'Emergency', url: '/patient?tab=emergency', icon: Heart },
+  { title: 'Transport', url: '/patient?tab=transport', icon: Map },
+  { title: 'Profile', url: '/patient?tab=profile', icon: Users },
   { title: 'Accessibility', url: '/patient?tab=accessibility', icon: Shield },
+  { title: 'Offline Access', url: '/patient?tab=offline', icon: Wifi },
+  { title: 'Settings', url: '/patient?tab=subscription', icon: Settings },
 ];
 
 const physicianMenuItems = [
