@@ -1,4 +1,5 @@
 
+
 export type PatientDashboardTab = 
   | 'appointments' 
   | 'virtual-consultation' 
@@ -8,4 +9,6 @@ export type PatientDashboardTab =
   | 'ai-assistant' 
   | 'profile' 
   | 'wallet' 
-  | 'accessibility';
+  | 'accessibility'
+  | 'subscription';
+
