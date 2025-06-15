@@ -50,44 +50,52 @@ export const AdminAuditLog: React.FC = () => {
 
       const { data, error } = await supabase
         .from('admin_actions')
-        .select(`
-          *,
-          admin:profiles!admin_actions_admin_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) throw error;
 
-      // Fetch target user details for actions that have target_user_id
-      const actionsWithTargetUsers = await Promise.all(
+      // Fetch admin and target user details manually
+      const actionsWithDetails = await Promise.all(
         (data || []).map(async (action) => {
+          // Fetch admin profile
+          let admin = null;
+          const { data: adminProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', action.admin_id)
+            .single();
+          
+          if (adminProfile) {
+            admin = adminProfile;
+          }
+
+          // Fetch target user if exists
+          let target_user = null;
           if (action.target_user_id) {
-            const { data: targetUser } = await supabase
+            const { data: targetUserProfile } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
               .eq('id', action.target_user_id)
               .single();
             
-            return {
-              ...action,
-              ip_address: action.ip_address as string | null,
-              target_user: targetUser
-            };
+            if (targetUserProfile) {
+              target_user = targetUserProfile;
+            }
           }
+
           return {
             ...action,
-            ip_address: action.ip_address as string | null
+            ip_address: action.ip_address as string | null,
+            admin,
+            target_user
           };
         })
       );
 
-      setActions(actionsWithTargetUsers);
+      setActions(actionsWithDetails);
     } catch (error) {
       console.error('Error fetching audit log:', error);
       toast({
