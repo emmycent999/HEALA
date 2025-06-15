@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -182,8 +183,9 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     try {
       console.log('🖥️ [WebRTCVideoCall] Starting screen share');
       
+      // Fixed screen sharing API call - removed invalid cursor property
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
+        video: true,
         audio: false
       });
 
@@ -254,63 +256,6 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
       throw error;
     }
   }, []);
-
-  const handleOffer = useCallback(async (payload: any) => {
-    if (payload.payload.fromUser === userId) return; // Ignore own offers
-    
-    console.log('📥 [WebRTCVideoCall] Received offer');
-    
-    const pc = createPeerConnection();
-    peerConnectionRef.current = pc;
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        pc.addTrack(track, localStreamRef.current!);
-      });
-    }
-
-    await pc.setRemoteDescription(payload.payload.offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'answer',
-        payload: {
-          answer,
-          fromUser: userId
-        }
-      });
-    }
-  }, [userId, createPeerConnection]);
-
-  const handleAnswer = useCallback(async (payload: any) => {
-    if (payload.payload.fromUser === userId) return; // Ignore own answers
-    
-    console.log('📥 [WebRTCVideoCall] Received answer');
-    
-    if (peerConnectionRef.current) {
-      await peerConnectionRef.current.setRemoteDescription(payload.payload.answer);
-    }
-  }, [userId]);
-
-  const handleIceCandidate = useCallback(async (payload: any) => {
-    if (payload.payload.fromUser === userId) return; // Ignore own candidates
-    
-    console.log('📥 [WebRTCVideoCall] Received ICE candidate');
-    
-    if (peerConnectionRef.current) {
-      await peerConnectionRef.current.addIceCandidate(payload.payload.candidate);
-    }
-  }, [userId]);
-
-  const handleEndCall = useCallback((payload: any) => {
-    if (payload.payload.fromUser === userId) return; // Ignore own end call
-    
-    console.log('📥 [WebRTCVideoCall] Received end call signal');
-    endCall(false); // Don't send another end call signal
-  }, [userId]);
 
   const reconnect = useCallback(async () => {
     console.log('🔄 [WebRTCVideoCall] Attempting to reconnect');

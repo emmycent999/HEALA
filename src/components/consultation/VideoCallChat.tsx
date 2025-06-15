@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { X, Send, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ChatMessage {
   id: string;
@@ -27,6 +28,7 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
   onClose
 }) => {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -40,18 +42,70 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Load existing messages
+  // Load existing messages from conversations/messages tables temporarily
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        const { data, error } = await supabase
-          .from('consultation_messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
+        // Try to find or create a conversation for this session
+        const { data: conversations, error: convError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('title', `Video Session ${sessionId}`)
+          .limit(1);
 
-        if (error) throw error;
-        setMessages(data || []);
+        if (convError) {
+          console.error('❌ Error loading conversations:', convError);
+          return;
+        }
+
+        let conversationId = conversations?.[0]?.id;
+
+        if (!conversationId) {
+          // Create a conversation for this session
+          const { data: session } = await supabase
+            .from('consultation_sessions')
+            .select('patient_id, physician_id')
+            .eq('id', sessionId)
+            .single();
+
+          if (session) {
+            const { data: newConv, error: createError } = await supabase
+              .from('conversations')
+              .insert({
+                title: `Video Session ${sessionId}`,
+                patient_id: session.patient_id,
+                physician_id: session.physician_id,
+                type: 'physician_consultation'
+              })
+              .select('id')
+              .single();
+
+            if (!createError && newConv) {
+              conversationId = newConv.id;
+            }
+          }
+        }
+
+        if (conversationId) {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+
+          if (error) throw error;
+          
+          // Map messages to ChatMessage format
+          const chatMessages: ChatMessage[] = (data || []).map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            sender_id: msg.sender_id || '',
+            sender_type: msg.sender_type as 'patient' | 'physician',
+            created_at: msg.created_at || new Date().toISOString()
+          }));
+          
+          setMessages(chatMessages);
+        }
       } catch (error) {
         console.error('❌ Error loading chat messages:', error);
       }
@@ -63,18 +117,26 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
   // Set up real-time message subscription
   useEffect(() => {
     const channel = supabase
-      .channel(`chat_${sessionId}`)
+      .channel(`video_chat_${sessionId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'consultation_messages',
-          filter: `session_id=eq.${sessionId}`
+          table: 'messages'
         },
         (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages(prev => [...prev, newMessage]);
+          const newMsg = payload.new;
+          if (newMsg.conversation_id) {
+            const chatMessage: ChatMessage = {
+              id: newMsg.id,
+              content: newMsg.content,
+              sender_id: newMsg.sender_id || '',
+              sender_type: newMsg.sender_type as 'patient' | 'physician',
+              created_at: newMsg.created_at || new Date().toISOString()
+            };
+            setMessages(prev => [...prev, chatMessage]);
+          }
         }
       )
       .subscribe();
@@ -89,18 +151,51 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('consultation_messages')
-        .insert({
-          session_id: sessionId,
-          content: newMessage.trim(),
-          sender_id: currentUserId,
-          sender_type: 'patient' // This should be determined from user profile
-        });
+      // Find or create conversation
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('title', `Video Session ${sessionId}`)
+        .limit(1);
 
-      if (error) throw error;
-      
-      setNewMessage('');
+      let conversationId = conversations?.[0]?.id;
+
+      if (!conversationId) {
+        const { data: session } = await supabase
+          .from('consultation_sessions')
+          .select('patient_id, physician_id')
+          .eq('id', sessionId)
+          .single();
+
+        if (session) {
+          const { data: newConv } = await supabase
+            .from('conversations')
+            .insert({
+              title: `Video Session ${sessionId}`,
+              patient_id: session.patient_id,
+              physician_id: session.physician_id,
+              type: 'physician_consultation'
+            })
+            .select('id')
+            .single();
+
+          conversationId = newConv?.id;
+        }
+      }
+
+      if (conversationId) {
+        const { error } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            content: newMessage.trim(),
+            sender_id: currentUserId,
+            sender_type: profile?.role === 'physician' ? 'physician' : 'patient'
+          });
+
+        if (error) throw error;
+        setNewMessage('');
+      }
     } catch (error) {
       console.error('❌ Error sending message:', error);
       toast({
