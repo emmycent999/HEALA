@@ -85,7 +85,20 @@ export const EmergencyManagement: React.FC = () => {
         .limit(50);
 
       if (error) throw error;
-      setEmergencyRequests(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = data?.map((request: any) => ({
+        ...request,
+        patient: request.patient || {
+          first_name: 'Unknown',
+          last_name: 'Patient',
+          email: 'unknown@example.com',
+          phone: 'N/A'
+        },
+        assigned_physician: request.assigned_physician
+      })) || [];
+      
+      setEmergencyRequests(transformedData);
     } catch (error) {
       console.error('Error fetching emergency requests:', error);
       toast({
@@ -110,14 +123,6 @@ export const EmergencyManagement: React.FC = () => {
       setEmergencyRequests(prev => prev.map(req => 
         req.id === requestId ? { ...req, status: newStatus } : req
       ));
-
-      // Log admin action
-      await supabase.rpc('log_admin_action', {
-        action_type: 'emergency_status_update',
-        target_resource_type: 'emergency_request',
-        target_resource_id: requestId,
-        action_details: { new_status: newStatus }
-      });
 
       toast({
         title: "Status Updated",
@@ -158,12 +163,6 @@ export const EmergencyManagement: React.FC = () => {
 
         if (error) throw error;
       }
-
-      // Log admin action
-      await supabase.rpc('log_admin_action', {
-        action_type: 'emergency_broadcast',
-        action_details: { message: broadcastMessage }
-      });
 
       setBroadcastMessage('');
       toast({

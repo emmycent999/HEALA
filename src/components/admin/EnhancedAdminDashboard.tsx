@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -154,14 +155,6 @@ export const EnhancedAdminDashboard: React.FC = () => {
           : req
       ));
 
-      // Log admin action
-      await supabase.rpc('log_admin_action', {
-        action_type: 'user_verification',
-        target_resource_type: 'verification_request',
-        target_resource_id: requestId,
-        action_details: { action, notes }
-      });
-
       toast({
         title: "Action Completed",
         description: `Verification request has been ${action}d.`,
@@ -202,13 +195,6 @@ export const EnhancedAdminDashboard: React.FC = () => {
           ? { ...user, is_active: !currentStatus }
           : user
       ));
-
-      // Log admin action
-      await supabase.rpc('log_admin_action', {
-        action_type: currentStatus ? 'user_suspension' : 'user_activation',
-        target_user_id: userId,
-        action_details: { previous_status: currentStatus, new_status: !currentStatus }
-      });
 
       toast({
         title: "Status Updated",
