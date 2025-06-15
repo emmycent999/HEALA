@@ -34,36 +34,55 @@ export const PaymentStatusHandler: React.FC = () => {
     try {
       console.log('Verifying payment with reference:', reference);
       
-      // Check if this is a wallet funding payment
-      const pendingFunding = sessionStorage.getItem('pending_wallet_funding');
+      // Check if this is a subscription upgrade payment
+      const pendingUpgrade = sessionStorage.getItem('pending_subscription_upgrade');
       
-      if (pendingFunding) {
-        const fundingData = JSON.parse(pendingFunding);
-        console.log('Processing wallet funding:', fundingData);
+      if (pendingUpgrade) {
+        const upgradeData = JSON.parse(pendingUpgrade);
+        console.log('Processing subscription upgrade:', upgradeData);
         
-        // In a real implementation, you would verify with Paystack API
-        // For now, we'll simulate successful verification and update the wallet
-        await processWalletFunding(fundingData, reference);
+        await processSubscriptionUpgrade(upgradeData, reference);
         
-        // Clear the pending funding data
-        sessionStorage.removeItem('pending_wallet_funding');
+        // Clear the pending upgrade data
+        sessionStorage.removeItem('pending_subscription_upgrade');
         
         setStatus('success');
-        setMessage(`Wallet funded successfully with ₦${fundingData.amount.toLocaleString()}!`);
+        setMessage(`Successfully upgraded to ${upgradeData.plan} plan!`);
         
         toast({
-          title: "Payment Successful",
-          description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
+          title: "Subscription Upgraded!",
+          description: `You are now on the ${upgradeData.plan} plan.`,
         });
       } else {
-        // Handle other payment types (appointments, etc.)
-        setStatus('success');
-        setMessage('Payment processed successfully!');
+        // Check if this is a wallet funding payment
+        const pendingFunding = sessionStorage.getItem('pending_wallet_funding');
         
-        toast({
-          title: "Payment Successful",
-          description: "Your payment has been processed successfully.",
-        });
+        if (pendingFunding) {
+          const fundingData = JSON.parse(pendingFunding);
+          console.log('Processing wallet funding:', fundingData);
+          
+          await processWalletFunding(fundingData, reference);
+          
+          // Clear the pending funding data
+          sessionStorage.removeItem('pending_wallet_funding');
+          
+          setStatus('success');
+          setMessage(`Wallet funded successfully with ₦${fundingData.amount.toLocaleString()}!`);
+          
+          toast({
+            title: "Payment Successful",
+            description: `₦${fundingData.amount.toLocaleString()} has been added to your wallet.`,
+          });
+        } else {
+          // Handle other payment types (appointments, etc.)
+          setStatus('success');
+          setMessage('Payment processed successfully!');
+          
+          toast({
+            title: "Payment Successful",
+            description: "Your payment has been processed successfully.",
+          });
+        }
       }
 
     } catch (error) {
@@ -76,6 +95,45 @@ export const PaymentStatusHandler: React.FC = () => {
         description: "Unable to verify payment. Please contact support.",
         variant: "destructive"
       });
+    }
+  };
+
+  const processSubscriptionUpgrade = async (upgradeData: any, reference: string) => {
+    try {
+      // Update user's subscription plan in profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          subscription_plan: upgradeData.plan,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', upgradeData.user_id);
+
+      if (profileError) throw profileError;
+
+      // Create or update subscription record
+      const { error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .upsert({
+          user_id: upgradeData.user_id,
+          plan_name: upgradeData.plan,
+          amount: upgradeData.amount,
+          currency: 'NGN',
+          status: 'active',
+          paystack_subscription_code: reference,
+          next_payment_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
+
+      if (subscriptionError) throw subscriptionError;
+
+      console.log('Subscription upgrade processed successfully');
+    } catch (error) {
+      console.error('Error processing subscription upgrade:', error);
+      throw error;
     }
   };
 
@@ -145,8 +203,13 @@ export const PaymentStatusHandler: React.FC = () => {
   };
 
   const handleContinue = () => {
+    const pendingUpgrade = sessionStorage.getItem('pending_subscription_upgrade');
     const pendingFunding = sessionStorage.getItem('pending_wallet_funding');
-    if (pendingFunding || searchParams.get('purpose') === 'wallet_funding') {
+    
+    if (pendingUpgrade || searchParams.get('purpose') === 'subscription_upgrade') {
+      // Go back to subscription tab
+      navigate('/patient?tab=subscription');
+    } else if (pendingFunding || searchParams.get('purpose') === 'wallet_funding') {
       // Go back to wallet tab
       navigate('/patient?tab=wallet');
     } else {
