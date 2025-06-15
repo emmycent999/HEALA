@@ -1190,6 +1190,45 @@ export type Database = {
         }
         Relationships: []
       }
+      symptom_rules: {
+        Row: {
+          advice: string
+          created_at: string
+          id: string
+          is_active: boolean
+          keywords: string[]
+          recommended_action: string
+          severity: string
+          specialist_required: string | null
+          symptom_name: string
+          updated_at: string
+        }
+        Insert: {
+          advice?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          recommended_action?: string
+          severity?: string
+          specialist_required?: string | null
+          symptom_name: string
+          updated_at?: string
+        }
+        Update: {
+          advice?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          recommended_action?: string
+          severity?: string
+          specialist_required?: string | null
+          symptom_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_audit_logs: {
         Row: {
           action_type: string
