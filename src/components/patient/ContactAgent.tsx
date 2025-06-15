@@ -37,24 +37,17 @@ export const ContactAgent: React.FC = () => {
   const fetchAgents = async () => {
     try {
       setLoading(true);
-      console.log('Fetching agents...');
       
-      // First, let's try to get all users with role 'agent' regardless of is_active status to debug
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, phone, location, city, state, is_active, role')
         .eq('role', 'agent')
         .order('first_name');
 
-      console.log('Query result:', { data, error });
-
       if (error) {
         console.error('Supabase error:', error);
         throw error;
       }
-
-      // Log all agents found for debugging
-      console.log('All agents found:', data);
 
       // Filter for active agents and provide defaults for missing data
       const activeAgents = (data || [])
@@ -69,7 +62,6 @@ export const ContactAgent: React.FC = () => {
           state: agent.state || 'Not specified'
         })) as Agent[];
 
-      console.log('Active agents after processing:', activeAgents);
       setAgents(activeAgents);
     } catch (error) {
       console.error('Error fetching agents:', error);
@@ -159,14 +151,6 @@ export const ContactAgent: React.FC = () => {
                 className="pl-10"
               />
             </div>
-          </div>
-          
-          {/* Debug info - remove this after testing */}
-          <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
-            <p><strong>Debug Info:</strong></p>
-            <p>Total agents found: {agents.length}</p>
-            <p>Filtered agents: {filteredAgents.length}</p>
-            <p>Search term: "{searchTerm}"</p>
           </div>
         </CardContent>
       </Card>
