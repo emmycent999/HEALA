@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,20 +41,10 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     try {
       console.log('Fetching patients for physician:', user.id);
       
-      // Get patients assigned to this physician with proper profile data
+      // First get physician-patient relationships
       const { data: assignedPatients, error: assignmentError } = await supabase
         .from('physician_patients')
-        .select(`
-          patient_id,
-          assigned_at,
-          patient:profiles!physician_patients_patient_id_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
+        .select('patient_id, assigned_at')
         .eq('physician_id', user.id)
         .eq('status', 'active');
 
@@ -71,16 +60,25 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
         return;
       }
 
+      // Get patient IDs
+      const patientIds = assignedPatients.map(assignment => assignment.patient_id);
+
+      // Fetch patient profiles separately
+      const { data: patientProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, phone')
+        .in('id', patientIds);
+
+      if (profilesError) {
+        console.error('Error fetching patient profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Patient profiles:', patientProfiles);
+
       // Get appointment statistics for each patient
       const patientsWithStats = await Promise.all(
-        assignedPatients.map(async (assignment) => {
-          const patientProfile = assignment.patient;
-          
-          if (!patientProfile) {
-            console.warn('Patient profile not found for assignment:', assignment);
-            return null;
-          }
-
+        patientProfiles.map(async (patientProfile) => {
           const { data: appointments } = await supabase
             .from('appointments')
             .select('appointment_date, created_at')
@@ -103,11 +101,8 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
         })
       );
 
-      // Filter out null entries
-      const validPatients = patientsWithStats.filter(patient => patient !== null) as Patient[];
-      
-      console.log('Patients with stats:', validPatients);
-      setPatients(validPatients);
+      console.log('Patients with stats:', patientsWithStats);
+      setPatients(patientsWithStats);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast({
@@ -122,7 +117,6 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
 
   const startConversation = async (patientId: string, patientName: string) => {
     try {
-      // Create or get existing conversation
       const { data: existingConversation } = await supabase
         .from('conversations')
         .select('id')

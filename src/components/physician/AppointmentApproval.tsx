@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,50 +42,61 @@ export const AppointmentApproval: React.FC = () => {
     try {
       console.log('Fetching appointments for physician:', user.id);
       
-      // Get appointments with proper patient information
-      const { data: appointments, error } = await supabase
+      // First get appointments
+      const { data: appointments, error: appointmentsError } = await supabase
         .from('appointments')
-        .select(`
-          id,
-          patient_id,
-          appointment_date,
-          appointment_time,
-          consultation_type,
-          notes,
-          status,
-          patient:profiles!appointments_patient_id_fkey(
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
+        .select('id, patient_id, appointment_date, appointment_time, consultation_type, notes, status')
         .eq('physician_id', user.id)
         .eq('status', 'pending')
         .order('appointment_date', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        throw error;
+      if (appointmentsError) {
+        console.error('Error fetching appointments:', appointmentsError);
+        throw appointmentsError;
       }
 
-      console.log('Fetched appointments with patient data:', appointments);
+      console.log('Fetched appointments:', appointments);
 
-      // Transform the data to match our interface
-      const appointmentsWithPatients = (appointments || []).map(appointment => ({
-        id: appointment.id,
-        patient_id: appointment.patient_id,
-        appointment_date: appointment.appointment_date,
-        appointment_time: appointment.appointment_time,
-        consultation_type: appointment.consultation_type,
-        notes: appointment.notes,
-        patient: {
-          first_name: appointment.patient?.first_name || 'Unknown',
-          last_name: appointment.patient?.last_name || 'Patient',
-          email: appointment.patient?.email || '',
-          phone: appointment.patient?.phone || ''
-        }
-      }));
+      if (!appointments || appointments.length === 0) {
+        setPendingAppointments([]);
+        return;
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(appointments.map(apt => apt.patient_id))];
+
+      // Fetch patient profiles separately
+      const { data: patients, error: patientsError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, phone')
+        .in('id', patientIds);
+
+      if (patientsError) {
+        console.error('Error fetching patient profiles:', patientsError);
+        throw patientsError;
+      }
+
+      console.log('Fetched patient profiles:', patients);
+
+      // Combine appointments with patient data
+      const appointmentsWithPatients = appointments.map(appointment => {
+        const patient = patients?.find(p => p.id === appointment.patient_id);
+        
+        return {
+          id: appointment.id,
+          patient_id: appointment.patient_id,
+          appointment_date: appointment.appointment_date,
+          appointment_time: appointment.appointment_time,
+          consultation_type: appointment.consultation_type,
+          notes: appointment.notes,
+          patient: {
+            first_name: patient?.first_name || 'Unknown',
+            last_name: patient?.last_name || 'Patient',
+            email: patient?.email || '',
+            phone: patient?.phone || ''
+          }
+        };
+      });
 
       console.log('Processed appointments:', appointmentsWithPatients);
       setPendingAppointments(appointmentsWithPatients);
@@ -111,7 +121,7 @@ export const AppointmentApproval: React.FC = () => {
         patient_id: appointment.patient_id,
         physician_id: user?.id,
         consultation_rate: profile?.current_consultation_rate || 5000,
-        session_type: appointment.consultation_type === 'virtual' ? 'video' : 'chat', // Use video for virtual consultations
+        session_type: appointment.consultation_type === 'virtual' ? 'video' : 'chat',
         status: 'scheduled',
         payment_status: 'pending'
       };
@@ -128,7 +138,6 @@ export const AppointmentApproval: React.FC = () => {
 
       console.log('Consultation session created:', sessionData_result);
 
-      // Create a consultation room for video sessions
       if (appointment.consultation_type === 'virtual') {
         const { error: roomError } = await supabase
           .from('consultation_rooms')
@@ -140,7 +149,6 @@ export const AppointmentApproval: React.FC = () => {
 
         if (roomError) {
           console.error('Error creating consultation room:', roomError);
-          // Don't throw here as the session was created successfully
         } else {
           console.log('Consultation room created for video session');
         }
@@ -163,7 +171,6 @@ export const AppointmentApproval: React.FC = () => {
       if (error) throw error;
 
       if (action === 'accepted') {
-        // Create physician-patient relationship if it doesn't exist
         const { error: relationshipError } = await supabase
           .from('physician_patients')
           .upsert({
@@ -195,7 +202,6 @@ export const AppointmentApproval: React.FC = () => {
             });
           }
 
-          // Create conversation for virtual consultations
           const { error: conversationError } = await supabase
             .from('conversations')
             .insert({
