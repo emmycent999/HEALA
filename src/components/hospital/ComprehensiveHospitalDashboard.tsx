@@ -27,6 +27,11 @@ import { HospitalOverview } from './HospitalOverview';
 import { PhysicianManagement } from './PhysicianManagement';
 import { AppointmentManagement } from './AppointmentManagement';
 import { HospitalPhysicianAssignment } from './HospitalPhysicianAssignment';
+import { HospitalProfileManagement } from './HospitalProfileManagement';
+import { HospitalEmergencyManagement } from './HospitalEmergencyManagement';
+import { HospitalFinancialManagement } from './HospitalFinancialManagement';
+import { HospitalSecurityManagement } from './HospitalSecurityManagement';
+import { HospitalComplianceManagement } from './HospitalComplianceManagement';
 
 interface HospitalInfo {
   id: string;
@@ -276,13 +281,15 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
 
       {/* Main Dashboard Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="physicians">Physicians</TabsTrigger>
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
           <TabsTrigger value="patients">Patients</TabsTrigger>
           <TabsTrigger value="emergency">Emergency</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -356,147 +363,23 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="emergency">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Emergency Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{stats.emergency_requests}</div>
-                      <div className="text-sm text-gray-600">Active Emergencies</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">24/7</div>
-                      <div className="text-sm text-gray-600">Emergency Response</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="text-center py-8">
-                <Phone className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Emergency coordination features coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          <HospitalEmergencyManagement />
         </TabsContent>
 
         <TabsContent value="financial">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Financial Dashboard
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        ₦{stats.revenue_this_month.toLocaleString()}
-                      </div>
-                      <div className="text-sm text-gray-600">This Month Revenue</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">
-                        ₦{Math.floor(stats.revenue_this_month / stats.total_appointments || 0).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-gray-600">Avg per Appointment</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {((stats.revenue_this_month / 1000000) * 100).toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-gray-600">Growth Rate</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="text-center py-8">
-                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Detailed financial analytics coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
+          <HospitalFinancialManagement />
+        </TabsContent>
+
+        <TabsContent value="security">
+          <HospitalSecurityManagement />
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <HospitalComplianceManagement />
         </TabsContent>
 
         <TabsContent value="settings">
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Hospital Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Basic Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm text-gray-600">Hospital Name</label>
-                        <p className="font-medium">{hospitalInfo?.name}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Phone</label>
-                        <p className="font-medium">{hospitalInfo?.phone || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Email</label>
-                        <p className="font-medium">{hospitalInfo?.email || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Status</label>
-                        <p className="font-medium">{hospitalInfo?.verification_status}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium mb-2">Security Settings</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <span>Two-Factor Authentication</span>
-                        <Badge variant="outline">Enabled</Badge>
-                      </div>
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <span>IP Whitelist</span>
-                        <Badge variant="outline">Active</Badge>
-                      </div>
-                      <div className="flex items-center justify-between p-3 border rounded">
-                        <span>Session Timeout</span>
-                        <Badge variant="outline">60 minutes</Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button className="w-full">
-                    Update Hospital Settings
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <HospitalProfileManagement />
         </TabsContent>
       </Tabs>
     </div>

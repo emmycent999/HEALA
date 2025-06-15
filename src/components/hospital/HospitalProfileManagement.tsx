@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ interface HospitalProfile {
   longitude: number | null;
   verification_status: string;
   is_active: boolean;
-  verification_documents: any[];
+  verification_documents: any;
   security_settings: any;
 }
 
@@ -52,7 +51,25 @@ export const HospitalProfileManagement: React.FC = () => {
         .single();
 
       if (error) throw error;
-      setHospitalData(data);
+      
+      // Transform the data to match our interface
+      const hospitalProfile: HospitalProfile = {
+        id: data.id,
+        name: data.name,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        phone: data.phone,
+        email: data.email,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        verification_status: data.verification_status,
+        is_active: data.is_active,
+        verification_documents: data.verification_documents || [],
+        security_settings: data.security_settings || {}
+      };
+      
+      setHospitalData(hospitalProfile);
     } catch (error) {
       console.error('Error fetching hospital profile:', error);
       toast({
@@ -283,7 +300,7 @@ export const HospitalProfileManagement: React.FC = () => {
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">Document management coming soon</p>
               <p className="text-sm text-gray-500 mt-2">
-                Current documents: {hospitalData.verification_documents?.length || 0}
+                Current documents: {Array.isArray(hospitalData.verification_documents) ? hospitalData.verification_documents.length : 0}
               </p>
             </div>
           </div>
