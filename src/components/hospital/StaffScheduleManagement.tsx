@@ -7,12 +7,14 @@ import { Calendar, Plus, AlertCircle } from 'lucide-react';
 import { useStaffSchedule } from './schedule/useStaffSchedule';
 import { ScheduleStats } from './schedule/ScheduleStats';
 import { ScheduleCard } from './schedule/ScheduleCard';
+import { AddScheduleDialog } from './schedule/AddScheduleDialog';
 import { getStatusColor } from './schedule/utils';
 import { Badge } from '@/components/ui/badge';
 
 export const StaffScheduleManagement: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const { schedules, attendance, loading, markAttendance } = useStaffSchedule(selectedDate);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const { schedules, attendance, loading, markAttendance, fetchSchedules } = useStaffSchedule(selectedDate);
 
   if (loading) {
     return <div className="p-6">Loading schedules...</div>;
@@ -32,7 +34,7 @@ export const StaffScheduleManagement: React.FC = () => {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="border rounded px-3 py-2"
           />
-          <Button>
+          <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Schedule
           </Button>
@@ -125,6 +127,12 @@ export const StaffScheduleManagement: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AddScheduleDialog 
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onAddSchedule={fetchSchedules}
+      />
     </div>
   );
 };

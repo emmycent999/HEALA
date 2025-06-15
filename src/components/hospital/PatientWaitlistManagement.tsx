@@ -6,10 +6,12 @@ import { Users, Plus } from 'lucide-react';
 import { useWaitlist } from './waitlist/useWaitlist';
 import { WaitlistStats } from './waitlist/WaitlistStats';
 import { WaitlistCard } from './waitlist/WaitlistCard';
+import { AddToWaitlistDialog } from './waitlist/AddToWaitlistDialog';
 
 export const PatientWaitlistManagement: React.FC = () => {
-  const { waitlist, loading, updateEntryStatus } = useWaitlist();
+  const { waitlist, loading, updateEntryStatus, fetchWaitlist } = useWaitlist();
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const departments = [...new Set(waitlist.map(entry => entry.department))];
   const filteredWaitlist = selectedDepartment === 'all' 
@@ -27,7 +29,7 @@ export const PatientWaitlistManagement: React.FC = () => {
           <Users className="w-6 h-6" />
           <h2 className="text-2xl font-bold">Patient Waitlist</h2>
         </div>
-        <Button>
+        <Button onClick={() => setShowAddDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add to Waitlist
         </Button>
@@ -78,6 +80,12 @@ export const PatientWaitlistManagement: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      <AddToWaitlistDialog 
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onAddToWaitlist={fetchWaitlist}
+      />
     </div>
   );
 };
