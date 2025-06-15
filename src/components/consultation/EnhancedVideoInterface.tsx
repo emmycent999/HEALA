@@ -8,6 +8,7 @@ import { VideoStreams } from './VideoStreams';
 import { EnhancedVideoControls } from './EnhancedVideoControls';
 import { ConnectionQualityIndicator } from './ConnectionQualityIndicator';
 import { ConsultationActions } from './ConsultationActions';
+import { VideoCallChat } from './VideoCallChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +28,8 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
   const { toast } = useToast();
   const [currentSession, setCurrentSession] = useState(session);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
@@ -77,8 +80,10 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [currentSession.id, isPatient, currentSession.status]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentSession.id, isPatient, currentSession.status, toast]);
 
   const {
     isCallActive,
@@ -93,7 +98,9 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
     endCall,
     toggleVideo,
     toggleAudio,
-    reconnect
+    reconnect,
+    startScreenShare,
+    stopScreenShare
   } = useWebRTCVideoCall({
     sessionId: currentSession.id,
     userId: user?.id || '',
@@ -188,62 +195,109 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
     onEndSession();
   };
 
+  const handleScreenShare = async () => {
+    try {
+      if (isScreenSharing) {
+        await stopScreenShare();
+        setIsScreenSharing(false);
+        toast({
+          title: "🖥️ Screen Sharing Stopped",
+          description: "Returned to camera view",
+        });
+      } else {
+        await startScreenShare();
+        setIsScreenSharing(true);
+        toast({
+          title: "🖥️ Screen Sharing Started",
+          description: "Your screen is now being shared",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Screen share error:', error);
+      toast({
+        title: "❌ Screen Share Failed",
+        description: "Unable to share screen. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleChat = () => {
+    setShowChat(!showChat);
+  };
+
   // Unified video interface for all call states
   if (isCallActive || isConnecting || isReconnecting) {
     return (
-      <Card>
-        <CardContent className="p-0">
-          <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
-            <VideoStreams
-              localVideoRef={localVideoRef}
-              remoteVideoRef={remoteVideoRef}
-              isCallActive={isCallActive}
-              connectionState={connectionState}
-            />
+      <div className="flex gap-4">
+        {/* Main Video Area */}
+        <Card className={showChat ? "flex-1" : "w-full"}>
+          <CardContent className="p-0">
+            <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
+              <VideoStreams
+                localVideoRef={localVideoRef}
+                remoteVideoRef={remoteVideoRef}
+                isCallActive={isCallActive}
+                connectionState={connectionState}
+              />
 
-            {/* Connection Status Overlay */}
-            {(isConnecting || isReconnecting || connectionState !== 'connected') && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                <div className="text-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p className="text-white text-lg">
-                    {isReconnecting ? `Reconnecting... (${reconnectionAttempts}/3)` : 
-                     isConnecting ? 'Connecting...' : 
-                     `Connection: ${connectionState}`}
-                  </p>
-                  {connectionState === 'failed' && (
-                    <button 
-                      onClick={reconnect}
-                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Retry Connection
-                    </button>
-                  )}
+              {/* Connection Status Overlay */}
+              {(isConnecting || isReconnecting || connectionState !== 'connected') && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="text-center">
+                    <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p className="text-white text-lg">
+                      {isReconnecting ? `Reconnecting... (${reconnectionAttempts}/3)` : 
+                       isConnecting ? 'Connecting...' : 
+                       `Connection: ${connectionState}`}
+                    </p>
+                    {connectionState === 'failed' && (
+                      <button 
+                        onClick={reconnect}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Retry Connection
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {/* Connection Quality Indicator */}
-            <ConnectionQualityIndicator 
-              quality={connectionQuality}
-              className="absolute top-4 right-4"
-            />
+              )}
+              
+              {/* Connection Quality Indicator */}
+              <ConnectionQualityIndicator 
+                quality={connectionQuality}
+                className="absolute top-4 right-4"
+              />
 
-            {/* Enhanced Video Controls */}
-            <EnhancedVideoControls
-              isCallActive={isCallActive}
-              videoEnabled={videoEnabled}
-              audioEnabled={audioEnabled}
-              sessionStatus={currentSession.status}
-              connectionQuality={connectionQuality}
-              onToggleVideo={toggleVideo}
-              onToggleAudio={toggleAudio}
-              onEndCall={handleEndSession}
-              onReconnect={reconnect}
+              {/* Enhanced Video Controls */}
+              <EnhancedVideoControls
+                isCallActive={isCallActive}
+                videoEnabled={videoEnabled}
+                audioEnabled={audioEnabled}
+                sessionStatus={currentSession.status}
+                connectionQuality={connectionQuality}
+                onToggleVideo={toggleVideo}
+                onToggleAudio={toggleAudio}
+                onEndCall={handleEndSession}
+                onReconnect={reconnect}
+                onStartScreenShare={isPhysician ? handleScreenShare : undefined}
+                onToggleChat={handleToggleChat}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Chat Panel */}
+        {showChat && (
+          <div className="w-80">
+            <VideoCallChat
+              sessionId={currentSession.id}
+              currentUserId={user?.id || ''}
+              onClose={() => setShowChat(false)}
             />
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     );
   }
 

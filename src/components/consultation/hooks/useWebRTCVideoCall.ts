@@ -15,10 +15,12 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const channelRef = useRef<any>(null);
 
@@ -42,6 +44,63 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     const channelName = `webrtc_${sessionId}`;
     
     channelRef.current = supabase.channel(channelName);
+
+    const handleOffer = async (payload: any) => {
+      if (payload.payload.fromUser === userId) return;
+      
+      console.log('📥 [WebRTCVideoCall] Received offer');
+      
+      const pc = createPeerConnection();
+      peerConnectionRef.current = pc;
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          pc.addTrack(track, localStreamRef.current!);
+        });
+      }
+
+      await pc.setRemoteDescription(payload.payload.offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'answer',
+          payload: {
+            answer,
+            fromUser: userId
+          }
+        });
+      }
+    };
+
+    const handleAnswer = async (payload: any) => {
+      if (payload.payload.fromUser === userId) return;
+      
+      console.log('📥 [WebRTCVideoCall] Received answer');
+      
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.setRemoteDescription(payload.payload.answer);
+      }
+    };
+
+    const handleIceCandidate = async (payload: any) => {
+      if (payload.payload.fromUser === userId) return;
+      
+      console.log('📥 [WebRTCVideoCall] Received ICE candidate');
+      
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.addIceCandidate(payload.payload.candidate);
+      }
+    };
+
+    const handleEndCall = (payload: any) => {
+      if (payload.payload.fromUser === userId) return;
+      
+      console.log('📥 [WebRTCVideoCall] Received end call signal');
+      endCall(false);
+    };
 
     channelRef.current
       .on('broadcast', { event: 'offer' }, handleOffer)
@@ -118,6 +177,83 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
     return pc;
   }, [userId, toast]);
+
+  const startScreenShare = useCallback(async () => {
+    try {
+      console.log('🖥️ [WebRTCVideoCall] Starting screen share');
+      
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false
+      });
+
+      screenStreamRef.current = screenStream;
+      
+      // Replace video track in peer connection
+      if (peerConnectionRef.current && localStreamRef.current) {
+        const videoTrack = screenStream.getVideoTracks()[0];
+        const sender = peerConnectionRef.current.getSenders().find(
+          s => s.track && s.track.kind === 'video'
+        );
+        
+        if (sender) {
+          await sender.replaceTrack(videoTrack);
+        }
+      }
+
+      // Update local video display
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = screenStream;
+      }
+
+      // Handle screen share end
+      screenStream.getVideoTracks()[0].onended = () => {
+        console.log('🖥️ [WebRTCVideoCall] Screen share ended');
+        stopScreenShare();
+      };
+
+      setIsScreenSharing(true);
+      
+    } catch (error) {
+      console.error('❌ [WebRTCVideoCall] Screen share failed:', error);
+      throw error;
+    }
+  }, []);
+
+  const stopScreenShare = useCallback(async () => {
+    try {
+      console.log('🖥️ [WebRTCVideoCall] Stopping screen share');
+      
+      // Stop screen stream
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(track => track.stop());
+        screenStreamRef.current = null;
+      }
+
+      // Get camera stream back
+      if (localStreamRef.current && peerConnectionRef.current) {
+        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+        const sender = peerConnectionRef.current.getSenders().find(
+          s => s.track && s.track.kind === 'video'
+        );
+        
+        if (sender && videoTrack) {
+          await sender.replaceTrack(videoTrack);
+        }
+      }
+
+      // Update local video display
+      if (localVideoRef.current && localStreamRef.current) {
+        localVideoRef.current.srcObject = localStreamRef.current;
+      }
+
+      setIsScreenSharing(false);
+      
+    } catch (error) {
+      console.error('❌ [WebRTCVideoCall] Error stopping screen share:', error);
+      throw error;
+    }
+  }, []);
 
   const handleOffer = useCallback(async (payload: any) => {
     if (payload.payload.fromUser === userId) return; // Ignore own offers
@@ -283,21 +419,22 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
   const endCall = (sendSignal = true) => {
     console.log('📞 [WebRTCVideoCall] Ending call');
     
-    // Stop local stream
+    // Stop all streams
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        track.stop();
-      });
+      localStreamRef.current.getTracks().forEach(track => track.stop());
       localStreamRef.current = null;
     }
 
-    // Close peer connection
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+      screenStreamRef.current = null;
+    }
+
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
 
-    // Clear video elements
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = null;
     }
@@ -305,20 +442,18 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
       remoteVideoRef.current.srcObject = null;
     }
 
-    // Send end call signal
     if (sendSignal && channelRef.current) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'end-call',
-        payload: {
-          fromUser: userId
-        }
+        payload: { fromUser: userId }
       });
     }
 
     setIsCallActive(false);
     setConnectionState('new');
     setIsConnecting(false);
+    setIsScreenSharing(false);
 
     toast({
       title: "📞 Call Ended",
@@ -361,6 +496,9 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     endCall,
     toggleVideo,
     toggleAudio,
-    reconnect
+    reconnect,
+    startScreenShare,
+    stopScreenShare,
+    isScreenSharing
   };
 };
