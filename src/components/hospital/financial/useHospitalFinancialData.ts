@@ -69,8 +69,16 @@ export const useHospitalFinancialData = () => {
 
       if (alertError) throw alertError;
 
-      setTransactions(transactionData || []);
-      setAlerts(alertData || []);
+      // Type-cast the data to match our interfaces
+      setTransactions((transactionData || []).map(t => ({
+        ...t,
+        transaction_type: t.transaction_type as FinancialTransaction['transaction_type']
+      })));
+      
+      setAlerts((alertData || []).map(a => ({
+        ...a,
+        severity: a.severity as FinancialAlert['severity']
+      })));
     } catch (error) {
       console.error('Error fetching financial data:', error);
       toast({

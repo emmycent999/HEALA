@@ -69,8 +69,16 @@ export const useHospitalComplianceData = () => {
 
       if (alertError) throw alertError;
 
-      setComplianceData(complianceTracking || []);
-      setAlerts(alertData || []);
+      // Type-cast the data to match our interfaces
+      setComplianceData((complianceTracking || []).map(c => ({
+        ...c,
+        status: c.status as ComplianceTracking['status']
+      })));
+      
+      setAlerts((alertData || []).map(a => ({
+        ...a,
+        severity: a.severity as ComplianceAlert['severity']
+      })));
     } catch (error) {
       console.error('Error fetching compliance data:', error);
       toast({
