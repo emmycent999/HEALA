@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppointmentList } from '@/components/appointments/AppointmentList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 // Enhanced components
 import { EnhancedAppointmentBooking } from '@/components/enhanced-appointments/EnhancedAppointmentBooking';
 import { PrescriptionManagement } from '@/components/prescriptions/PrescriptionManagement';
+import { PrescriptionNotifications } from '@/components/prescriptions/PrescriptionNotifications';
 import { HealthRecordsAccess } from '@/components/health-records/HealthRecordsAccess';
 import { MedicalHistoryUpload } from '@/components/medical-history/MedicalHistoryUpload';
 import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
@@ -104,6 +106,8 @@ const PatientDashboard = () => {
               )}
             </div>
             
+            <PrescriptionNotifications />
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4 dark:text-white">Book New Appointment</h3>
@@ -156,6 +160,7 @@ const PatientDashboard = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
               Prescription Management
             </h2>
+            <PrescriptionNotifications />
             <PrescriptionManagement />
           </div>
         );

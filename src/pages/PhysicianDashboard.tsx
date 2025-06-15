@@ -6,6 +6,7 @@ import { PhysicianProfile } from '@/components/physician/PhysicianProfile';
 import { PhysicianDocumentUpload } from '@/components/physician/PhysicianDocumentUpload';
 import { DynamicOverview } from '@/components/physician/DynamicOverview';
 import { AppointmentApproval } from '@/components/physician/AppointmentApproval';
+import { PatientManagement } from '@/components/physician/PatientManagement';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { DigitalWallet } from '@/components/wallet/DigitalWallet';
 import { VirtualConsultationRoom } from '@/components/consultation/VirtualConsultationRoom';
@@ -27,7 +28,7 @@ const PhysicianDashboard = () => {
       case 'appointments':
         return <AppointmentApproval />;
       case 'patients':
-        return <PatientList patients={[]} onStartConversation={() => {}} />;
+        return <PatientManagement />;
       case 'chat':
         return <PhysicianChatInterface />;
       case 'wallet':

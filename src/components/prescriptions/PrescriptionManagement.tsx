@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pill, Clock, MapPin, RefreshCw, User } from 'lucide-react';
+import { Pill, Clock, MapPin, RefreshCw, User, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -50,57 +50,63 @@ export const PrescriptionManagement: React.FC = () => {
     try {
       console.log('Fetching prescriptions for patient:', user?.id);
       
-      // Get prescriptions with physician and pharmacy information
-      const { data: prescriptionsData, error } = await supabase
+      // Get prescriptions first
+      const { data: prescriptionsData, error: prescriptionsError } = await supabase
         .from('prescriptions')
-        .select(`
-          *,
-          physician:profiles!prescriptions_physician_id_fkey(
-            first_name,
-            last_name,
-            specialization
-          ),
-          pharmacy:healthcare_providers(name, address, phone)
-        `)
+        .select('*')
         .eq('patient_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching prescriptions:', error);
-        throw error;
+      if (prescriptionsError) {
+        console.error('Error fetching prescriptions:', prescriptionsError);
+        throw prescriptionsError;
       }
-      
-      console.log('Fetched prescriptions with relations:', prescriptionsData);
-      
-      // Validate and transform data structure
-      const validPrescriptions = (prescriptionsData || []).map((item: any) => ({
-        id: item.id,
-        patient_id: item.patient_id,
-        physician_id: item.physician_id,
-        appointment_id: item.appointment_id,
-        prescription_data: item.prescription_data || {},
-        status: item.status || 'pending',
-        pharmacy_id: item.pharmacy_id,
-        dispensed_at: item.dispensed_at,
-        repeat_allowed: Boolean(item.repeat_allowed),
-        repeat_count: item.repeat_count || 0,
-        max_repeats: item.max_repeats || 0,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        physician: item.physician ? {
-          first_name: item.physician.first_name || 'Unknown',
-          last_name: item.physician.last_name || 'Doctor',
-          specialization: item.physician.specialization
-        } : {
-          first_name: 'Unknown',
-          last_name: 'Doctor',
-          specialization: undefined
-        },
-        pharmacy: item.pharmacy
-      }));
-      
-      console.log('Processed prescriptions:', validPrescriptions);
-      setPrescriptions(validPrescriptions as Prescription[]);
+
+      console.log('Fetched prescriptions:', prescriptionsData);
+
+      if (!prescriptionsData || prescriptionsData.length === 0) {
+        setPrescriptions([]);
+        return;
+      }
+
+      // Get unique physician and pharmacy IDs
+      const physicianIds = [...new Set(prescriptionsData.map(p => p.physician_id))];
+      const pharmacyIds = [...new Set(prescriptionsData.map(p => p.pharmacy_id).filter(Boolean))];
+
+      // Fetch physician profiles
+      const { data: physicians } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, specialization')
+        .in('id', physicianIds);
+
+      // Fetch pharmacy data
+      const { data: pharmacies } = pharmacyIds.length > 0 ? await supabase
+        .from('healthcare_providers')
+        .select('id, name, address, phone')
+        .in('id', pharmacyIds) : { data: [] };
+
+      // Combine data
+      const enrichedPrescriptions = prescriptionsData.map(prescription => {
+        const physician = physicians?.find(p => p.id === prescription.physician_id);
+        const pharmacy = pharmacies?.find(p => p.id === prescription.pharmacy_id);
+
+        return {
+          ...prescription,
+          physician: physician ? {
+            first_name: physician.first_name || 'Unknown',
+            last_name: physician.last_name || 'Doctor',
+            specialization: physician.specialization
+          } : {
+            first_name: 'Unknown',
+            last_name: 'Doctor',
+            specialization: undefined
+          },
+          pharmacy: pharmacy
+        };
+      });
+
+      console.log('Enriched prescriptions:', enrichedPrescriptions);
+      setPrescriptions(enrichedPrescriptions);
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
       toast({
@@ -218,7 +224,7 @@ export const PrescriptionManagement: React.FC = () => {
                           )}
                         </div>
                         <Badge className={getStatusColor(prescription.status)}>
-                          {prescription.status}
+                          {prescription.status.charAt(0).toUpperCase() + prescription.status.slice(1)}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -229,7 +235,7 @@ export const PrescriptionManagement: React.FC = () => {
                     
                     {medications.length > 0 && (
                       <div className="mb-3">
-                        <h5 className="font-medium text-sm mb-2">Medications:</h5>
+                        <h5 className="font-medium text-sm mb-2">Medications ({medications.length}):</h5>
                         <div className="space-y-2">
                           {medications.map((medication: any, index: number) => (
                             <div key={index} className="bg-gray-50 p-3 rounded">
@@ -264,21 +270,38 @@ export const PrescriptionManagement: React.FC = () => {
                             Repeats: {prescription.repeat_count}/{prescription.max_repeats}
                           </span>
                         )}
+                        {prescription.status === 'pending' && (
+                          <span className="text-orange-600 font-medium">
+                            Waiting for pharmacy approval
+                          </span>
+                        )}
                       </div>
                       
-                      {prescription.repeat_allowed && 
-                       prescription.repeat_count < prescription.max_repeats &&
-                       prescription.status === 'completed' && (
+                      <div className="flex gap-2">
+                        {prescription.repeat_allowed && 
+                         prescription.repeat_count < prescription.max_repeats &&
+                         prescription.status === 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => requestRepeat(prescription.id)}
+                            className="flex items-center gap-1"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Request Repeat
+                          </Button>
+                        )}
+                        
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => requestRepeat(prescription.id)}
+                          onClick={() => window.print()}
                           className="flex items-center gap-1"
                         >
-                          <RefreshCw className="w-4 h-4" />
-                          Request Repeat
+                          <Download className="w-4 h-4" />
+                          Print
                         </Button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
