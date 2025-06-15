@@ -115,10 +115,10 @@ FOR ALL
 TO authenticated 
 USING (staff_id = auth.uid());
 
--- Add foreign key constraints
+-- Add foreign key constraints to profiles table instead of auth.users
 ALTER TABLE public.patient_waitlist 
 ADD CONSTRAINT fk_patient_waitlist_patient 
-FOREIGN KEY (patient_id) REFERENCES auth.users(id);
+FOREIGN KEY (patient_id) REFERENCES public.profiles(id);
 
 ALTER TABLE public.patient_waitlist 
 ADD CONSTRAINT fk_patient_waitlist_hospital 
@@ -126,7 +126,7 @@ FOREIGN KEY (hospital_id) REFERENCES public.hospitals(id);
 
 ALTER TABLE public.staff_schedules 
 ADD CONSTRAINT fk_staff_schedules_staff 
-FOREIGN KEY (staff_id) REFERENCES auth.users(id);
+FOREIGN KEY (staff_id) REFERENCES public.profiles(id);
 
 ALTER TABLE public.staff_schedules 
 ADD CONSTRAINT fk_staff_schedules_hospital 
@@ -134,7 +134,7 @@ FOREIGN KEY (hospital_id) REFERENCES public.hospitals(id);
 
 ALTER TABLE public.staff_schedules 
 ADD CONSTRAINT fk_staff_schedules_created_by 
-FOREIGN KEY (created_by) REFERENCES auth.users(id);
+FOREIGN KEY (created_by) REFERENCES public.profiles(id);
 
 ALTER TABLE public.staff_attendance 
 ADD CONSTRAINT fk_staff_attendance_schedule 
@@ -142,4 +142,4 @@ FOREIGN KEY (schedule_id) REFERENCES public.staff_schedules(id);
 
 ALTER TABLE public.staff_attendance 
 ADD CONSTRAINT fk_staff_attendance_staff 
-FOREIGN KEY (staff_id) REFERENCES auth.users(id);
+FOREIGN KEY (staff_id) REFERENCES public.profiles(id);
