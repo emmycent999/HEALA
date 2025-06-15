@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones, CreditCard, Activity, AlertTriangle, DollarSign, FileCheck, Monitor, Siren } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -65,10 +66,16 @@ const agentMenuItems = [
 ];
 
 const adminMenuItems = [
+  { title: 'Dashboard', url: '/admin', icon: Home },
   { title: 'User Management', url: '/admin?tab=users', icon: Users },
-  { title: 'System Analytics', url: '/admin?tab=analytics', icon: FileText },
-  { title: 'Verification Center', url: '/admin?tab=verification', icon: Shield },
-  { title: 'Document Management', url: '/admin?tab=documents', icon: FileText },
+  { title: 'Verification Center', url: '/admin?tab=verifications', icon: FileCheck },
+  { title: 'Real-time Monitor', url: '/admin?tab=monitoring', icon: Monitor },
+  { title: 'User Activity', url: '/admin?tab=activity', icon: Activity },
+  { title: 'Emergency Center', url: '/admin?tab=emergency', icon: Siren },
+  { title: 'Financial Disputes', url: '/admin?tab=financial', icon: DollarSign },
+  { title: 'Compliance Reports', url: '/admin?tab=compliance', icon: FileText },
+  { title: 'System Settings', url: '/admin?tab=settings', icon: Settings },
+  { title: 'Audit Log', url: '/admin?tab=audit', icon: Shield },
 ];
 
 export const AppSidebar: React.FC = () => {
@@ -102,6 +109,11 @@ export const AppSidebar: React.FC = () => {
     
     // Check exact match first
     if (currentPath === targetPath) return true;
+    
+    // For admin dashboard, check if we're on the admin page without tab (dashboard)
+    if (itemUrl === '/admin' && location.pathname === '/admin' && !location.search) {
+      return true;
+    }
     
     // Check if the current search params match the item's tab
     const currentParams = new URLSearchParams(location.search);
