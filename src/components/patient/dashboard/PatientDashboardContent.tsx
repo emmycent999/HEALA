@@ -19,6 +19,7 @@ import { PrescriptionsTab } from './PrescriptionsTab';
 import { HealthRecordsTab } from './HealthRecordsTab';
 import { EmergencyTab } from './EmergencyTab';
 import { ProfileTab } from './ProfileTab';
+import { SubscriptionTab } from './SubscriptionTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -95,6 +96,8 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
     case 'transport':
       return <TransportManagement />;
     case 'subscription':
+      return <SubscriptionTab />;
+    case 'settings':
       return <PatientSettings />;
     case 'ambulance':
       return <AmbulanceStatus />;

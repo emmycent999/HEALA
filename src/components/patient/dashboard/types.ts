@@ -16,6 +16,7 @@ export type PatientDashboardTab =
   | 'profile'
   | 'transport'
   | 'subscription'
+  | 'settings'
   | 'ambulance'
   | 'contact-agent';
 
