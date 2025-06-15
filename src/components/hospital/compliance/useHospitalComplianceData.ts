@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import type { ComplianceTracking, ComplianceAlert } from './types';
@@ -18,12 +18,18 @@ export const useHospitalComplianceData = () => {
   const [complianceData, setComplianceData] = useState<ComplianceTracking[]>([]);
   const [alerts, setAlerts] = useState<ComplianceAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchComplianceData = async () => {
-    if (!profile?.hospital_id) return;
+  const fetchComplianceData = useCallback(async () => {
+    if (!profile?.hospital_id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
 
       const [complianceTracking, alertData] = await Promise.all([
         fetchComplianceTracking(profile.hospital_id),
@@ -33,16 +39,18 @@ export const useHospitalComplianceData = () => {
       setComplianceData(complianceTracking);
       setAlerts(alertData);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch compliance data';
       console.error('Error fetching compliance data:', error);
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to fetch compliance data.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.hospital_id, toast]);
 
   const updateComplianceStatus = async (
     complianceId: string,
@@ -52,6 +60,7 @@ export const useHospitalComplianceData = () => {
     correctiveActions?: any[]
   ) => {
     try {
+      setActionLoading(`update-${complianceId}`);
       await updateComplianceStatusService(
         complianceId,
         status,
@@ -66,19 +75,23 @@ export const useHospitalComplianceData = () => {
         description: "Compliance status updated successfully.",
       });
 
-      fetchComplianceData();
+      await fetchComplianceData();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update compliance status';
       console.error('Error updating compliance status:', error);
       toast({
         title: "Error",
-        description: "Failed to update compliance status.",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const resolveAlert = async (alertId: string) => {
     try {
+      setActionLoading(`resolve-${alertId}`);
       await resolveComplianceAlertService(alertId, profile?.id);
 
       toast({
@@ -86,14 +99,17 @@ export const useHospitalComplianceData = () => {
         description: "Compliance alert resolved successfully.",
       });
 
-      fetchComplianceData();
+      await fetchComplianceData();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resolve alert';
       console.error('Error resolving alert:', error);
       toast({
         title: "Error",
-        description: "Failed to resolve alert.",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -108,18 +124,25 @@ export const useHospitalComplianceData = () => {
     }
   };
 
+  const retryFetch = useCallback(() => {
+    fetchComplianceData();
+  }, [fetchComplianceData]);
+
   useEffect(() => {
     fetchComplianceData();
-  }, [profile?.hospital_id]);
+  }, [fetchComplianceData]);
 
   return {
     complianceData,
     alerts,
     loading,
+    actionLoading,
+    error,
     updateComplianceStatus,
     resolveAlert,
     calculateOverallScore,
     refetch: fetchComplianceData,
+    retry: retryFetch,
     summary: getComplianceSummary(complianceData, alerts)
   };
 };

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -41,12 +42,18 @@ export const useHospitalFinancialData = () => {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [alerts, setAlerts] = useState<FinancialAlert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchFinancialData = async () => {
-    if (!profile?.hospital_id) return;
+  const fetchFinancialData = useCallback(async () => {
+    if (!profile?.hospital_id) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
 
       // Fetch financial transactions
       const { data: transactionData, error: transactionError } = await supabase
@@ -81,19 +88,22 @@ export const useHospitalFinancialData = () => {
         metadata: a.metadata || {}
       })));
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch financial data';
       console.error('Error fetching financial data:', error);
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to fetch financial data.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.hospital_id, toast]);
 
   const addTransaction = async (transaction: Omit<FinancialTransaction, 'id' | 'created_at' | 'updated_at' | 'fiscal_month'>) => {
     try {
+      setActionLoading('add-transaction');
       const { error } = await supabase
         .from('hospital_financial_data')
         .insert({
@@ -108,19 +118,23 @@ export const useHospitalFinancialData = () => {
         description: "Financial transaction recorded successfully.",
       });
 
-      fetchFinancialData();
+      await fetchFinancialData();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to record transaction';
       console.error('Error adding transaction:', error);
       toast({
         title: "Error",
-        description: "Failed to record transaction.",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const resolveAlert = async (alertId: string) => {
     try {
+      setActionLoading(`resolve-${alertId}`);
       const { error } = await supabase
         .from('financial_alerts')
         .update({
@@ -137,14 +151,17 @@ export const useHospitalFinancialData = () => {
         description: "Alert resolved successfully.",
       });
 
-      fetchFinancialData();
+      await fetchFinancialData();
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resolve alert';
       console.error('Error resolving alert:', error);
       toast({
         title: "Error",
-        description: "Failed to resolve alert.",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -171,17 +188,24 @@ export const useHospitalFinancialData = () => {
     };
   };
 
+  const retryFetch = useCallback(() => {
+    fetchFinancialData();
+  }, [fetchFinancialData]);
+
   useEffect(() => {
     fetchFinancialData();
-  }, [profile?.hospital_id]);
+  }, [fetchFinancialData]);
 
   return {
     transactions,
     alerts,
     loading,
+    actionLoading,
+    error,
     addTransaction,
     resolveAlert,
     refetch: fetchFinancialData,
+    retry: retryFetch,
     summary: getFinancialSummary()
   };
 };

@@ -4,16 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Shield, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Shield, AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { useHospitalComplianceData } from './useHospitalComplianceData';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
-export const ComplianceDashboardCard: React.FC = () => {
+const ComplianceDashboardCardContent: React.FC = () => {
   const { 
     complianceData, 
     alerts, 
-    loading, 
+    loading,
+    actionLoading,
+    error,
     resolveAlert, 
     calculateOverallScore,
+    retry,
     summary 
   } = useHospitalComplianceData();
   
@@ -21,14 +26,36 @@ export const ComplianceDashboardCard: React.FC = () => {
 
   useEffect(() => {
     const fetchScore = async () => {
-      const score = await calculateOverallScore();
-      setOverallScore(score);
+      if (!loading) {
+        const score = await calculateOverallScore();
+        setOverallScore(score);
+      }
     };
     
-    if (!loading) {
-      fetchScore();
-    }
+    fetchScore();
   }, [loading, calculateOverallScore]);
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-700">
+            <AlertCircle className="w-5 h-5" />
+            Error Loading Compliance Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-red-600">{error}</p>
+            <Button onClick={retry} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
@@ -37,7 +64,7 @@ export const ComplianceDashboardCard: React.FC = () => {
           <CardTitle>Compliance Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">Loading compliance data...</div>
+          <LoadingSpinner text="Loading compliance data..." className="py-8" />
         </CardContent>
       </Card>
     );
@@ -181,8 +208,13 @@ export const ComplianceDashboardCard: React.FC = () => {
                     size="sm" 
                     variant="outline"
                     onClick={() => resolveAlert(alert.id)}
+                    disabled={actionLoading === `resolve-${alert.id}`}
                   >
-                    Resolve
+                    {actionLoading === `resolve-${alert.id}` ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      'Resolve'
+                    )}
                   </Button>
                 </div>
               ))}
@@ -199,5 +231,13 @@ export const ComplianceDashboardCard: React.FC = () => {
         </Card>
       )}
     </div>
+  );
+};
+
+export const ComplianceDashboardCard: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <ComplianceDashboardCardContent />
+    </ErrorBoundary>
   );
 };

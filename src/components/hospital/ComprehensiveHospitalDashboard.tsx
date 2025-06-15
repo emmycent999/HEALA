@@ -19,8 +19,10 @@ import { HospitalResourceManagement } from './HospitalResourceManagement';
 import { HospitalAdvancedSettings } from './HospitalAdvancedSettings';
 import { PatientManagement } from './PatientManagement';
 import { useSearchParams } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 
-export const ComprehensiveHospitalDashboard: React.FC = () => {
+const DashboardContent: React.FC = () => {
   const { hospitalInfo, stats, loading, profile } = useHospitalData();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'overview';
@@ -50,7 +52,11 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
   }
 
   if (loading) {
-    return <div className="p-6">Loading hospital dashboard...</div>;
+    return (
+      <div className="p-6">
+        <LoadingSpinner text="Loading hospital dashboard..." className="py-8" />
+      </div>
+    );
   }
 
   const renderContent = () => {
@@ -100,7 +106,17 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {renderContent()}
+      <ErrorBoundary>
+        {renderContent()}
+      </ErrorBoundary>
     </div>
+  );
+};
+
+export const ComprehensiveHospitalDashboard: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <DashboardContent />
+    </ErrorBoundary>
   );
 };

@@ -3,11 +3,35 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useHospitalFinancialData } from './useHospitalFinancialData';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
-export const FinancialDashboardCard: React.FC = () => {
-  const { summary, alerts, loading, resolveAlert } = useHospitalFinancialData();
+const FinancialDashboardCardContent: React.FC = () => {
+  const { summary, alerts, loading, actionLoading, error, resolveAlert, retry } = useHospitalFinancialData();
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-700">
+            <AlertTriangle className="w-5 h-5" />
+            Error Loading Financial Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-red-600">{error}</p>
+            <Button onClick={retry} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
@@ -16,7 +40,7 @@ export const FinancialDashboardCard: React.FC = () => {
           <CardTitle>Financial Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">Loading financial data...</div>
+          <LoadingSpinner text="Loading financial data..." className="py-8" />
         </CardContent>
       </Card>
     );
@@ -110,8 +134,13 @@ export const FinancialDashboardCard: React.FC = () => {
                     size="sm" 
                     variant="outline"
                     onClick={() => resolveAlert(alert.id)}
+                    disabled={actionLoading === `resolve-${alert.id}`}
                   >
-                    Resolve
+                    {actionLoading === `resolve-${alert.id}` ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      'Resolve'
+                    )}
                   </Button>
                 </div>
               ))}
@@ -128,5 +157,13 @@ export const FinancialDashboardCard: React.FC = () => {
         </Card>
       )}
     </div>
+  );
+};
+
+export const FinancialDashboardCard: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <FinancialDashboardCardContent />
+    </ErrorBoundary>
   );
 };
