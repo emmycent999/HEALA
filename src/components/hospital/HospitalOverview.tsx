@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Activity, TrendingUp, BarChart3, Bell } from 'lucide-react';
+import { Activity, BarChart3, Bell } from 'lucide-react';
+import { OverviewStats } from './overview/OverviewStats';
 import { HospitalAnalytics } from './HospitalAnalytics';
 import { HospitalNotificationCenter } from './HospitalNotificationCenter';
 import { HospitalResourceManagement } from './HospitalResourceManagement';
@@ -15,6 +15,8 @@ export const HospitalOverview: React.FC = () => {
         <h2 className="text-2xl font-bold">Hospital Overview</h2>
       </div>
 
+      <OverviewStats />
+
       <Tabs defaultValue="analytics" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="analytics" className="flex items-center gap-2">
@@ -26,7 +28,7 @@ export const HospitalOverview: React.FC = () => {
             Notifications
           </TabsTrigger>
           <TabsTrigger value="resources" className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" />
+            <Activity className="w-4 h-4" />
             Resources
           </TabsTrigger>
         </TabsList>
