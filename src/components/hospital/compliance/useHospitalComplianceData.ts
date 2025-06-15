@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,12 +71,16 @@ export const useHospitalComplianceData = () => {
       // Type-cast the data to match our interfaces
       setComplianceData((complianceTracking || []).map(c => ({
         ...c,
-        status: c.status as ComplianceTracking['status']
+        status: c.status as ComplianceTracking['status'],
+        violations: Array.isArray(c.violations) ? c.violations : [],
+        corrective_actions: Array.isArray(c.corrective_actions) ? c.corrective_actions : [],
+        assessment_details: c.assessment_details || {}
       })));
       
       setAlerts((alertData || []).map(a => ({
         ...a,
-        severity: a.severity as ComplianceAlert['severity']
+        severity: a.severity as ComplianceAlert['severity'],
+        metadata: a.metadata || {}
       })));
     } catch (error) {
       console.error('Error fetching compliance data:', error);

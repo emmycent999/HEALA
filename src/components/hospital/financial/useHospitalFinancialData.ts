@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,12 +71,14 @@ export const useHospitalFinancialData = () => {
       // Type-cast the data to match our interfaces
       setTransactions((transactionData || []).map(t => ({
         ...t,
-        transaction_type: t.transaction_type as FinancialTransaction['transaction_type']
+        transaction_type: t.transaction_type as FinancialTransaction['transaction_type'],
+        metadata: t.metadata || {}
       })));
       
       setAlerts((alertData || []).map(a => ({
         ...a,
-        severity: a.severity as FinancialAlert['severity']
+        severity: a.severity as FinancialAlert['severity'],
+        metadata: a.metadata || {}
       })));
     } catch (error) {
       console.error('Error fetching financial data:', error);
