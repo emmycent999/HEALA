@@ -1,22 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Users, MessageCircle, Calendar, FileText, Pill } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { PrescriptionInput } from './PrescriptionInput';
-
-interface Patient {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone?: string;
-  last_appointment?: string;
-  total_appointments: number;
-}
+import { usePatients } from './hooks/usePatients';
+import { PatientListWithActions } from './PatientListWithActions';
+import { PrescriptionCreationForm } from './PrescriptionCreationForm';
+import { startConversation } from './services/conversationService';
 
 interface PatientManagementProps {
   onStartChat?: (patientId: string, patientName: string) => void;
@@ -25,126 +16,14 @@ interface PatientManagementProps {
 export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartChat }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { patients, loading } = usePatients();
   const [showPrescriptionFor, setShowPrescriptionFor] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchPatients();
-    }
-  }, [user]);
-
-  const fetchPatients = async () => {
+  const handleStartConversation = async (patientId: string, patientName: string) => {
     if (!user) return;
 
     try {
-      console.log('Fetching patients for physician:', user.id);
-      
-      // First get physician-patient relationships
-      const { data: assignedPatients, error: assignmentError } = await supabase
-        .from('physician_patients')
-        .select('patient_id, assigned_at')
-        .eq('physician_id', user.id)
-        .eq('status', 'active');
-
-      if (assignmentError) {
-        console.error('Error fetching patient assignments:', assignmentError);
-        throw assignmentError;
-      }
-
-      console.log('Assigned patients data:', assignedPatients);
-
-      if (!assignedPatients || assignedPatients.length === 0) {
-        setPatients([]);
-        return;
-      }
-
-      // Get patient IDs
-      const patientIds = assignedPatients.map(assignment => assignment.patient_id);
-
-      // Fetch patient profiles separately
-      const { data: patientProfiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email, phone')
-        .in('id', patientIds);
-
-      if (profilesError) {
-        console.error('Error fetching patient profiles:', profilesError);
-        throw profilesError;
-      }
-
-      console.log('Patient profiles:', patientProfiles);
-
-      // Get appointment statistics for each patient
-      const patientsWithStats = await Promise.all(
-        patientProfiles.map(async (patientProfile) => {
-          const { data: appointments } = await supabase
-            .from('appointments')
-            .select('appointment_date, created_at')
-            .eq('patient_id', patientProfile.id)
-            .eq('physician_id', user.id)
-            .order('appointment_date', { ascending: false });
-
-          const lastAppointment = appointments?.[0]?.appointment_date;
-          const totalAppointments = appointments?.length || 0;
-
-          return {
-            id: patientProfile.id,
-            first_name: patientProfile.first_name || 'Unknown',
-            last_name: patientProfile.last_name || '',
-            email: patientProfile.email,
-            phone: patientProfile.phone,
-            last_appointment: lastAppointment,
-            total_appointments: totalAppointments
-          };
-        })
-      );
-
-      console.log('Patients with stats:', patientsWithStats);
-      setPatients(patientsWithStats);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load patients.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const startConversation = async (patientId: string, patientName: string) => {
-    try {
-      const { data: existingConversation } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('patient_id', patientId)
-        .eq('physician_id', user?.id)
-        .eq('type', 'physician_consultation')
-        .single();
-
-      let conversationId;
-
-      if (existingConversation) {
-        conversationId = existingConversation.id;
-      } else {
-        const { data: newConversation, error } = await supabase
-          .from('conversations')
-          .insert({
-            patient_id: patientId,
-            physician_id: user?.id,
-            type: 'physician_consultation',
-            title: `Consultation with ${patientName}`,
-            status: 'active'
-          })
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        conversationId = newConversation.id;
-      }
+      const conversationId = await startConversation(patientId, patientName, user.id);
 
       if (onStartChat) {
         onStartChat(conversationId, patientName);
@@ -165,6 +44,14 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     }
   };
 
+  const handlePrescriptionAdded = () => {
+    setShowPrescriptionFor(null);
+    toast({
+      title: "Success",
+      description: "Prescription created successfully!",
+    });
+  };
+
   if (loading) {
     return (
       <Card>
@@ -179,41 +66,11 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     const patient = patients.find(p => p.id === showPrescriptionFor);
     if (patient) {
       return (
-        <div className="space-y-4">
-          <Button
-            onClick={() => setShowPrescriptionFor(null)}
-            variant="outline"
-          >
-            ← Back to Patients
-          </Button>
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Prescription for {patient.first_name} {patient.last_name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-semibold">Patient Information:</h4>
-                <p>Name: {patient.first_name} {patient.last_name}</p>
-                <p>Email: {patient.email}</p>
-                {patient.phone && <p>Phone: {patient.phone}</p>}
-                <p>Total Appointments: {patient.total_appointments}</p>
-                {patient.last_appointment && (
-                  <p>Last Appointment: {new Date(patient.last_appointment).toLocaleDateString()}</p>
-                )}
-              </div>
-              <PrescriptionInput
-                patientId={patient.id}
-                onPrescriptionAdded={() => {
-                  setShowPrescriptionFor(null);
-                  toast({
-                    title: "Success",
-                    description: "Prescription created successfully!",
-                  });
-                }}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <PrescriptionCreationForm
+          patient={patient}
+          onBack={() => setShowPrescriptionFor(null)}
+          onPrescriptionAdded={handlePrescriptionAdded}
+        />
       );
     }
   }
@@ -227,66 +84,11 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {patients.length === 0 ? (
-          <div className="text-center py-8">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No patients assigned yet</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Patients will be assigned when you accept their appointments
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {patients.map((patient) => (
-              <div key={patient.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-semibold">
-                      {patient.first_name} {patient.last_name}
-                    </h4>
-                    <p className="text-sm text-gray-600">{patient.email}</p>
-                    {patient.phone && (
-                      <p className="text-sm text-gray-500">Phone: {patient.phone}</p>
-                    )}
-                    <div className="flex items-center gap-4 mt-2">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-500">
-                          {patient.total_appointments} appointments
-                        </span>
-                      </div>
-                      {patient.last_appointment && (
-                        <div className="flex items-center gap-1">
-                          <FileText className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-500">
-                            Last: {new Date(patient.last_appointment).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 flex-col">
-                    <Button
-                      size="sm"
-                      onClick={() => startConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Chat
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowPrescriptionFor(patient.id)}
-                    >
-                      <Pill className="w-4 h-4 mr-2" />
-                      Prescribe
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <PatientListWithActions
+          patients={patients}
+          onStartChat={handleStartConversation}
+          onPrescribe={setShowPrescriptionFor}
+        />
       </CardContent>
     </Card>
   );
