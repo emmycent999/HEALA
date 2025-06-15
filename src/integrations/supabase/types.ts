@@ -201,6 +201,50 @@ export type Database = {
           },
         ]
       }
+      consultation_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_type: string
+          metadata: Json | null
+          sender_id: string
+          sender_type: string
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sender_id: string
+          sender_type: string
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sender_id?: string
+          sender_type?: string
+          session_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "consultation_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consultation_rooms: {
         Row: {
           created_at: string | null

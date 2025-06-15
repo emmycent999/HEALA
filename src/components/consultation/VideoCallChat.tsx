@@ -42,162 +42,111 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Load existing messages from conversations/messages tables temporarily
+  // Load existing messages from consultation_messages table
   useEffect(() => {
     const loadMessages = async () => {
       try {
-        // Try to find or create a conversation for this session
-        const { data: conversations, error: convError } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('title', `Video Session ${sessionId}`)
-          .limit(1);
+        console.log('📥 [VideoCallChat] Loading messages for session:', sessionId);
+        
+        const { data, error } = await supabase
+          .from('consultation_messages')
+          .select('*')
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true });
 
-        if (convError) {
-          console.error('❌ Error loading conversations:', convError);
+        if (error) {
+          console.error('❌ [VideoCallChat] Error loading messages:', error);
           return;
         }
-
-        let conversationId = conversations?.[0]?.id;
-
-        if (!conversationId) {
-          // Create a conversation for this session
-          const { data: session } = await supabase
-            .from('consultation_sessions')
-            .select('patient_id, physician_id')
-            .eq('id', sessionId)
-            .single();
-
-          if (session) {
-            const { data: newConv, error: createError } = await supabase
-              .from('conversations')
-              .insert({
-                title: `Video Session ${sessionId}`,
-                patient_id: session.patient_id,
-                physician_id: session.physician_id,
-                type: 'physician_consultation'
-              })
-              .select('id')
-              .single();
-
-            if (!createError && newConv) {
-              conversationId = newConv.id;
-            }
-          }
-        }
-
-        if (conversationId) {
-          const { data, error } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true });
-
-          if (error) throw error;
-          
-          // Map messages to ChatMessage format
-          const chatMessages: ChatMessage[] = (data || []).map(msg => ({
-            id: msg.id,
-            content: msg.content,
-            sender_id: msg.sender_id || '',
-            sender_type: msg.sender_type as 'patient' | 'physician',
-            created_at: msg.created_at || new Date().toISOString()
-          }));
-          
-          setMessages(chatMessages);
-        }
+        
+        console.log('✅ [VideoCallChat] Loaded messages:', data?.length || 0);
+        
+        // Map messages to ChatMessage format
+        const chatMessages: ChatMessage[] = (data || []).map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          sender_id: msg.sender_id,
+          sender_type: msg.sender_type as 'patient' | 'physician',
+          created_at: msg.created_at
+        }));
+        
+        setMessages(chatMessages);
       } catch (error) {
-        console.error('❌ Error loading chat messages:', error);
+        console.error('❌ [VideoCallChat] Error loading chat messages:', error);
       }
     };
 
-    loadMessages();
+    if (sessionId) {
+      loadMessages();
+    }
   }, [sessionId]);
 
   // Set up real-time message subscription
   useEffect(() => {
+    if (!sessionId) return;
+
+    console.log('📡 [VideoCallChat] Setting up real-time subscription for session:', sessionId);
+    
     const channel = supabase
-      .channel(`video_chat_${sessionId}`)
+      .channel(`consultation_messages_${sessionId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages'
+          table: 'consultation_messages',
+          filter: `session_id=eq.${sessionId}`
         },
         (payload) => {
+          console.log('📨 [VideoCallChat] New message received:', payload);
           const newMsg = payload.new;
-          if (newMsg.conversation_id) {
-            const chatMessage: ChatMessage = {
-              id: newMsg.id,
-              content: newMsg.content,
-              sender_id: newMsg.sender_id || '',
-              sender_type: newMsg.sender_type as 'patient' | 'physician',
-              created_at: newMsg.created_at || new Date().toISOString()
-            };
-            setMessages(prev => [...prev, chatMessage]);
-          }
+          
+          const chatMessage: ChatMessage = {
+            id: newMsg.id,
+            content: newMsg.content,
+            sender_id: newMsg.sender_id,
+            sender_type: newMsg.sender_type as 'patient' | 'physician',
+            created_at: newMsg.created_at
+          };
+          
+          setMessages(prev => [...prev, chatMessage]);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 [VideoCallChat] Subscription status:', status);
+      });
 
     return () => {
+      console.log('🧹 [VideoCallChat] Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [sessionId]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || isLoading) return;
+    if (!newMessage.trim() || isLoading || !sessionId) return;
 
     setIsLoading(true);
     try {
-      // Find or create conversation
-      const { data: conversations } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('title', `Video Session ${sessionId}`)
-        .limit(1);
+      console.log('📤 [VideoCallChat] Sending message:', newMessage.substring(0, 50) + '...');
+      
+      const { error } = await supabase
+        .from('consultation_messages')
+        .insert({
+          session_id: sessionId,
+          content: newMessage.trim(),
+          sender_id: currentUserId,
+          sender_type: profile?.role === 'physician' ? 'physician' : 'patient'
+        });
 
-      let conversationId = conversations?.[0]?.id;
-
-      if (!conversationId) {
-        const { data: session } = await supabase
-          .from('consultation_sessions')
-          .select('patient_id, physician_id')
-          .eq('id', sessionId)
-          .single();
-
-        if (session) {
-          const { data: newConv } = await supabase
-            .from('conversations')
-            .insert({
-              title: `Video Session ${sessionId}`,
-              patient_id: session.patient_id,
-              physician_id: session.physician_id,
-              type: 'physician_consultation'
-            })
-            .select('id')
-            .single();
-
-          conversationId = newConv?.id;
-        }
+      if (error) {
+        console.error('❌ [VideoCallChat] Error sending message:', error);
+        throw error;
       }
 
-      if (conversationId) {
-        const { error } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            content: newMessage.trim(),
-            sender_id: currentUserId,
-            sender_type: profile?.role === 'physician' ? 'physician' : 'patient'
-          });
-
-        if (error) throw error;
-        setNewMessage('');
-      }
+      console.log('✅ [VideoCallChat] Message sent successfully');
+      setNewMessage('');
     } catch (error) {
-      console.error('❌ Error sending message:', error);
+      console.error('❌ [VideoCallChat] Error sending message:', error);
       toast({
         title: "❌ Failed to send message",
         description: "Please try again",
