@@ -7,21 +7,39 @@ export const startConsultationSession = async (session: ConsultationSession): Pr
   
   try {
     // Use the new database function for secure session starting
-    const { data, error } = await supabase.rpc('start_consultation_session', {
-      session_uuid: session.id
-    });
+    // Note: We'll use a raw SQL call since the function isn't in the generated types yet
+    const { data, error } = await supabase
+      .from('consultation_sessions')
+      .select('*')
+      .eq('id', session.id)
+      .eq('physician_id', session.physician_id)
+      .single();
 
     if (error) {
-      console.error('❌ [SessionManagement] Database function error:', error);
+      console.error('❌ [SessionManagement] Error fetching session for verification:', error);
       throw error;
     }
 
-    if (!data?.success) {
-      console.error('❌ [SessionManagement] Function returned error:', data?.error);
-      throw new Error(data?.error || 'Failed to start session');
+    if (!data) {
+      throw new Error('Session not found or unauthorized');
     }
 
-    console.log('✅ [SessionManagement] Session started successfully via database function');
+    // Update the session status directly
+    const { error: updateError } = await supabase
+      .from('consultation_sessions')
+      .update({
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', session.id);
+
+    if (updateError) {
+      console.error('❌ [SessionManagement] Error updating session:', updateError);
+      throw updateError;
+    }
+
+    console.log('✅ [SessionManagement] Session started successfully');
 
     // Return updated session object
     const updatedSession = {
@@ -33,31 +51,7 @@ export const startConsultationSession = async (session: ConsultationSession): Pr
     return updatedSession;
   } catch (error) {
     console.error('💥 [SessionManagement] Fatal error starting session:', error);
-    
-    // Fallback to direct update if function fails
-    console.log('🔄 [SessionManagement] Attempting fallback direct update');
-    
-    const { error: updateError } = await supabase
-      .from('consultation_sessions')
-      .update({
-        status: 'in_progress',
-        started_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', session.id);
-
-    if (updateError) {
-      console.error('❌ [SessionManagement] Fallback update failed:', updateError);
-      throw updateError;
-    }
-
-    console.log('✅ [SessionManagement] Fallback update successful');
-    
-    return {
-      ...session,
-      status: 'in_progress' as const,
-      started_at: new Date().toISOString()
-    };
+    throw error;
   }
 };
 
