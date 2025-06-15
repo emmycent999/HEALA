@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, MessageCircle, Calendar, FileText } from 'lucide-react';
+import { Users, MessageCircle, Calendar, FileText, Pill } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { PrescriptionInput } from './PrescriptionInput';
 
 interface Patient {
   id: string;
@@ -27,6 +28,7 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
   const { toast } = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPrescriptionFor, setShowPrescriptionFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -38,49 +40,51 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     if (!user) return;
 
     try {
-      // Get patients assigned to this physician through physician_patients table
+      console.log('Fetching patients for physician:', user.id);
+      
+      // Get patients assigned to this physician with proper profile data
       const { data: assignedPatients, error: assignmentError } = await supabase
         .from('physician_patients')
-        .select('patient_id')
+        .select(`
+          patient_id,
+          assigned_at,
+          patient:profiles!physician_patients_patient_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        `)
         .eq('physician_id', user.id)
         .eq('status', 'active');
 
       if (assignmentError) {
         console.error('Error fetching patient assignments:', assignmentError);
-        setPatients([]);
-        setLoading(false);
-        return;
+        throw assignmentError;
       }
+
+      console.log('Assigned patients data:', assignedPatients);
 
       if (!assignedPatients || assignedPatients.length === 0) {
         setPatients([]);
-        setLoading(false);
-        return;
-      }
-
-      const patientIds = assignedPatients.map(p => p.patient_id);
-
-      // Fetch patient profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email, phone')
-        .in('id', patientIds)
-        .eq('role', 'patient');
-
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        setPatients([]);
-        setLoading(false);
         return;
       }
 
       // Get appointment statistics for each patient
       const patientsWithStats = await Promise.all(
-        (profiles || []).map(async (profile) => {
+        assignedPatients.map(async (assignment) => {
+          const patientProfile = assignment.patient;
+          
+          if (!patientProfile) {
+            console.warn('Patient profile not found for assignment:', assignment);
+            return null;
+          }
+
           const { data: appointments } = await supabase
             .from('appointments')
             .select('appointment_date, created_at')
-            .eq('patient_id', profile.id)
+            .eq('patient_id', patientProfile.id)
             .eq('physician_id', user.id)
             .order('appointment_date', { ascending: false });
 
@@ -88,18 +92,22 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
           const totalAppointments = appointments?.length || 0;
 
           return {
-            id: profile.id,
-            first_name: profile.first_name || 'Unknown',
-            last_name: profile.last_name || '',
-            email: profile.email,
-            phone: profile.phone,
+            id: patientProfile.id,
+            first_name: patientProfile.first_name || 'Unknown',
+            last_name: patientProfile.last_name || '',
+            email: patientProfile.email,
+            phone: patientProfile.phone,
             last_appointment: lastAppointment,
             total_appointments: totalAppointments
           };
         })
       );
 
-      setPatients(patientsWithStats);
+      // Filter out null entries
+      const validPatients = patientsWithStats.filter(patient => patient !== null) as Patient[];
+      
+      console.log('Patients with stats:', validPatients);
+      setPatients(validPatients);
     } catch (error) {
       console.error('Error fetching patients:', error);
       toast({
@@ -173,6 +181,49 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
     );
   }
 
+  if (showPrescriptionFor) {
+    const patient = patients.find(p => p.id === showPrescriptionFor);
+    if (patient) {
+      return (
+        <div className="space-y-4">
+          <Button
+            onClick={() => setShowPrescriptionFor(null)}
+            variant="outline"
+          >
+            ← Back to Patients
+          </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Prescription for {patient.first_name} {patient.last_name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold">Patient Information:</h4>
+                <p>Name: {patient.first_name} {patient.last_name}</p>
+                <p>Email: {patient.email}</p>
+                {patient.phone && <p>Phone: {patient.phone}</p>}
+                <p>Total Appointments: {patient.total_appointments}</p>
+                {patient.last_appointment && (
+                  <p>Last Appointment: {new Date(patient.last_appointment).toLocaleDateString()}</p>
+                )}
+              </div>
+              <PrescriptionInput
+                patientId={patient.id}
+                onPrescriptionAdded={() => {
+                  setShowPrescriptionFor(null);
+                  toast({
+                    title: "Success",
+                    description: "Prescription created successfully!",
+                  });
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -187,7 +238,7 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No patients assigned yet</p>
             <p className="text-sm text-gray-500 mt-2">
-              Patients can request assignment to you from their dashboard
+              Patients will be assigned when you accept their appointments
             </p>
           </div>
         ) : (
@@ -220,13 +271,21 @@ export const PatientManagement: React.FC<PatientManagementProps> = ({ onStartCha
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-col">
                     <Button
                       size="sm"
                       onClick={() => startConversation(patient.id, `${patient.first_name} ${patient.last_name}`)}
                     >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Chat
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPrescriptionFor(patient.id)}
+                    >
+                      <Pill className="w-4 h-4 mr-2" />
+                      Prescribe
                     </Button>
                   </div>
                 </div>

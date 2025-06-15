@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, User, Check, X, Video } from 'lucide-react';
+import { Calendar, Clock, User, Check, X, Video, Pill } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { PrescriptionInput } from './PrescriptionInput';
 
 interface PendingAppointment {
   id: string;
@@ -19,6 +20,7 @@ interface PendingAppointment {
     first_name: string;
     last_name: string;
     email: string;
+    phone?: string;
   };
 }
 
@@ -27,6 +29,7 @@ export const AppointmentApproval: React.FC = () => {
   const { toast } = useToast();
   const [pendingAppointments, setPendingAppointments] = useState<PendingAppointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPrescriptionFor, setShowPrescriptionFor] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -38,36 +41,54 @@ export const AppointmentApproval: React.FC = () => {
     if (!user) return;
 
     try {
+      console.log('Fetching appointments for physician:', user.id);
+      
+      // Get appointments with proper patient information
       const { data: appointments, error } = await supabase
         .from('appointments')
-        .select('*')
+        .select(`
+          id,
+          patient_id,
+          appointment_date,
+          appointment_time,
+          consultation_type,
+          notes,
+          status,
+          patient:profiles!appointments_patient_id_fkey(
+            first_name,
+            last_name,
+            email,
+            phone
+          )
+        `)
         .eq('physician_id', user.id)
         .eq('status', 'pending')
         .order('appointment_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        throw error;
+      }
 
-      // Fetch patient details for each appointment
-      const appointmentsWithPatients = await Promise.all(
-        (appointments || []).map(async (appointment) => {
-          const { data: patientData } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, email')
-            .eq('id', appointment.patient_id)
-            .single();
+      console.log('Fetched appointments with patient data:', appointments);
 
-          return {
-            id: appointment.id,
-            patient_id: appointment.patient_id,
-            appointment_date: appointment.appointment_date,
-            appointment_time: appointment.appointment_time,
-            consultation_type: appointment.consultation_type,
-            notes: appointment.notes,
-            patient: patientData || { first_name: 'Unknown', last_name: 'Patient', email: '' }
-          };
-        })
-      );
+      // Transform the data to match our interface
+      const appointmentsWithPatients = (appointments || []).map(appointment => ({
+        id: appointment.id,
+        patient_id: appointment.patient_id,
+        appointment_date: appointment.appointment_date,
+        appointment_time: appointment.appointment_time,
+        consultation_type: appointment.consultation_type,
+        notes: appointment.notes,
+        patient: {
+          first_name: appointment.patient?.first_name || 'Unknown',
+          last_name: appointment.patient?.last_name || 'Patient',
+          email: appointment.patient?.email || '',
+          phone: appointment.patient?.phone || ''
+        }
+      }));
 
+      console.log('Processed appointments:', appointmentsWithPatients);
       setPendingAppointments(appointmentsWithPatients);
     } catch (error) {
       console.error('Error fetching pending appointments:', error);
@@ -141,43 +162,59 @@ export const AppointmentApproval: React.FC = () => {
 
       if (error) throw error;
 
-      // If appointment is accepted and it's virtual, create a video consultation session
-      if (action === 'accepted' && appointment.consultation_type === 'virtual') {
-        try {
-          await createConsultationSession(appointment);
-          
-          toast({
-            title: "Virtual Consultation Scheduled",
-            description: `Video consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
-          });
-        } catch (sessionError) {
-          console.error('Error creating consultation session:', sessionError);
-          toast({
-            title: "Warning",
-            description: "Appointment accepted but failed to create consultation session. Please try again from the Virtual Consultation tab.",
-            variant: "destructive"
-          });
-        }
-
-        // Also create a chat conversation for virtual consultations
-        const { error: conversationError } = await supabase
-          .from('conversations')
-          .insert({
-            patient_id: appointment.patient_id,
+      if (action === 'accepted') {
+        // Create physician-patient relationship if it doesn't exist
+        const { error: relationshipError } = await supabase
+          .from('physician_patients')
+          .upsert({
             physician_id: user?.id,
-            type: 'physician_consultation',
-            title: `Virtual Consultation - ${appointment.patient.first_name} ${appointment.patient.last_name}`,
+            patient_id: appointment.patient_id,
             status: 'active'
+          }, {
+            onConflict: 'physician_id,patient_id'
           });
 
-        if (conversationError) {
-          console.error('Error creating conversation:', conversationError);
+        if (relationshipError) {
+          console.error('Error creating physician-patient relationship:', relationshipError);
         }
-      } else if (action === 'accepted') {
-        toast({
-          title: "Appointment Accepted",
-          description: `In-person appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been accepted.`,
-        });
+
+        if (appointment.consultation_type === 'virtual') {
+          try {
+            await createConsultationSession(appointment);
+            
+            toast({
+              title: "Virtual Consultation Scheduled",
+              description: `Video consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
+            });
+          } catch (sessionError) {
+            console.error('Error creating consultation session:', sessionError);
+            toast({
+              title: "Warning",
+              description: "Appointment accepted but failed to create consultation session. Please try again from the Virtual Consultation tab.",
+              variant: "destructive"
+            });
+          }
+
+          // Create conversation for virtual consultations
+          const { error: conversationError } = await supabase
+            .from('conversations')
+            .insert({
+              patient_id: appointment.patient_id,
+              physician_id: user?.id,
+              type: 'physician_consultation',
+              title: `Virtual Consultation - ${appointment.patient.first_name} ${appointment.patient.last_name}`,
+              status: 'active'
+            });
+
+          if (conversationError) {
+            console.error('Error creating conversation:', conversationError);
+          }
+        } else {
+          toast({
+            title: "Appointment Accepted",
+            description: `In-person appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been accepted.`,
+          });
+        }
       } else {
         toast({
           title: "Appointment Rejected",
@@ -218,6 +255,47 @@ export const AppointmentApproval: React.FC = () => {
     );
   }
 
+  if (showPrescriptionFor) {
+    const appointment = pendingAppointments.find(apt => apt.id === showPrescriptionFor);
+    if (appointment) {
+      return (
+        <div className="space-y-4">
+          <Button
+            onClick={() => setShowPrescriptionFor(null)}
+            variant="outline"
+          >
+            ← Back to Appointments
+          </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Create Prescription for {appointment.patient.first_name} {appointment.patient.last_name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-semibold">Patient Information:</h4>
+                <p>Name: {appointment.patient.first_name} {appointment.patient.last_name}</p>
+                <p>Email: {appointment.patient.email}</p>
+                {appointment.patient.phone && <p>Phone: {appointment.patient.phone}</p>}
+                <p>Appointment: {new Date(appointment.appointment_date).toLocaleDateString()} at {appointment.appointment_time}</p>
+              </div>
+              <PrescriptionInput
+                patientId={appointment.patient_id}
+                appointmentId={appointment.id}
+                onPrescriptionAdded={() => {
+                  setShowPrescriptionFor(null);
+                  toast({
+                    title: "Success",
+                    description: "Prescription created successfully!",
+                  });
+                }}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -254,6 +332,7 @@ export const AppointmentApproval: React.FC = () => {
                         {appointment.appointment_time}
                       </div>
                       <div>{appointment.patient.email}</div>
+                      {appointment.patient.phone && <div>Phone: {appointment.patient.phone}</div>}
                     </div>
 
                     {appointment.notes && (
@@ -263,23 +342,34 @@ export const AppointmentApproval: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleAppointmentAction(appointment.id, 'accepted', appointment)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Check className="w-4 h-4 mr-1" />
-                      Accept
-                    </Button>
+                  <div className="flex gap-2 flex-col">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleAppointmentAction(appointment.id, 'accepted', appointment)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAppointmentAction(appointment.id, 'rejected', appointment)}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleAppointmentAction(appointment.id, 'rejected', appointment)}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => setShowPrescriptionFor(appointment.id)}
+                      className="w-full"
                     >
-                      <X className="w-4 h-4 mr-1" />
-                      Reject
+                      <Pill className="w-4 h-4 mr-1" />
+                      Prescribe
                     </Button>
                   </div>
                 </div>

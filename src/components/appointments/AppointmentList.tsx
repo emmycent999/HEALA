@@ -14,6 +14,7 @@ interface Appointment {
   appointment_time: string;
   status: string;
   notes?: string;
+  consultation_type: string;
   physician?: {
     first_name: string;
     last_name: string;
@@ -45,8 +46,16 @@ export const AppointmentList: React.FC = () => {
     try {
       console.log('Fetching appointments for user:', user.id, 'with role:', profile?.role);
       
-      // Get appointments based on user role
-      let query = supabase.from('appointments').select('*');
+      let query = supabase.from('appointments').select(`
+        id,
+        patient_id,
+        physician_id,
+        appointment_date,
+        appointment_time,
+        consultation_type,
+        status,
+        notes
+      `);
       
       if (profile?.role === 'physician') {
         query = query.eq('physician_id', user.id);
@@ -70,12 +79,9 @@ export const AppointmentList: React.FC = () => {
         return;
       }
 
-      // Get unique physician and patient IDs
+      // Get physician and patient profiles
       const physicianIds = [...new Set(appointmentsData.map(a => a.physician_id).filter(Boolean))];
       const patientIds = [...new Set(appointmentsData.map(a => a.patient_id).filter(Boolean))];
-
-      console.log('Physician IDs:', physicianIds);
-      console.log('Patient IDs:', patientIds);
 
       // Fetch physician profiles
       let physicians = [];
@@ -119,7 +125,7 @@ export const AppointmentList: React.FC = () => {
           ...appointment,
           physician: physician ? {
             first_name: physician.first_name || 'Unknown',
-            last_name: physician.last_name || 'Physician',
+            last_name: physician.last_name || 'Doctor',
             specialization: physician.specialization || undefined
           } : undefined,
           patient: patient ? {
@@ -204,7 +210,7 @@ export const AppointmentList: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
           <Calendar className="w-5 h-5" />
-          My Appointments
+          My Appointments ({appointments.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -227,20 +233,26 @@ export const AppointmentList: React.FC = () => {
                         </span>
                         <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
                         <span className="text-gray-600 dark:text-gray-300">{appointment.appointment_time}</span>
+                        <Badge variant="outline" className="ml-2">
+                          {appointment.consultation_type}
+                        </Badge>
                       </div>
-                      {appointment.physician && (
+                      
+                      {appointment.physician && profile?.role === 'patient' && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
                           <User className="w-3 h-3" />
                           Dr. {appointment.physician.first_name} {appointment.physician.last_name}
                           {appointment.physician.specialization && ` - ${appointment.physician.specialization}`}
                         </p>
                       )}
-                      {appointment.patient && (
+                      
+                      {appointment.patient && profile?.role === 'physician' && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
                           <User className="w-3 h-3" />
                           {appointment.patient.first_name} {appointment.patient.last_name}
                         </p>
                       )}
+                      
                       {appointment.notes && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                           <strong>Notes:</strong> {appointment.notes}
