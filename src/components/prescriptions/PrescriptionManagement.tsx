@@ -8,13 +8,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
+type PrescriptionStatus = 'pending' | 'approved' | 'dispensed' | 'completed' | 'cancelled';
+
+interface PhysicianInfo {
+  first_name: string;
+  last_name: string;
+  specialization?: string;
+}
+
+interface PharmacyInfo {
+  name: string;
+  address: string;
+  phone: string;
+}
+
 interface Prescription {
   id: string;
   patient_id: string;
   physician_id: string;
   appointment_id?: string;
   prescription_data: any;
-  status: 'pending' | 'approved' | 'dispensed' | 'completed' | 'cancelled';
+  status: PrescriptionStatus;
   pharmacy_id?: string;
   dispensed_at?: string;
   repeat_allowed: boolean;
@@ -22,16 +36,8 @@ interface Prescription {
   max_repeats: number;
   created_at: string;
   updated_at: string;
-  physician?: {
-    first_name: string;
-    last_name: string;
-    specialization?: string;
-  };
-  pharmacy?: {
-    name: string;
-    address: string;
-    phone: string;
-  };
+  physician?: PhysicianInfo;
+  pharmacy?: PharmacyInfo;
 }
 
 export const PrescriptionManagement: React.FC = () => {
@@ -85,13 +91,14 @@ export const PrescriptionManagement: React.FC = () => {
         .select('id, name, address, phone')
         .in('id', pharmacyIds) : { data: [] };
 
-      // Combine data
-      const enrichedPrescriptions = prescriptionsData.map(prescription => {
+      // Combine data and ensure proper typing
+      const enrichedPrescriptions: Prescription[] = prescriptionsData.map(prescription => {
         const physician = physicians?.find(p => p.id === prescription.physician_id);
         const pharmacy = pharmacies?.find(p => p.id === prescription.pharmacy_id);
 
         return {
           ...prescription,
+          status: prescription.status as PrescriptionStatus, // Type assertion for status
           physician: physician ? {
             first_name: physician.first_name || 'Unknown',
             last_name: physician.last_name || 'Doctor',
@@ -159,7 +166,7 @@ export const PrescriptionManagement: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: PrescriptionStatus) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'approved': return 'bg-blue-100 text-blue-800';
