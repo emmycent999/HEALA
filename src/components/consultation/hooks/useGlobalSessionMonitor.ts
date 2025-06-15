@@ -46,17 +46,17 @@ export const useGlobalSessionMonitor = ({
       .on(
         'postgres_changes',
         {
-          event: '*', 
+          event: 'UPDATE', 
           schema: 'public',
           table: 'consultation_sessions',
           filter: `patient_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('🚨 [GlobalSessionMonitor] DATABASE CHANGE DETECTED:', {
+          console.log('🚨 [GlobalSessionMonitor] DATABASE UPDATE DETECTED:', {
             event: payload.eventType,
-            oldStatus: payload.old && typeof payload.old === 'object' && 'status' in payload.old ? payload.old.status : 'unknown',
-            newStatus: payload.new && typeof payload.new === 'object' && 'status' in payload.new ? payload.new.status : 'unknown',
-            sessionId: payload.new && typeof payload.new === 'object' && 'id' in payload.new ? payload.new.id : 'unknown',
+            oldStatus: payload.old?.status,
+            newStatus: payload.new?.status,
+            sessionId: payload.new?.id,
             timestamp: new Date().toISOString()
           });
           handleSessionUpdate(payload);
@@ -118,14 +118,14 @@ export const useGlobalSessionMonitor = ({
     
     console.log('🔄 [GlobalSessionMonitor] Processing session update:', {
       event: payload.eventType,
-      sessionId: newSession && typeof newSession === 'object' && 'id' in newSession ? newSession.id : 'unknown',
-      oldStatus: oldSession && typeof oldSession === 'object' && 'status' in oldSession ? oldSession.status : 'unknown',
-      newStatus: newSession && typeof newSession === 'object' && 'status' in newSession ? newSession.status : 'unknown',
-      patientId: newSession && typeof newSession === 'object' && 'patient_id' in newSession ? newSession.patient_id : 'unknown'
+      sessionId: newSession?.id,
+      oldStatus: oldSession?.status,
+      newStatus: newSession?.status,
+      patientId: newSession?.patient_id
     });
     
     // Update active sessions list
-    if (payload.eventType === 'UPDATE' && newSession && typeof newSession === 'object' && 'id' in newSession) {
+    if (payload.eventType === 'UPDATE' && newSession?.id) {
       setActiveSessions(prev => {
         const updated = prev.map(s => s.id === newSession.id ? newSession : s);
         console.log('📊 [GlobalSessionMonitor] Updated sessions list:', updated.length);
@@ -134,19 +134,17 @@ export const useGlobalSessionMonitor = ({
       setLastUpdate(new Date());
     }
     
-    // Check for status change to in_progress with proper type checking
+    // Check for status change to in_progress
     if (payload.eventType === 'UPDATE' && 
-        oldSession && typeof oldSession === 'object' && 'status' in oldSession &&
-        newSession && typeof newSession === 'object' && 'status' in newSession &&
-        oldSession.status === 'scheduled' && 
-        newSession.status === 'in_progress') {
+        oldSession?.status === 'scheduled' && 
+        newSession?.status === 'in_progress') {
       
-      console.log('🚨 [GlobalSessionMonitor] CONSULTATION STARTED! Session:', 'id' in newSession ? newSession.id : 'unknown');
+      console.log('🚨 [GlobalSessionMonitor] CONSULTATION STARTED! Session:', newSession.id);
       showNotificationAndRedirect(newSession);
       
       // Trigger callback
-      if (onSessionStarted && 'id' in newSession) {
-        onSessionStarted(newSession.id as string);
+      if (onSessionStarted && newSession.id) {
+        onSessionStarted(newSession.id);
       }
     }
   };

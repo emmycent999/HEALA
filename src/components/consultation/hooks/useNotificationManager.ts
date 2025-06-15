@@ -41,7 +41,7 @@ export const useNotificationManager = ({
 
     // Set up database change listener - PRIMARY notification method
     const dbChannel = supabase
-      .channel(`consultation_db_${sessionId}`)
+      .channel(`consultation_db_${sessionId}_${userId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -61,7 +61,7 @@ export const useNotificationManager = ({
 
     // Set up broadcast listener - BACKUP notification method
     const broadcastChannel = supabase
-      .channel(`consultation_broadcast_${sessionId}`)
+      .channel(`consultation_broadcast_${sessionId}_${userId}`)
       .on('broadcast', { event: 'consultation-started' }, (payload) => {
         console.log('📢 [NotificationManager] Consultation-started broadcast received:', payload);
         handleConsultationStartedBroadcast(payload);
@@ -101,7 +101,7 @@ export const useNotificationManager = ({
       if (isPatient) {
         toast({
           title: "🚨 Doctor Started Consultation!",
-          description: "Automatically joining the video call...",
+          description: "You can now join the video call",
           duration: 8000,
         });
         
@@ -129,7 +129,7 @@ export const useNotificationManager = ({
       
       toast({
         title: "🚨 Doctor Started Consultation!",
-        description: "Connecting you to the video call now...",
+        description: "You can now join the video call",
         duration: 8000,
       });
       
@@ -174,7 +174,7 @@ export const sendConsultationStarted = async (sessionId: string, userId: string)
   try {
     console.log('📤 [NotificationManager] Sending consultation started notification for session:', sessionId);
     
-    const channel = supabase.channel(`consultation_broadcast_${sessionId}`);
+    const channel = supabase.channel(`consultation_broadcast_${sessionId}_${userId}`);
     
     await channel.send({
       type: 'broadcast',
@@ -197,7 +197,7 @@ export const sendPatientJoined = async (sessionId: string, patientId: string) =>
   try {
     console.log('📤 [NotificationManager] Sending patient joined notification for session:', sessionId);
     
-    const channel = supabase.channel(`consultation_broadcast_${sessionId}`);
+    const channel = supabase.channel(`consultation_broadcast_${sessionId}_${patientId}`);
     
     await channel.send({
       type: 'broadcast',
