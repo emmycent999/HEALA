@@ -9,6 +9,7 @@ import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
 import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
 import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
 import { OfflineManager } from '@/components/offline/OfflineManager';
+import { ContactAgent } from '@/components/patient/ContactAgent';
 
 import { AppointmentsTab } from './AppointmentsTab';
 import { WalletTab } from './WalletTab';
@@ -56,6 +57,15 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
             Emergency Contacts
           </h2>
           <EmergencyContacts />
+        </div>
+      );
+    case 'contact-agent':
+      return (
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            Contact Agent
+          </h2>
+          <ContactAgent />
         </div>
       );
     case 'accessibility':

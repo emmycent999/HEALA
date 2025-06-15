@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video } from 'lucide-react';
+import { Calendar, MessageCircle, Bot, Users, Phone, FileText, Settings, Pill, Heart, Search, Shield, Wifi, Map, Home, Wallet, Video, Headphones } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -26,6 +25,7 @@ const patientMenuItems = [
   { title: 'Health Records', url: '/patient?tab=health-records', icon: FileText },
   { title: 'Symptom Checker', url: '/patient?tab=symptom-checker', icon: Search },
   { title: 'Emergency Contacts', url: '/patient?tab=emergency-contacts', icon: Phone },
+  { title: 'Contact Agent', url: '/patient?tab=contact-agent', icon: Headphones },
   { title: 'Physician', url: '/patient?tab=physician', icon: Users },
   { title: 'Emergency', url: '/patient?tab=emergency', icon: Heart },
   { title: 'Transport', url: '/patient?tab=transport', icon: Map },

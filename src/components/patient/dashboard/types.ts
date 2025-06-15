@@ -16,7 +16,8 @@ export type PatientDashboardTab =
   | 'profile'
   | 'transport'
   | 'subscription'
-  | 'ambulance';
+  | 'ambulance'
+  | 'contact-agent';
 
 export interface PatientDashboardProps {
   activeTab: PatientDashboardTab;
