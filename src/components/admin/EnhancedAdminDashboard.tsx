@@ -1,13 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, FileCheck, Activity, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Shield, Users, FileCheck, Activity, CheckCircle, XCircle, AlertTriangle, Settings, Siren } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { SystemSettings } from './SystemSettings';
+import { AdminAuditLog } from './AdminAuditLog';
+import { EmergencyManagement } from './EmergencyManagement';
+import { RealTimeMonitoring } from './RealTimeMonitoring';
 
 interface VerificationRequest {
   id: string;
@@ -44,7 +47,9 @@ export const EnhancedAdminDashboard: React.FC = () => {
     total_users: 0,
     pending_verifications: 0,
     active_hospitals: 0,
-    active_physicians: 0
+    active_physicians: 0,
+    emergency_alerts: 0,
+    system_health: 95
   });
 
   useEffect(() => {
@@ -55,12 +60,12 @@ export const EnhancedAdminDashboard: React.FC = () => {
 
   const fetchAdminData = async () => {
     try {
-      // Fetch verification requests
+      // Fetch verification requests with proper joins
       const { data: verificationData, error: verificationError } = await supabase
         .from('verification_requests')
         .select(`
           *,
-          profiles!verification_requests_user_id_fkey (
+          profiles (
             email,
             first_name,
             last_name
@@ -69,7 +74,10 @@ export const EnhancedAdminDashboard: React.FC = () => {
         .order('priority', { ascending: false })
         .order('submitted_at', { ascending: false });
 
-      if (verificationError) throw verificationError;
+      if (verificationError) {
+        console.error('Verification error:', verificationError);
+        throw verificationError;
+      }
 
       const formattedVerificationRequests = verificationData?.map((req: any) => ({
         ...req,
@@ -97,12 +105,20 @@ export const EnhancedAdminDashboard: React.FC = () => {
 
       setSystemUsers(formattedUsers);
 
+      // Fetch emergency alerts count
+      const { count: emergencyCount } = await supabase
+        .from('emergency_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
       // Calculate stats
       setStats({
         total_users: usersData?.length || 0,
         pending_verifications: formattedVerificationRequests.filter(req => req.status === 'pending').length,
         active_hospitals: usersData?.filter(user => user.role === 'hospital_admin' && user.is_active).length || 0,
-        active_physicians: usersData?.filter(user => user.role === 'physician' && user.is_active).length || 0
+        active_physicians: usersData?.filter(user => user.role === 'physician' && user.is_active).length || 0,
+        emergency_alerts: emergencyCount || 0,
+        system_health: 95 // Mock system health percentage
       });
 
     } catch (error) {
@@ -138,12 +154,20 @@ export const EnhancedAdminDashboard: React.FC = () => {
           : req
       ));
 
+      // Log admin action
+      await supabase.rpc('log_admin_action', {
+        action_type: 'user_verification',
+        target_resource_type: 'verification_request',
+        target_resource_id: requestId,
+        action_details: { action, notes }
+      });
+
       toast({
         title: "Action Completed",
         description: `Verification request has been ${action}d.`,
       });
 
-      // If approving a hospital or physician, activate their account
+      // If approving, activate their account
       if (action === 'approve') {
         const request = verificationRequests.find(req => req.id === requestId);
         if (request && (request.verification_type === 'hospital' || request.verification_type === 'physician')) {
@@ -179,6 +203,13 @@ export const EnhancedAdminDashboard: React.FC = () => {
           : user
       ));
 
+      // Log admin action
+      await supabase.rpc('log_admin_action', {
+        action_type: currentStatus ? 'user_suspension' : 'user_activation',
+        target_user_id: userId,
+        action_details: { previous_status: currentStatus, new_status: !currentStatus }
+      });
+
       toast({
         title: "Status Updated",
         description: `User has been ${!currentStatus ? 'activated' : 'deactivated'}.`,
@@ -211,8 +242,8 @@ export const EnhancedAdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Enhanced Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -248,16 +279,37 @@ export const EnhancedAdminDashboard: React.FC = () => {
             <div className="text-2xl font-bold text-blue-600">{stats.active_physicians}</div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Emergency Alerts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">{stats.emergency_alerts}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">System Health</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.system_health}%</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Main Dashboard */}
+      {/* Enhanced Dashboard */}
       <Tabs defaultValue="verifications" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="verifications">
-            Verification Requests ({stats.pending_verifications})
+            Verifications ({stats.pending_verifications})
           </TabsTrigger>
           <TabsTrigger value="users">System Users</TabsTrigger>
-          <TabsTrigger value="analytics">System Analytics</TabsTrigger>
+          <TabsTrigger value="monitoring">Real-time</TabsTrigger>
+          <TabsTrigger value="emergency">Emergency</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
 
         <TabsContent value="verifications">
@@ -373,61 +425,20 @@ export const EnhancedAdminDashboard: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {['patient', 'physician', 'hospital_admin', 'agent'].map((role) => {
-                    const count = systemUsers.filter(user => user.role === role).length;
-                    const percentage = systemUsers.length > 0 ? (count / systemUsers.length) * 100 : 0;
-                    
-                    return (
-                      <div key={role} className="flex items-center justify-between">
-                        <span className="capitalize">{role.replace('_', ' ')}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium">{count}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="monitoring">
+          <RealTimeMonitoring />
+        </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>System Health</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span>Active Users</span>
-                    <span className="font-medium text-green-600">
-                      {systemUsers.filter(user => user.is_active).length} / {systemUsers.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Pending Verifications</span>
-                    <span className="font-medium text-orange-600">{stats.pending_verifications}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>System Status</span>
-                    <Badge variant="default" className="bg-green-600">Operational</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="emergency">
+          <EmergencyManagement />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <SystemSettings />
+        </TabsContent>
+
+        <TabsContent value="audit">
+          <AdminAuditLog />
         </TabsContent>
       </Tabs>
     </div>
