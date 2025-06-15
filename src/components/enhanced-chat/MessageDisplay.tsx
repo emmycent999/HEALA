@@ -21,7 +21,7 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
       {messages.map((message) => (
         <div
           key={message.id}
@@ -30,13 +30,13 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({
           }`}
         >
           <div
-            className={`max-w-[70%] p-3 rounded-lg ${
+            className={`max-w-[75%] p-3 rounded-lg break-words ${
               message.sender_id === currentUserId
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-900'
             }`}
           >
-            <p>{message.content}</p>
+            <p className="whitespace-pre-wrap">{message.content}</p>
             <div className="flex items-center justify-between mt-1">
               <span className="text-xs opacity-70">
                 {formatTime(message.created_at)}
@@ -53,7 +53,7 @@ export const MessageDisplay: React.FC<MessageDisplayProps> = ({
 
       {typingUsers.length > 0 && (
         <div className="flex justify-start">
-          <div className="bg-gray-100 text-gray-900 p-3 rounded-lg">
+          <div className="bg-gray-100 text-gray-900 p-3 rounded-lg max-w-[75%]">
             <div className="flex items-center gap-1">
               <span className="text-sm">Typing</span>
               <div className="flex gap-1">

@@ -34,9 +34,21 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
+      <Card className="h-[600px]">
+        <CardContent className="p-6 flex items-center justify-center h-full">
           <div className="text-center">Loading chat...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!conversationId) {
+    return (
+      <Card className="h-[600px]">
+        <CardContent className="p-6 flex items-center justify-center h-full">
+          <div className="text-center text-gray-500">
+            Select a conversation to start chatting
+          </div>
         </CardContent>
       </Card>
     );
@@ -44,9 +56,9 @@ export const EnhancedPatientPhysicianChat: React.FC<EnhancedChatProps> = ({
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <ChatHeaderSection onBack={onBack} />
+      <ChatHeaderSection onBack={onBack} conversationId={conversationId} />
 
-      <CardContent className="flex-1 flex flex-col p-0">
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
         <MessageDisplay 
           messages={messages}
           currentUserId={user?.id}
