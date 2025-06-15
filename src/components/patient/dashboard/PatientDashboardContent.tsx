@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { TransportManagement } from '@/components/patient/TransportManagement';
@@ -10,6 +9,7 @@ import { EmergencyContacts } from '@/components/emergency/EmergencyContacts';
 import { AccessibilitySettings } from '@/components/accessibility/AccessibilitySettings';
 import { OfflineManager } from '@/components/offline/OfflineManager';
 import { ContactAgent } from '@/components/patient/ContactAgent';
+import { PatientAgentChat } from '@/components/patient/PatientAgentChat';
 
 import { AppointmentsTab } from './AppointmentsTab';
 import { WalletTab } from './WalletTab';
@@ -64,9 +64,9 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
       return (
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Contact Agent
+            Chat with Agent
           </h2>
-          <ContactAgent />
+          <PatientAgentChat />
         </div>
       );
     case 'accessibility':

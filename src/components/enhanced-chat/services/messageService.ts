@@ -26,15 +26,32 @@ export const fetchMessages = async (conversationId: string): Promise<Message[]> 
 export const sendMessage = async (
   conversationId: string,
   content: string,
-  userId?: string
+  userId?: string,
+  senderType?: 'patient' | 'physician' | 'agent'
 ): Promise<void> => {
+  // Determine sender type based on user role if not provided
+  let finalSenderType = senderType;
+  
+  if (!finalSenderType && userId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+      
+    if (profile) {
+      finalSenderType = profile.role === 'agent' ? 'agent' : 
+                      profile.role === 'physician' ? 'physician' : 'patient';
+    }
+  }
+
   const { error } = await supabase
     .from('messages')
     .insert({
       conversation_id: conversationId,
       content: content,
       sender_id: userId,
-      sender_type: 'patient'
+      sender_type: finalSenderType || 'patient'
     });
 
   if (error) throw error;
