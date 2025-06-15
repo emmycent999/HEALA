@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConsultationSession } from './types';
@@ -185,14 +186,53 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
   };
 
-  const handleJoinCall = () => {
-    console.log('👤 [VideoInterface] User joining video call');
-    startCall();
-    
-    toast({
-      title: "📞 Joining Video Call",
-      description: "Connecting to the video consultation...",
-    });
+  const handleJoinCall = async () => {
+    try {
+      console.log('👤 [VideoInterface] User joining video call');
+      
+      // For patients, ensure session is marked as in_progress when they join
+      if (isPatient && currentSession.status === 'scheduled') {
+        console.log('👤 [VideoInterface] Patient joining - updating session to in_progress');
+        
+        const updateData = {
+          status: 'in_progress' as const,
+          session_type: 'video' as const,
+          started_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
+          .from('consultation_sessions')
+          .update(updateData)
+          .eq('id', currentSession.id);
+
+        if (error) {
+          console.error('❌ [VideoInterface] Error updating session for patient join:', error);
+        } else {
+          console.log('✅ [VideoInterface] Session updated successfully for patient join');
+          
+          // Update local state
+          setCurrentSession(prev => ({
+            ...prev,
+            ...updateData
+          }));
+        }
+      }
+      
+      // Start the actual video call
+      startCall();
+      
+      toast({
+        title: "📞 Joining Video Call",
+        description: "Connecting to the video consultation...",
+      });
+    } catch (error) {
+      console.error('❌ [VideoInterface] Error joining call:', error);
+      toast({
+        title: "Error Joining Call",
+        description: "Failed to join video call. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEndSession = () => {
