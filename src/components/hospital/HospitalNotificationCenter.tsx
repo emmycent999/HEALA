@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,10 +36,21 @@ export const HospitalNotificationCenter: React.FC = () => {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
+          const newNotification = payload.new as any;
+          const validNotification: Notification = {
+            id: newNotification.id,
+            title: newNotification.title,
+            message: newNotification.message,
+            type: ['info', 'warning', 'success', 'error'].includes(newNotification.type) 
+              ? newNotification.type as 'info' | 'warning' | 'success' | 'error'
+              : 'info',
+            read: newNotification.read,
+            created_at: newNotification.created_at
+          };
+          setNotifications(prev => [validNotification, ...prev]);
           toast({
             title: "New Notification",
-            description: (payload.new as Notification).title,
+            description: validNotification.title,
           });
         })
         .subscribe();
@@ -62,7 +72,19 @@ export const HospitalNotificationCenter: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setNotifications(data || []);
+      
+      const validNotifications: Notification[] = (data || []).map(notification => ({
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: ['info', 'warning', 'success', 'error'].includes(notification.type) 
+          ? notification.type as 'info' | 'warning' | 'success' | 'error'
+          : 'info',
+        read: notification.read,
+        created_at: notification.created_at
+      }));
+      
+      setNotifications(validNotifications);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast({

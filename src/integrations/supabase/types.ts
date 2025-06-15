@@ -940,6 +940,59 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_waitlist: {
+        Row: {
+          called_at: string | null
+          completed_at: string | null
+          created_at: string
+          department: string
+          estimated_wait_time: number | null
+          hospital_id: string
+          id: string
+          patient_id: string
+          priority: string
+          reason: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          called_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          department: string
+          estimated_wait_time?: number | null
+          hospital_id: string
+          id?: string
+          patient_id: string
+          priority?: string
+          reason: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          called_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          department?: string
+          estimated_wait_time?: number | null
+          hospital_id?: string
+          id?: string
+          patient_id?: string
+          priority?: string
+          reason?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_patient_waitlist_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_metrics: {
         Row: {
           id: string
@@ -1234,6 +1287,115 @@ export type Database = {
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_attendance: {
+        Row: {
+          check_in_time: string | null
+          check_out_time: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          schedule_id: string
+          staff_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          schedule_id: string
+          staff_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          check_in_time?: string | null
+          check_out_time?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          schedule_id?: string
+          staff_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_staff_attendance_schedule"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "staff_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_schedules: {
+        Row: {
+          created_at: string
+          created_by: string
+          department: string
+          end_date: string
+          end_time: string
+          hospital_id: string
+          id: string
+          is_recurring: boolean | null
+          notes: string | null
+          recurrence_pattern: string | null
+          shift_type: string
+          staff_id: string
+          start_date: string
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          department: string
+          end_date: string
+          end_time: string
+          hospital_id: string
+          id?: string
+          is_recurring?: boolean | null
+          notes?: string | null
+          recurrence_pattern?: string | null
+          shift_type: string
+          staff_id: string
+          start_date: string
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          department?: string
+          end_date?: string
+          end_time?: string
+          hospital_id?: string
+          id?: string
+          is_recurring?: boolean | null
+          notes?: string | null
+          recurrence_pattern?: string | null
+          shift_type?: string
+          staff_id?: string
+          start_date?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_staff_schedules_hospital"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id"]
           },
         ]
