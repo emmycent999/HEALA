@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,12 +24,14 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   console.log(`🎥 [WebRTCVideoCall] Hook initialized for ${userRole} in session ${sessionId}`);
 
-  // WebRTC configuration
+  // WebRTC configuration with TURN servers for better connectivity
   const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' }
+    ],
+    iceCandidatePoolSize: 10
   };
 
   // Setup signaling channel
@@ -101,6 +102,17 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
           description: "Please try reconnecting",
           variant: "destructive"
         });
+      } else if (pc.connectionState === 'disconnected') {
+        console.log('⚠️ [WebRTCVideoCall] Connection disconnected, attempting reconnection');
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('🧊 [WebRTCVideoCall] ICE connection state:', pc.iceConnectionState);
+      
+      if (pc.iceConnectionState === 'failed') {
+        console.log('🔄 [WebRTCVideoCall] ICE connection failed, restarting ICE');
+        pc.restartIce();
       }
     };
 
@@ -164,16 +176,57 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     endCall(false); // Don't send another end call signal
   }, [userId]);
 
+  const reconnect = useCallback(async () => {
+    console.log('🔄 [WebRTCVideoCall] Attempting to reconnect');
+    
+    try {
+      if (peerConnectionRef.current) {
+        console.log('🔄 [WebRTCVideoCall] Restarting ICE for existing connection');
+        peerConnectionRef.current.restartIce();
+        return;
+      }
+
+      // If no peer connection exists, restart the call
+      if (localStreamRef.current) {
+        console.log('🔄 [WebRTCVideoCall] Restarting call with existing stream');
+        await startCall();
+      } else {
+        console.log('🔄 [WebRTCVideoCall] Full reconnection - getting new media');
+        await startCall();
+      }
+    } catch (error) {
+      console.error('❌ [WebRTCVideoCall] Reconnection failed:', error);
+      throw error;
+    }
+  }, []);
+
   const startCall = async () => {
     try {
       console.log('📞 [WebRTCVideoCall] Starting call...');
       setIsConnecting(true);
 
-      // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
+      // Get user media with fallback constraints
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 },
+            frameRate: { ideal: 30, max: 60 }
+          },
+          audio: { 
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (error) {
+        console.warn('🔄 [WebRTCVideoCall] HD video failed, trying standard quality');
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true
+        });
+      }
 
       localStreamRef.current = stream;
       
@@ -193,7 +246,10 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
       // If physician, create and send offer
       if (userRole === 'physician') {
-        const offer = await pc.createOffer();
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
         await pc.setLocalDescription(offer);
 
         if (channelRef.current) {
@@ -300,9 +356,11 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     isConnecting,
     localVideoRef,
     remoteVideoRef,
+    peerConnectionRef,
     startCall,
     endCall,
     toggleVideo,
-    toggleAudio
+    toggleAudio,
+    reconnect
   };
 };
