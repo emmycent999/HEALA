@@ -1,16 +1,8 @@
 
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-interface NotificationManagerProps {
-  sessionId: string;
-  userId: string;
-  isPatient: boolean;
-  isPhysician: boolean;
-  onConsultationStarted: () => void;
-  onPatientJoined: () => void;
-}
+import { NotificationManagerProps } from './notificationTypes';
+import { useEventProcessor } from './eventProcessor';
 
 export const useNotificationManager = ({
   sessionId,
@@ -20,9 +12,21 @@ export const useNotificationManager = ({
   onConsultationStarted,
   onPatientJoined
 }: NotificationManagerProps) => {
-  const { toast } = useToast();
   const channelsRef = useRef<any[]>([]);
   const processedEventsRef = useRef<Set<string>>(new Set());
+
+  const {
+    handleDatabaseChange,
+    handleConsultationStartedBroadcast,
+    handlePatientJoinedBroadcast
+  } = useEventProcessor(
+    userId,
+    isPatient,
+    isPhysician,
+    onConsultationStarted,
+    onPatientJoined,
+    processedEventsRef
+  );
 
   useEffect(() => {
     if (!userId || !sessionId) {
@@ -80,82 +84,6 @@ export const useNotificationManager = ({
     return cleanup;
   }, [sessionId, userId, isPatient, isPhysician]);
 
-  const handleDatabaseChange = (payload: any) => {
-    const newSession = payload.new as any;
-    const oldSession = payload.old as any;
-    
-    // Create unique event ID to prevent duplicates
-    const eventId = `db_change_${newSession.id}_${newSession.status}_${newSession.updated_at}`;
-    
-    if (processedEventsRef.current.has(eventId)) {
-      console.log('🔄 [NotificationManager] Event already processed, skipping:', eventId);
-      return;
-    }
-    
-    processedEventsRef.current.add(eventId);
-    
-    // Check if status changed from scheduled to in_progress
-    if (oldSession?.status === 'scheduled' && newSession?.status === 'in_progress') {
-      console.log('🚀 [NotificationManager] Consultation started via database update!');
-      
-      if (isPatient) {
-        toast({
-          title: "🚨 Doctor Started Consultation!",
-          description: "You can now join the video call",
-          duration: 8000,
-        });
-        
-        // Trigger the consultation started handler with delay
-        setTimeout(() => {
-          onConsultationStarted();
-        }, 500);
-      }
-    }
-  };
-
-  const handleConsultationStartedBroadcast = (payload: any) => {
-    const data = payload.payload;
-    const eventId = `broadcast_started_${data?.sessionId}_${data?.timestamp}`;
-    
-    if (processedEventsRef.current.has(eventId)) {
-      console.log('🔄 [NotificationManager] Broadcast event already processed, skipping:', eventId);
-      return;
-    }
-    
-    processedEventsRef.current.add(eventId);
-    
-    if (data?.startedBy !== userId && isPatient) {
-      console.log('🎯 [NotificationManager] Patient receiving consultation start notification via broadcast');
-      
-      toast({
-        title: "🚨 Doctor Started Consultation!",
-        description: "You can now join the video call",
-        duration: 8000,
-      });
-      
-      setTimeout(() => {
-        onConsultationStarted();
-      }, 500);
-    }
-  };
-
-  const handlePatientJoinedBroadcast = (payload: any) => {
-    const data = payload.payload;
-    const eventId = `broadcast_joined_${data?.patientId}_${data?.timestamp}`;
-    
-    if (processedEventsRef.current.has(eventId)) {
-      console.log('🔄 [NotificationManager] Patient joined event already processed, skipping:', eventId);
-      return;
-    }
-    
-    processedEventsRef.current.add(eventId);
-    
-    if (data?.patientId !== userId && isPhysician) {
-      console.log('👨‍⚕️ [NotificationManager] Physician notified of patient joining via broadcast');
-      onPatientJoined();
-    }
-  };
-
   const cleanup = () => {
     console.log('🧹 [NotificationManager] Cleaning up channels');
     channelsRef.current.forEach(channel => {
@@ -170,48 +98,5 @@ export const useNotificationManager = ({
   return { cleanup };
 };
 
-export const sendConsultationStarted = async (sessionId: string, userId: string) => {
-  try {
-    console.log('📤 [NotificationManager] Sending consultation started notification for session:', sessionId);
-    
-    const channel = supabase.channel(`consultation_broadcast_${sessionId}_${userId}`);
-    
-    await channel.send({
-      type: 'broadcast',
-      event: 'consultation-started',
-      payload: { 
-        startedBy: userId, 
-        sessionId: sessionId,
-        timestamp: new Date().toISOString()
-      }
-    });
-
-    console.log('✅ [NotificationManager] Consultation start notification sent successfully');
-  } catch (error) {
-    console.error('❌ [NotificationManager] Error sending consultation started notification:', error);
-    throw error;
-  }
-};
-
-export const sendPatientJoined = async (sessionId: string, patientId: string) => {
-  try {
-    console.log('📤 [NotificationManager] Sending patient joined notification for session:', sessionId);
-    
-    const channel = supabase.channel(`consultation_broadcast_${sessionId}_${patientId}`);
-    
-    await channel.send({
-      type: 'broadcast',
-      event: 'patient-joined',
-      payload: { 
-        patientId, 
-        sessionId, 
-        timestamp: new Date().toISOString() 
-      }
-    });
-
-    console.log('✅ [NotificationManager] Patient joined notification sent successfully');
-  } catch (error) {
-    console.error('❌ [NotificationManager] Error sending patient joined notification:', error);
-    throw error;
-  }
-};
+// Re-export the broadcast service functions for backward compatibility
+export { sendConsultationStarted, sendPatientJoined } from './broadcastService';
