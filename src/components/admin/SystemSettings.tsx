@@ -5,14 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Save, AlertTriangle, Shield } from 'lucide-react';
+import { Settings, Save, AlertTriangle, Shield, Globe, Users, DollarSign, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SystemSetting {
   id: string;
   setting_key: string;
   setting_value: any;
   description: string;
+  category: string;
+  is_active: boolean;
 }
 
 export const SystemSettings: React.FC = () => {
@@ -22,36 +25,51 @@ export const SystemSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    // Mock system settings for now since the table doesn't exist in types
-    const mockSettings: SystemSetting[] = [
-      {
-        id: '1',
-        setting_key: 'platform_maintenance_mode',
-        setting_value: { enabled: false, message: 'System maintenance in progress' },
-        description: 'Platform maintenance mode settings'
-      },
-      {
-        id: '2',
-        setting_key: 'user_registration_enabled',
-        setting_value: { enabled: true },
-        description: 'User registration configuration'
-      },
-      {
-        id: '3',
-        setting_key: 'emergency_alert_enabled',
-        setting_value: { enabled: true, alert_message: '' },
-        description: 'Emergency alert system settings'
-      }
-    ];
-    
-    setSettings(mockSettings);
-    setLoading(false);
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+      setSettings(data || []);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load system settings.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateSetting = async (settingKey: string, newValue: any) => {
     setSaving(true);
     try {
-      // Update local state for now
+      const { error } = await supabase
+        .from('system_settings')
+        .update({ 
+          setting_value: newValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('setting_key', settingKey);
+
+      if (error) throw error;
+
+      // Log admin action
+      await supabase.rpc('log_admin_action', {
+        action_type_param: 'system_setting_update',
+        target_resource_type_param: 'system_setting',
+        target_resource_id_param: null,
+        action_details_param: { setting: settingKey, value: newValue }
+      });
+
       setSettings(prev => prev.map(setting => 
         setting.setting_key === settingKey 
           ? { ...setting, setting_value: newValue }
@@ -74,6 +92,25 @@ export const SystemSettings: React.FC = () => {
     }
   };
 
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'system': return <Globe className="w-4 h-4" />;
+      case 'user_management': return <Users className="w-4 h-4" />;
+      case 'financial': return <DollarSign className="w-4 h-4" />;
+      case 'notifications': return <Bell className="w-4 h-4" />;
+      case 'emergency': return <AlertTriangle className="w-4 h-4" />;
+      default: return <Settings className="w-4 h-4" />;
+    }
+  };
+
+  const groupedSettings = settings.reduce((acc, setting) => {
+    if (!acc[setting.category]) {
+      acc[setting.category] = [];
+    }
+    acc[setting.category].push(setting);
+    return acc;
+  }, {} as Record<string, SystemSetting[]>);
+
   if (loading) {
     return <div className="p-6">Loading system settings...</div>;
   }
@@ -84,95 +121,230 @@ export const SystemSettings: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5" />
-            System Settings
+            System Configuration
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {settings.map((setting) => (
-            <div key={setting.id} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold">{setting.setting_key.replace(/_/g, ' ').toUpperCase()}</h4>
-                <Badge variant="outline">System</Badge>
+          {Object.entries(groupedSettings).map(([category, categorySettings]) => (
+            <div key={category} className="space-y-4">
+              <div className="flex items-center gap-2 border-b pb-2">
+                {getCategoryIcon(category)}
+                <h3 className="font-semibold text-lg capitalize">
+                  {category.replace('_', ' ')}
+                </h3>
               </div>
-              <p className="text-sm text-gray-600 mb-3">{setting.description}</p>
               
-              {setting.setting_key === 'platform_maintenance_mode' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={setting.setting_value.enabled || false}
-                      onCheckedChange={(checked) => 
-                        updateSetting(setting.setting_key, {
-                          ...setting.setting_value,
-                          enabled: checked
-                        })
-                      }
-                      disabled={saving}
-                    />
-                    <span>Maintenance Mode</span>
-                    {setting.setting_value.enabled && (
-                      <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    )}
+              {categorySettings.map((setting) => (
+                <div key={setting.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold">{setting.setting_key.replace(/_/g, ' ').toUpperCase()}</h4>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={setting.is_active ? "default" : "secondary"}>
+                        {setting.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
                   </div>
-                  <Input
-                    placeholder="Maintenance message"
-                    value={setting.setting_value.message || ''}
-                    onChange={(e) => 
-                      updateSetting(setting.setting_key, {
-                        ...setting.setting_value,
-                        message: e.target.value
-                      })
-                    }
-                    disabled={saving}
-                  />
-                </div>
-              )}
+                  <p className="text-sm text-gray-600 mb-3">{setting.description}</p>
+                  
+                  {/* Platform Maintenance Mode */}
+                  {setting.setting_key === 'platform_maintenance_mode' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              enabled: checked
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Maintenance Mode</span>
+                        {setting.setting_value.enabled && (
+                          <AlertTriangle className="w-4 h-4 text-orange-500" />
+                        )}
+                      </div>
+                      <Input
+                        placeholder="Maintenance message"
+                        value={setting.setting_value.message || ''}
+                        onChange={(e) => 
+                          updateSetting(setting.setting_key, {
+                            ...setting.setting_value,
+                            message: e.target.value
+                          })
+                        }
+                        disabled={saving}
+                      />
+                    </div>
+                  )}
 
-              {setting.setting_key === 'user_registration_enabled' && (
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={setting.setting_value.enabled || false}
-                    onCheckedChange={(checked) => 
-                      updateSetting(setting.setting_key, {
-                        ...setting.setting_value,
-                        enabled: checked
-                      })
-                    }
-                    disabled={saving}
-                  />
-                  <span>Allow New User Registration</span>
-                </div>
-              )}
+                  {/* User Registration */}
+                  {setting.setting_key === 'user_registration_enabled' && (
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={setting.setting_value.enabled || false}
+                        onCheckedChange={(checked) => 
+                          updateSetting(setting.setting_key, {
+                            ...setting.setting_value,
+                            enabled: checked
+                          })
+                        }
+                        disabled={saving}
+                      />
+                      <span>Allow New User Registration</span>
+                    </div>
+                  )}
 
-              {setting.setting_key === 'emergency_alert_enabled' && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={setting.setting_value.enabled || false}
-                      onCheckedChange={(checked) => 
-                        updateSetting(setting.setting_key, {
-                          ...setting.setting_value,
-                          enabled: checked
-                        })
-                      }
-                      disabled={saving}
-                    />
-                    <span>Emergency Alert System</span>
-                    <Shield className="w-4 h-4 text-red-500" />
-                  </div>
-                  <Input
-                    placeholder="Emergency alert message"
-                    value={setting.setting_value.alert_message || ''}
-                    onChange={(e) => 
-                      updateSetting(setting.setting_key, {
-                        ...setting.setting_value,
-                        alert_message: e.target.value
-                      })
-                    }
-                    disabled={saving}
-                  />
+                  {/* Emergency Alert */}
+                  {setting.setting_key === 'emergency_alert_enabled' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              enabled: checked
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Emergency Alert System</span>
+                        <Shield className="w-4 h-4 text-red-500" />
+                      </div>
+                      <Input
+                        placeholder="Emergency alert message"
+                        value={setting.setting_value.alert_message || ''}
+                        onChange={(e) => 
+                          updateSetting(setting.setting_key, {
+                            ...setting.setting_value,
+                            alert_message: e.target.value
+                          })
+                        }
+                        disabled={saving}
+                      />
+                    </div>
+                  )}
+
+                  {/* Auto Verification Rules */}
+                  {setting.setting_key === 'auto_verification_rules' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.physician?.enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              physician: {
+                                ...setting.setting_value.physician,
+                                enabled: checked
+                              }
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Auto-approve Physician Verifications</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.hospital?.enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              hospital: {
+                                ...setting.setting_value.hospital,
+                                enabled: checked
+                              }
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Auto-approve Hospital Verifications</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Settings */}
+                  {setting.setting_key === 'payment_settings' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium">Auto-resolve Disputes (days)</label>
+                        <Input
+                          type="number"
+                          value={setting.setting_value.dispute_auto_resolve_days || 30}
+                          onChange={(e) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              dispute_auto_resolve_days: parseInt(e.target.value)
+                            })
+                          }
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Max Refund Amount (NGN)</label>
+                        <Input
+                          type="number"
+                          value={setting.setting_value.max_refund_amount || 50000}
+                          onChange={(e) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              max_refund_amount: parseInt(e.target.value)
+                            })
+                          }
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notification Settings */}
+                  {setting.setting_key === 'notification_settings' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.email_enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              email_enabled: checked
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Email Notifications</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.sms_enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              sms_enabled: checked
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>SMS Notifications</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={setting.setting_value.push_enabled || false}
+                          onCheckedChange={(checked) => 
+                            updateSetting(setting.setting_key, {
+                              ...setting.setting_value,
+                              push_enabled: checked
+                            })
+                          }
+                          disabled={saving}
+                        />
+                        <span>Push Notifications</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           ))}
         </CardContent>

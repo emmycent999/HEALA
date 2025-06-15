@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Activity, Search, Filter, Users, Shield } from 'lucide-react';
+import { Activity, Search, Users, Shield, Download, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AdminAction {
   id: string;
@@ -35,57 +37,102 @@ export const AdminAuditLog: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState('all');
+  const [dateRange, setDateRange] = useState('7'); // days
 
   useEffect(() => {
-    // Mock audit log data since the table doesn't exist in types yet
-    const mockActions: AdminAction[] = [
-      {
-        id: '1',
-        admin_id: 'admin1',
-        action_type: 'user_verification',
-        target_user_id: 'user1',
-        target_resource_type: 'verification_request',
-        target_resource_id: 'req1',
-        action_details: { action: 'approved' },
-        ip_address: '192.168.1.1',
-        created_at: new Date().toISOString(),
-        admin: {
-          first_name: 'Admin',
-          last_name: 'User',
-          email: 'admin@example.com'
-        },
-        target_user: {
-          first_name: 'John',
-          last_name: 'Doe',
-          email: 'john@example.com'
-        }
-      },
-      {
-        id: '2',
-        admin_id: 'admin1',
-        action_type: 'system_setting_update',
-        target_user_id: null,
-        target_resource_type: 'system_setting',
-        target_resource_id: 'setting1',
-        action_details: { setting: 'maintenance_mode', value: false },
-        ip_address: '192.168.1.1',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        admin: {
-          first_name: 'Admin',
-          last_name: 'User',
-          email: 'admin@example.com'
-        }
-      }
-    ];
-    
-    setActions(mockActions);
-    setLoading(false);
-  }, []);
+    fetchAuditLog();
+  }, [dateRange]);
+
+  const fetchAuditLog = async () => {
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(dateRange));
+
+      const { data, error } = await supabase
+        .from('admin_actions')
+        .select(`
+          *,
+          admin:profiles!admin_actions_admin_id_fkey (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // Fetch target user details for actions that have target_user_id
+      const actionsWithTargetUsers = await Promise.all(
+        (data || []).map(async (action) => {
+          if (action.target_user_id) {
+            const { data: targetUser } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', action.target_user_id)
+              .single();
+            
+            return {
+              ...action,
+              target_user: targetUser
+            };
+          }
+          return action;
+        })
+      );
+
+      setActions(actionsWithTargetUsers);
+    } catch (error) {
+      console.error('Error fetching audit log:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load audit log.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportAuditLog = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_actions')
+        .select('*')
+        .csv();
+
+      if (error) throw error;
+
+      const blob = new Blob([data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `admin_audit_log_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Complete",
+        description: "Audit log has been exported successfully.",
+      });
+    } catch (error) {
+      console.error('Error exporting audit log:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export audit log.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const filteredActions = actions.filter(action => {
     const matchesSearch = searchTerm === '' || 
       action.action_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      action.admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.admin?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (action.target_user?.email?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesFilter = actionTypeFilter === 'all' || action.action_type === actionTypeFilter;
@@ -100,6 +147,8 @@ export const AdminAuditLog: React.FC = () => {
       case 'user_activation': return 'bg-blue-100 text-blue-800';
       case 'system_setting_update': return 'bg-purple-100 text-purple-800';
       case 'emergency_override': return 'bg-orange-100 text-orange-800';
+      case 'financial_dispute_resolution': return 'bg-yellow-100 text-yellow-800';
+      case 'hospital_verification': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -111,10 +160,16 @@ export const AdminAuditLog: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          Admin Audit Log
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Admin Audit Log ({filteredActions.length})
+          </CardTitle>
+          <Button onClick={exportAuditLog} variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
         <div className="flex gap-4 mt-4">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
@@ -136,6 +191,19 @@ export const AdminAuditLog: React.FC = () => {
               <SelectItem value="user_activation">User Activation</SelectItem>
               <SelectItem value="system_setting_update">System Updates</SelectItem>
               <SelectItem value="emergency_override">Emergency Override</SelectItem>
+              <SelectItem value="financial_dispute_resolution">Financial Disputes</SelectItem>
+              <SelectItem value="hospital_verification">Hospital Verification</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Last 24h</SelectItem>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -168,7 +236,7 @@ export const AdminAuditLog: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-gray-400" />
                     <span className="text-sm">
-                      Admin: <strong>{action.admin.first_name} {action.admin.last_name}</strong> ({action.admin.email})
+                      Admin: <strong>{action.admin?.first_name} {action.admin?.last_name}</strong> ({action.admin?.email})
                     </span>
                   </div>
                   

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, FileCheck, Activity, CheckCircle, XCircle, AlertTriangle, Settings, Siren } from 'lucide-react';
+import { Shield, Users, FileCheck, Activity, CheckCircle, XCircle, AlertTriangle, Settings, Siren, DollarSign, FileText, Monitor } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,9 @@ import { SystemSettings } from './SystemSettings';
 import { AdminAuditLog } from './AdminAuditLog';
 import { EmergencyManagement } from './EmergencyManagement';
 import { RealTimeMonitoring } from './RealTimeMonitoring';
+import { UserActivityMonitor } from './UserActivityMonitor';
+import { FinancialDisputes } from './FinancialDisputes';
+import { ComplianceReports } from './ComplianceReports';
 
 interface VerificationRequest {
   id: string;
@@ -50,7 +53,9 @@ export const EnhancedAdminDashboard: React.FC = () => {
     active_hospitals: 0,
     active_physicians: 0,
     emergency_alerts: 0,
-    system_health: 95
+    system_health: 95,
+    pending_disputes: 0,
+    total_activities_today: 0
   });
 
   useEffect(() => {
@@ -112,6 +117,19 @@ export const EnhancedAdminDashboard: React.FC = () => {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
 
+      // Fetch financial disputes count
+      const { count: disputesCount } = await supabase
+        .from('financial_disputes')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      // Fetch today's activities count
+      const today = new Date().toISOString().split('T')[0];
+      const { count: activitiesCount } = await supabase
+        .from('user_activity_logs')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', today);
+
       // Calculate stats
       setStats({
         total_users: usersData?.length || 0,
@@ -119,7 +137,9 @@ export const EnhancedAdminDashboard: React.FC = () => {
         active_hospitals: usersData?.filter(user => user.role === 'hospital_admin' && user.is_active).length || 0,
         active_physicians: usersData?.filter(user => user.role === 'physician' && user.is_active).length || 0,
         emergency_alerts: emergencyCount || 0,
-        system_health: 95 // Mock system health percentage
+        system_health: 95, // Mock system health percentage
+        pending_disputes: disputesCount || 0,
+        total_activities_today: activitiesCount || 0
       });
 
     } catch (error) {
@@ -147,6 +167,14 @@ export const EnhancedAdminDashboard: React.FC = () => {
         .eq('id', requestId);
 
       if (error) throw error;
+
+      // Log admin action
+      await supabase.rpc('log_admin_action', {
+        action_type_param: 'user_verification',
+        target_resource_type_param: 'verification_request',
+        target_resource_id_param: requestId,
+        action_details_param: { action, notes }
+      });
 
       // Update local state
       setVerificationRequests(prev => prev.map(req => 
@@ -190,6 +218,14 @@ export const EnhancedAdminDashboard: React.FC = () => {
 
       if (error) throw error;
 
+      // Log admin action
+      await supabase.rpc('log_admin_action', {
+        action_type_param: currentStatus ? 'user_suspension' : 'user_activation',
+        target_user_id_param: userId,
+        target_resource_type_param: 'user_profile',
+        action_details_param: { new_status: !currentStatus }
+      });
+
       setSystemUsers(prev => prev.map(user => 
         user.id === userId 
           ? { ...user, is_active: !currentStatus }
@@ -229,7 +265,7 @@ export const EnhancedAdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Enhanced Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -283,17 +319,38 @@ export const EnhancedAdminDashboard: React.FC = () => {
             <div className="text-2xl font-bold text-green-600">{stats.system_health}%</div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Pending Disputes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{stats.pending_disputes}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Activities Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-indigo-600">{stats.total_activities_today}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Enhanced Dashboard */}
       <Tabs defaultValue="verifications" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="verifications">
             Verifications ({stats.pending_verifications})
           </TabsTrigger>
           <TabsTrigger value="users">System Users</TabsTrigger>
           <TabsTrigger value="monitoring">Real-time</TabsTrigger>
+          <TabsTrigger value="activity">User Activity</TabsTrigger>
           <TabsTrigger value="emergency">Emergency</TabsTrigger>
+          <TabsTrigger value="financial">Financial</TabsTrigger>
+          <TabsTrigger value="compliance">Compliance</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
@@ -415,8 +472,20 @@ export const EnhancedAdminDashboard: React.FC = () => {
           <RealTimeMonitoring />
         </TabsContent>
 
+        <TabsContent value="activity">
+          <UserActivityMonitor />
+        </TabsContent>
+
         <TabsContent value="emergency">
           <EmergencyManagement />
+        </TabsContent>
+
+        <TabsContent value="financial">
+          <FinancialDisputes />
+        </TabsContent>
+
+        <TabsContent value="compliance">
+          <ComplianceReports />
         </TabsContent>
 
         <TabsContent value="settings">

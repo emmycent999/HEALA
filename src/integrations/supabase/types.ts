@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_actions: {
+        Row: {
+          action_details: Json | null
+          action_type: string
+          admin_id: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          target_resource_id: string | null
+          target_resource_type: string | null
+          target_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_details?: Json | null
+          action_type: string
+          admin_id: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          target_resource_id?: string | null
+          target_resource_type?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_details?: Json | null
+          action_type?: string
+          admin_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          target_resource_id?: string | null
+          target_resource_type?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       agent_assisted_patients: {
         Row: {
           agent_id: string
@@ -200,6 +239,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      compliance_reports: {
+        Row: {
+          created_at: string
+          date_range_end: string | null
+          date_range_start: string | null
+          file_url: string | null
+          generated_by: string
+          id: string
+          report_data: Json
+          report_type: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_range_end?: string | null
+          date_range_start?: string | null
+          file_url?: string | null
+          generated_by: string
+          id?: string
+          report_data?: Json
+          report_type: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_range_end?: string | null
+          date_range_start?: string | null
+          file_url?: string | null
+          generated_by?: string
+          id?: string
+          report_data?: Json
+          report_type?: string
+          status?: string | null
+        }
+        Relationships: []
       }
       consultation_messages: {
         Row: {
@@ -508,6 +583,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_disputes: {
+        Row: {
+          amount: number | null
+          created_at: string
+          description: string
+          dispute_type: string
+          id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string | null
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          description: string
+          dispute_type: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          description?: string
+          dispute_type?: string
+          id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string | null
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       health_records: {
         Row: {
@@ -1229,6 +1346,45 @@ export type Database = {
         }
         Relationships: []
       }
+      system_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          message: string
+          severity: string | null
+          target_audience: string | null
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message: string
+          severity?: string | null
+          target_audience?: string | null
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          severity?: string | null
+          target_audience?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       system_audit_logs: {
         Row: {
           action_type: string
@@ -1262,6 +1418,39 @@ export type Database = {
           resource_type?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          setting_key: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1329,6 +1518,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_activity_logs: {
+        Row: {
+          activity_details: Json | null
+          activity_type: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_details?: Json | null
+          activity_type: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_details?: Json | null
+          activity_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -1594,6 +1813,24 @@ export type Database = {
       is_hospital_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      log_admin_action: {
+        Args: {
+          action_type_param: string
+          target_user_id_param?: string
+          target_resource_type_param?: string
+          target_resource_id_param?: string
+          action_details_param?: Json
+        }
+        Returns: string
+      }
+      log_user_activity: {
+        Args: {
+          user_id_param: string
+          activity_type_param: string
+          activity_details_param?: Json
+        }
+        Returns: string
       }
       process_consultation_payment: {
         Args: {
