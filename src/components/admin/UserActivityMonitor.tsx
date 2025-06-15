@@ -17,11 +17,11 @@ interface UserActivity {
   user_agent: string | null;
   created_at: string;
   user: {
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
     role: string;
-  };
+  } | null;
 }
 
 export const UserActivityMonitor: React.FC = () => {
@@ -58,22 +58,33 @@ export const UserActivityMonitor: React.FC = () => {
 
   const fetchUserActivities = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the activity logs
+      const { data: activitiesData, error: activitiesError } = await supabase
         .from('user_activity_logs')
-        .select(`
-          *,
-          user:profiles!user_activity_logs_user_id_fkey (
-            first_name,
-            last_name,
-            email,
-            role
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
-      setActivities(data || []);
+      if (activitiesError) throw activitiesError;
+
+      // Then get user profiles for each activity
+      const activitiesWithUsers = await Promise.all(
+        (activitiesData || []).map(async (activity) => {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, role')
+            .eq('id', activity.user_id)
+            .single();
+
+          return {
+            ...activity,
+            ip_address: activity.ip_address as string | null,
+            user: userProfile
+          };
+        })
+      );
+
+      setActivities(activitiesWithUsers);
     } catch (error) {
       console.error('Error fetching user activities:', error);
       toast({
@@ -90,7 +101,7 @@ export const UserActivityMonitor: React.FC = () => {
     const matchesSearch = searchTerm === '' || 
       activity.activity_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${activity.user?.first_name} ${activity.user?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+      `${activity.user?.first_name || ''} ${activity.user?.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesActivityType = activityTypeFilter === 'all' || activity.activity_type === activityTypeFilter;
     const matchesRole = roleFilter === 'all' || activity.user?.role === roleFilter;
@@ -207,7 +218,7 @@ export const UserActivityMonitor: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-gray-400" />
                     <span className="text-sm">
-                      <strong>{activity.user?.first_name} {activity.user?.last_name}</strong> ({activity.user?.email})
+                      <strong>{activity.user?.first_name || ''} {activity.user?.last_name || ''}</strong> ({activity.user?.email || 'Unknown'})
                     </span>
                   </div>
                   

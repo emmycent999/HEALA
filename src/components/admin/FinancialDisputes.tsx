@@ -23,15 +23,15 @@ interface FinancialDispute {
   resolved_at: string | null;
   created_at: string;
   user: {
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
-  };
+  } | null;
   resolver?: {
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
-  };
+  } | null;
 }
 
 export const FinancialDisputes: React.FC = () => {
@@ -49,25 +49,42 @@ export const FinancialDisputes: React.FC = () => {
 
   const fetchDisputes = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the disputes
+      const { data: disputesData, error: disputesError } = await supabase
         .from('financial_disputes')
-        .select(`
-          *,
-          user:profiles!financial_disputes_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          ),
-          resolver:profiles!financial_disputes_resolved_by_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setDisputes(data || []);
+      if (disputesError) throw disputesError;
+
+      // Then get user profiles for each dispute
+      const disputesWithUsers = await Promise.all(
+        (disputesData || []).map(async (dispute) => {
+          const { data: userProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', dispute.user_id)
+            .single();
+
+          let resolver = null;
+          if (dispute.resolved_by) {
+            const { data: resolverProfile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', dispute.resolved_by)
+              .single();
+            resolver = resolverProfile;
+          }
+
+          return {
+            ...dispute,
+            user: userProfile,
+            resolver
+          };
+        })
+      );
+
+      setDisputes(disputesWithUsers);
     } catch (error) {
       console.error('Error fetching disputes:', error);
       toast({
@@ -134,7 +151,7 @@ export const FinancialDisputes: React.FC = () => {
     const matchesSearch = searchTerm === '' || 
       dispute.dispute_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dispute.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${dispute.user?.first_name} ${dispute.user?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+      `${dispute.user?.first_name || ''} ${dispute.user?.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || dispute.status === statusFilter;
     
@@ -227,7 +244,7 @@ export const FinancialDisputes: React.FC = () => {
 
                 <div className="space-y-2 mb-3">
                   <p className="text-sm">
-                    <strong>User:</strong> {dispute.user?.first_name} {dispute.user?.last_name} ({dispute.user?.email})
+                    <strong>User:</strong> {dispute.user?.first_name || ''} {dispute.user?.last_name || ''} ({dispute.user?.email || 'Unknown'})
                   </p>
                   {dispute.transaction_id && (
                     <p className="text-sm">
@@ -244,7 +261,7 @@ export const FinancialDisputes: React.FC = () => {
                     <p className="text-sm"><strong>Resolution Notes:</strong> {dispute.resolution_notes}</p>
                     {dispute.resolver && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Resolved by: {dispute.resolver.first_name} {dispute.resolver.last_name} on {dispute.resolved_at ? new Date(dispute.resolved_at).toLocaleString() : 'N/A'}
+                        Resolved by: {dispute.resolver.first_name || ''} {dispute.resolver.last_name || ''} on {dispute.resolved_at ? new Date(dispute.resolved_at).toLocaleString() : 'N/A'}
                       </p>
                     )}
                   </div>

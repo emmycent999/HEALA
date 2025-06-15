@@ -20,15 +20,15 @@ interface AdminAction {
   ip_address: string | null;
   created_at: string;
   admin: {
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
-  };
+  } | null;
   target_user?: {
-    first_name: string;
-    last_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
-  };
+  } | null;
 }
 
 export const AdminAuditLog: React.FC = () => {
@@ -76,10 +76,14 @@ export const AdminAuditLog: React.FC = () => {
             
             return {
               ...action,
+              ip_address: action.ip_address as string | null,
               target_user: targetUser
             };
           }
-          return action;
+          return {
+            ...action,
+            ip_address: action.ip_address as string | null
+          };
         })
       );
 
@@ -236,7 +240,7 @@ export const AdminAuditLog: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-gray-400" />
                     <span className="text-sm">
-                      Admin: <strong>{action.admin?.first_name} {action.admin?.last_name}</strong> ({action.admin?.email})
+                      Admin: <strong>{action.admin?.first_name || ''} {action.admin?.last_name || ''}</strong> ({action.admin?.email || 'Unknown'})
                     </span>
                   </div>
                   
@@ -244,7 +248,7 @@ export const AdminAuditLog: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4 text-gray-400" />
                       <span className="text-sm">
-                        Target: <strong>{action.target_user.first_name} {action.target_user.last_name}</strong> ({action.target_user.email})
+                        Target: <strong>{action.target_user.first_name || ''} {action.target_user.last_name || ''}</strong> ({action.target_user.email})
                       </span>
                     </div>
                   )}
