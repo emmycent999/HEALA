@@ -11,8 +11,7 @@ import {
   Bot, 
   User, 
   Wallet,
-  Settings,
-  Crown
+  Settings
 } from 'lucide-react';
 import { AppointmentsTab } from './AppointmentsTab';
 import { VirtualConsultationTab } from './VirtualConsultationTab';
@@ -22,7 +21,6 @@ import { EmergencyTab } from './EmergencyTab';
 import { AIAssistantTab } from './AIAssistantTab';
 import { ProfileTab } from './ProfileTab';
 import { WalletTab } from './WalletTab';
-import { SubscriptionTab } from './SubscriptionTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -39,7 +37,7 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 gap-1 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-9 gap-1 h-auto p-1">
           <TabsTrigger 
             value="appointments" 
             className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
@@ -103,14 +101,6 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
             <Wallet className="w-4 h-4" />
             <span className="hidden sm:inline">Wallet</span>
           </TabsTrigger>
-
-          <TabsTrigger 
-            value="subscription" 
-            className="flex flex-col items-center gap-1 px-2 py-2 text-xs"
-          >
-            <Crown className="w-4 h-4" />
-            <span className="hidden sm:inline">Subscription</span>
-          </TabsTrigger>
           
           <TabsTrigger 
             value="accessibility" 
@@ -152,10 +142,6 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
 
           <TabsContent value="wallet" className="space-y-4">
             <WalletTab />
-          </TabsContent>
-
-          <TabsContent value="subscription" className="space-y-4">
-            <SubscriptionTab />
           </TabsContent>
 
           <TabsContent value="accessibility" className="space-y-4">

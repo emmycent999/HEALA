@@ -8,5 +8,4 @@ export type PatientDashboardTab =
   | 'ai-assistant' 
   | 'profile' 
   | 'wallet' 
-  | 'accessibility'
-  | 'subscription';
+  | 'accessibility';
