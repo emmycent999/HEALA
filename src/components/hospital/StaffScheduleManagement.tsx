@@ -1,252 +1,18 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  CheckCircle, 
-  XCircle,
-  Plus,
-  UserCheck,
-  AlertCircle
-} from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-
-// --- Add this helper at the top ---
-async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, {first_name: string, last_name: string, role: string}>> {
-  if (!userIds.length) return {};
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, first_name, last_name, role')
-    .in('id', userIds);
-  if (error) {
-    console.error('Error fetching profiles', error);
-    return {};
-  }
-  const map: Record<string, {first_name: string, last_name: string, role: string}> = {};
-  data?.forEach((profile) => {
-    map[profile.id] = {
-      first_name: profile.first_name || '',
-      last_name: profile.last_name || '',
-      role: profile.role || 'staff',
-    };
-  });
-  return map;
-}
-
-interface StaffSchedule {
-  id: string;
-  staff_id: string;
-  department: string;
-  shift_type: string;
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
-  status: 'scheduled' | 'confirmed' | 'cancelled';
-  staff_name?: string;
-  staff_role?: string;
-}
-
-interface StaffAttendance {
-  id: string;
-  schedule_id: string;
-  staff_id: string;
-  check_in_time?: string;
-  check_out_time?: string;
-  status: 'scheduled' | 'checked_in' | 'checked_out' | 'absent';
-  staff_name?: string;
-}
+import { Calendar, Plus, AlertCircle } from 'lucide-react';
+import { useStaffSchedule } from './schedule/useStaffSchedule';
+import { ScheduleStats } from './schedule/ScheduleStats';
+import { ScheduleCard } from './schedule/ScheduleCard';
+import { getStatusColor } from './schedule/utils';
+import { Badge } from '@/components/ui/badge';
 
 export const StaffScheduleManagement: React.FC = () => {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
-  const [schedules, setSchedules] = useState<StaffSchedule[]>([]);
-  const [attendance, setAttendance] = useState<StaffAttendance[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-
-  useEffect(() => {
-    if (user && profile?.hospital_id) {
-      fetchSchedules();
-      fetchAttendance();
-    }
-  }, [user, profile, selectedDate]);
-
-  // --- Update fetchSchedules to join profiles manually ---
-  const fetchSchedules = async () => {
-    if (!profile?.hospital_id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('staff_schedules')
-        .select('*')
-        .eq('hospital_id', profile.hospital_id)
-        .gte('start_date', selectedDate)
-        .lte('end_date', selectedDate)
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
-      const staffIds = [...new Set((data || []).map(sch => sch.staff_id))];
-      const profilesMap = await fetchProfilesByIds(staffIds);
-
-      const formattedData: StaffSchedule[] = (data || []).map(schedule => {
-        const p = profilesMap[schedule.staff_id] || {};
-        return {
-          id: schedule.id,
-          staff_id: schedule.staff_id,
-          department: schedule.department,
-          shift_type: schedule.shift_type,
-          start_date: schedule.start_date,
-          end_date: schedule.end_date,
-          start_time: schedule.start_time,
-          end_time: schedule.end_time,
-          status: schedule.status as 'scheduled' | 'confirmed' | 'cancelled',
-          staff_name: (p.first_name || p.last_name) ? `${p.first_name} ${p.last_name}` : 'Unknown Staff',
-          staff_role: p.role || 'staff'
-        }
-      });
-
-      setSchedules(formattedData);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load schedules.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // --- Update fetchAttendance to join profiles manually ---
-  const fetchAttendance = async () => {
-    if (!profile?.hospital_id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('staff_attendance')
-        .select('*')
-        .eq('created_at', selectedDate); // You might want to refine this filter
-
-      if (error) throw error;
-
-      const staffIds = [...new Set((data || []).map(a => a.staff_id))];
-      const profilesMap = await fetchProfilesByIds(staffIds);
-
-      const formattedData: StaffAttendance[] = (data || []).map(attendance => {
-        const p = profilesMap[attendance.staff_id] || {};
-        return {
-          id: attendance.id,
-          schedule_id: attendance.schedule_id,
-          staff_id: attendance.staff_id,
-          check_in_time: attendance.check_in_time,
-          check_out_time: attendance.check_out_time,
-          status: attendance.status as 'scheduled' | 'checked_in' | 'checked_out' | 'absent',
-          staff_name: (p.first_name || p.last_name) ? `${p.first_name} ${p.last_name}` : 'Unknown Staff'
-        }
-      });
-
-      setAttendance(formattedData);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const markAttendance = async (scheduleId: string, staffId: string, action: 'check_in' | 'check_out') => {
-    try {
-      const now = new Date().toISOString();
-      const updateData = action === 'check_in' 
-        ? { check_in_time: now, status: 'checked_in' }
-        : { check_out_time: now, status: 'checked_out' };
-
-      // First, try to update existing attendance record
-      const { data: existingAttendance } = await supabase
-        .from('staff_attendance')
-        .select('*')
-        .eq('schedule_id', scheduleId)
-        .eq('staff_id', staffId)
-        .single();
-
-      if (existingAttendance) {
-        const { error } = await supabase
-          .from('staff_attendance')
-          .update(updateData)
-          .eq('id', existingAttendance.id);
-
-        if (error) throw error;
-      } else {
-        // Create new attendance record
-        const { error } = await supabase
-          .from('staff_attendance')
-          .insert({
-            schedule_id: scheduleId,
-            staff_id: staffId,
-            ...updateData
-          });
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "Success",
-        description: `Staff ${action === 'check_in' ? 'checked in' : 'checked out'} successfully.`,
-      });
-
-      fetchAttendance();
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark attendance.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getShiftColor = (shiftType: string) => {
-    switch (shiftType.toLowerCase()) {
-      case 'morning':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'afternoon':
-        return 'bg-orange-100 text-orange-800';
-      case 'evening':
-        return 'bg-blue-100 text-blue-800';
-      case 'night':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-gray-100 text-gray-800';
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'checked_in':
-        return 'bg-blue-100 text-blue-800';
-      case 'checked_out':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-      case 'absent':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const totalStaff = schedules.length;
-  const checkedIn = attendance.filter(a => a.status === 'checked_in').length;
-  const departments = [...new Set(schedules.map(s => s.department))];
+  const { schedules, attendance, loading, markAttendance } = useStaffSchedule(selectedDate);
 
   if (loading) {
     return <div className="p-6">Loading schedules...</div>;
@@ -254,7 +20,6 @@ export const StaffScheduleManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Calendar className="w-6 h-6" />
@@ -274,58 +39,7 @@ export const StaffScheduleManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Staff Scheduled</p>
-                <p className="text-2xl font-bold">{totalStaff}</p>
-              </div>
-              <Users className="w-8 h-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Currently On Duty</p>
-                <p className="text-2xl font-bold">{checkedIn}</p>
-              </div>
-              <UserCheck className="w-8 h-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Departments</p>
-                <p className="text-2xl font-bold">{departments.length}</p>
-              </div>
-              <Clock className="w-8 h-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Attendance Rate</p>
-                <p className="text-2xl font-bold">
-                  {totalStaff > 0 ? Math.round((checkedIn / totalStaff) * 100) : 0}%
-                </p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <ScheduleStats schedules={schedules} attendance={attendance} />
 
       <Tabs defaultValue="schedule" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -347,56 +61,11 @@ export const StaffScheduleManagement: React.FC = () => {
               ) : (
                 <div className="space-y-4">
                   {schedules.map((schedule) => (
-                    <div key={schedule.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-medium">{schedule.staff_name}</h4>
-                          <p className="text-sm text-gray-600">{schedule.department}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getShiftColor(schedule.shift_type)}>
-                            {schedule.shift_type}
-                          </Badge>
-                          <Badge className={getStatusColor(schedule.status)}>
-                            {schedule.status}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                        <div>
-                          <p className="text-xs text-gray-500">Shift Time</p>
-                          <p className="text-sm">{schedule.start_time} - {schedule.end_time}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Role</p>
-                          <p className="text-sm capitalize">{schedule.staff_role}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Date Range</p>
-                          <p className="text-sm">{schedule.start_date} to {schedule.end_date}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markAttendance(schedule.id, schedule.staff_id, 'check_in')}
-                        >
-                          <UserCheck className="w-4 h-4 mr-1" />
-                          Check In
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => markAttendance(schedule.id, schedule.staff_id, 'check_out')}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Check Out
-                        </Button>
-                      </div>
-                    </div>
+                    <ScheduleCard 
+                      key={schedule.id} 
+                      schedule={schedule} 
+                      onMarkAttendance={markAttendance}
+                    />
                   ))}
                 </div>
               )}
