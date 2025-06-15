@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,6 +31,9 @@ import { HospitalEmergencyManagement } from './HospitalEmergencyManagement';
 import { HospitalFinancialManagement } from './HospitalFinancialManagement';
 import { HospitalSecurityManagement } from './HospitalSecurityManagement';
 import { HospitalComplianceManagement } from './HospitalComplianceManagement';
+import { HospitalDocumentManagement } from './HospitalDocumentManagement';
+import { HospitalIntegrationManagement } from './HospitalIntegrationManagement';
+import { HospitalAdvancedSettings } from './HospitalAdvancedSettings';
 
 interface HospitalInfo {
   id: string;
@@ -281,7 +283,7 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
 
       {/* Main Dashboard Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-12">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="physicians">Physicians</TabsTrigger>
           <TabsTrigger value="appointments">Appointments</TabsTrigger>
@@ -290,6 +292,9 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -376,6 +381,18 @@ export const ComprehensiveHospitalDashboard: React.FC = () => {
 
         <TabsContent value="compliance">
           <HospitalComplianceManagement />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <HospitalDocumentManagement />
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <HospitalIntegrationManagement />
+        </TabsContent>
+
+        <TabsContent value="advanced">
+          <HospitalAdvancedSettings />
         </TabsContent>
 
         <TabsContent value="settings">
