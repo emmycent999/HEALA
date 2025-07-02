@@ -18,49 +18,78 @@ interface PendingAppointment {
 
 export const createConsultationSession = async (appointment: PendingAppointment, userId: string, consultationRate: number) => {
   try {
-    console.log('Creating consultation session for appointment:', appointment.id);
+    console.log('🔄 Creating consultation session for appointment:', appointment.id);
     
-    const sessionData = {
-      appointment_id: appointment.id,
-      patient_id: appointment.patient_id,
-      physician_id: userId,
-      consultation_rate: consultationRate || 5000,
-      session_type: appointment.consultation_type === 'virtual' ? 'video' : 'chat',
-      status: 'scheduled',
-      payment_status: 'pending'
-    };
-
-    console.log('Creating session with data:', sessionData);
-
-    const { data: sessionData_result, error: sessionError } = await supabase
-      .from('consultation_sessions')
-      .insert(sessionData)
-      .select()
-      .single();
-
-    if (sessionError) throw sessionError;
-
-    console.log('Consultation session created:', sessionData_result);
-
+    // Use the secure database function for virtual appointments
     if (appointment.consultation_type === 'virtual') {
-      const { error: roomError } = await supabase
-        .from('consultation_rooms')
-        .insert({
-          session_id: sessionData_result.id,
-          room_token: `room_${sessionData_result.id}`,
-          room_status: 'waiting'
+      console.log('📹 Creating virtual consultation session with room');
+      
+      const { data: sessionId, error: functionError } = await supabase
+        .rpc('create_virtual_consultation_session', {
+          appointment_uuid: appointment.id,
+          patient_uuid: appointment.patient_id,
+          physician_uuid: userId,
+          consultation_rate_param: consultationRate || 5000
         });
 
-      if (roomError) {
-        console.error('Error creating consultation room:', roomError);
-      } else {
-        console.log('Consultation room created for video session');
+      if (functionError) {
+        console.error('❌ Database function error:', functionError);
+        throw functionError;
       }
-    }
 
-    return sessionData_result;
+      // Fetch the created session with related data
+      const { data: sessionData, error: fetchError } = await supabase
+        .from('consultation_sessions')
+        .select(`
+          *,
+          patient:profiles!consultation_sessions_patient_id_fkey(first_name, last_name, email),
+          physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name)
+        `)
+        .eq('id', sessionId)
+        .single();
+
+      if (fetchError) {
+        console.error('❌ Error fetching created session:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('✅ Virtual consultation session created:', sessionData);
+      return sessionData;
+      
+    } else {
+      // For non-virtual appointments, create chat session manually
+      console.log('💬 Creating chat consultation session');
+      
+      const sessionData = {
+        appointment_id: appointment.id,
+        patient_id: appointment.patient_id,
+        physician_id: userId,
+        consultation_rate: consultationRate || 5000,
+        session_type: 'chat',
+        status: 'scheduled',
+        payment_status: 'pending'
+      };
+
+      const { data: sessionResult, error: sessionError } = await supabase
+        .from('consultation_sessions')
+        .insert(sessionData)
+        .select(`
+          *,
+          patient:profiles!consultation_sessions_patient_id_fkey(first_name, last_name, email),
+          physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name)
+        `)
+        .single();
+
+      if (sessionError) {
+        console.error('❌ Error creating chat session:', sessionError);
+        throw sessionError;
+      }
+
+      console.log('✅ Chat consultation session created:', sessionResult);
+      return sessionResult;
+    }
   } catch (error) {
-    console.error('Error creating consultation session:', error);
+    console.error('💥 Error creating consultation session:', error);
     throw error;
   }
 };

@@ -129,45 +129,19 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   });
 
   const handleStartConsultation = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "User not authenticated. Please login again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       console.log('👨‍⚕️ [VideoInterface] Starting consultation for session:', currentSession.id);
       
-      // Update session to in_progress and ensure it's video type
-      const updateData: any = {
-        status: 'in_progress',
-        started_at: new Date().toISOString()
-      };
-
-      // Always convert to video type when starting video consultation
-      if (currentSession.session_type === 'chat') {
-        updateData.session_type = 'video';
-        console.log('🔄 [VideoInterface] Converting chat session to video type');
-      }
-
-      console.log('📤 [VideoInterface] Updating session with data:', updateData);
-
-      const { error } = await supabase
-        .from('consultation_sessions')
-        .update(updateData)
-        .eq('id', currentSession.id);
-
-      if (error) {
-        console.error('❌ [VideoInterface] Error updating session:', error);
-        throw error;
-      }
-      
-      console.log('✅ [VideoInterface] Session updated successfully');
-      
-      // Update local state immediately
-      const updatedSession = {
-        ...currentSession,
-        status: 'in_progress' as const,
-        session_type: 'video' as const,
-        started_at: new Date().toISOString()
-      };
-      
-      setCurrentSession(updatedSession);
-      
+      // Use the parent's onStartSession which now requires userId
       await onStartSession();
       
       toast({

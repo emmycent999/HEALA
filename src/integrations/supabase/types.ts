@@ -2329,6 +2329,19 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: string
       }
+      create_virtual_consultation_session: {
+        Args: {
+          appointment_uuid: string
+          patient_uuid: string
+          physician_uuid: string
+          consultation_rate_param: number
+        }
+        Returns: string
+      }
+      end_consultation_session_secure: {
+        Args: { session_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
       generate_hospital_analytics: {
         Args: { hospital_uuid: string }
         Returns: undefined
@@ -2427,6 +2440,10 @@ export type Database = {
           physician_uuid: string
           amount: number
         }
+        Returns: boolean
+      }
+      start_consultation_session_secure: {
+        Args: { session_uuid: string; user_uuid: string }
         Returns: boolean
       }
     }
