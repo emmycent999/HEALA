@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 interface PendingAppointment {
@@ -72,16 +71,36 @@ export const createConsultationSession = async (appointment: PendingAppointment,
         .single();
 
       if (roomError || !roomData) {
-        console.error('❌ [AppointmentActions] Consultation room not found for session:', sessionId);
-        throw new Error('Session created but consultation room is missing');
+        console.error('❌ [AppointmentActions] Consultation room not found, creating manually:', sessionId);
+        
+        // Create consultation room manually if it doesn't exist
+        const roomToken = 'room_' + sessionId;
+        const { data: newRoom, error: createRoomError } = await supabase
+          .from('consultation_rooms')
+          .insert({
+            session_id: sessionId,
+            room_token: roomToken,
+            room_status: 'waiting'
+          })
+          .select()
+          .single();
+
+        if (createRoomError) {
+          console.error('❌ [AppointmentActions] Failed to create consultation room manually:', createRoomError);
+          throw new Error('Session created but consultation room creation failed');
+        }
+
+        console.log('✅ [AppointmentActions] Consultation room created manually:', newRoom);
+      } else {
+        console.log('✅ [AppointmentActions] Consultation room found:', roomData);
       }
 
       console.log('✅ [AppointmentActions] Virtual consultation session fully created:', {
         sessionId: sessionData.id,
         sessionType: sessionData.session_type,
         status: sessionData.status,
-        roomToken: roomData.room_token,
-        roomStatus: roomData.room_status
+        roomToken: roomData?.room_token || 'manually_created',
+        roomStatus: roomData?.room_status || 'waiting'
       });
 
       return sessionData;

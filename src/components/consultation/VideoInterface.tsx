@@ -27,6 +27,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
   const [currentSession, setCurrentSession] = useState(session);
   const [hasConsultationRoom, setHasConsultationRoom] = useState(false);
   const [checkingRoom, setCheckingRoom] = useState(true);
+  const [creatingRoom, setCreatingRoom] = useState(false);
   
   const isPhysician = profile?.role === 'physician';
   const isPatient = profile?.role === 'patient';
@@ -77,14 +78,6 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
         } else {
           console.log('⚠️ [VideoInterface] No consultation room found for video session');
           setHasConsultationRoom(false);
-          
-          // Show error to user
-          toast({
-            title: "⚠️ Video Session Issue",
-            description: "This video session is missing its consultation room. Please contact support.",
-            variant: "destructive",
-            duration: 8000,
-          });
         }
       } catch (error) {
         console.error('💥 [VideoInterface] Fatal error checking room:', error);
@@ -95,7 +88,56 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     };
 
     checkConsultationRoom();
-  }, [currentSession.id, currentSession.session_type, toast]);
+  }, [currentSession.id, currentSession.session_type]);
+
+  // Function to create missing consultation room
+  const createMissingRoom = async () => {
+    if (currentSession.session_type !== 'video' || !user?.id) return;
+
+    setCreatingRoom(true);
+    try {
+      console.log('🔧 [VideoInterface] Creating missing consultation room for session:', currentSession.id);
+      
+      const roomToken = 'room_' + currentSession.id;
+      const { data: newRoom, error: createError } = await supabase
+        .from('consultation_rooms')
+        .insert({
+          session_id: currentSession.id,
+          room_token: roomToken,
+          room_status: 'waiting'
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('❌ [VideoInterface] Failed to create consultation room:', createError);
+        toast({
+          title: "❌ Failed to Create Room",
+          description: "Could not create the consultation room. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('✅ [VideoInterface] Consultation room created successfully:', newRoom);
+      setHasConsultationRoom(true);
+      
+      toast({
+        title: "✅ Room Created",
+        description: "Consultation room has been created. You can now start the video session.",
+      });
+
+    } catch (error) {
+      console.error('💥 [VideoInterface] Error creating room:', error);
+      toast({
+        title: "❌ Error",
+        description: "An unexpected error occurred while creating the room.",
+        variant: "destructive"
+      });
+    } finally {
+      setCreatingRoom(false);
+    }
+  };
 
   // Set up real-time session monitoring
   useEffect(() => {
@@ -188,12 +230,13 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     }
 
     if (currentSession.session_type === 'video' && !hasConsultationRoom) {
-      toast({
-        title: "❌ Cannot Start Video Session",
-        description: "This video session is missing its consultation room. Please try again or contact support.",
-        variant: "destructive"
-      });
-      return;
+      // Try to create the missing room first
+      await createMissingRoom();
+      
+      // Check if room creation was successful
+      if (!hasConsultationRoom) {
+        return; // Error already shown in createMissingRoom
+      }
     }
 
     try {
@@ -350,6 +393,23 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
     <Card>
       <CardContent className="p-0">
         <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
+          {/* Show room creation option if room is missing */}
+          {currentSession.session_type === 'video' && !hasConsultationRoom && isPhysician && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50 z-30">
+              <div className="bg-red-600 text-white p-6 rounded-lg max-w-md text-center">
+                <h3 className="text-lg font-semibold mb-2">❌ Cannot Start Video Session</h3>
+                <p className="mb-4">This video session is missing its consultation room.</p>
+                <button 
+                  onClick={createMissingRoom}
+                  disabled={creatingRoom}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+                >
+                  {creatingRoom ? 'Creating Room...' : 'Create Room'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <ConsultationActions
             sessionStatus={currentSession.status}
             isPhysician={isPhysician}
