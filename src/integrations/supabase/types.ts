@@ -2388,7 +2388,7 @@ export type Database = {
         }[]
       }
       get_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { user_id: number }
         Returns: string
       }
       is_admin: {
