@@ -18,11 +18,16 @@ interface PendingAppointment {
 
 export const createConsultationSession = async (appointment: PendingAppointment, userId: string, consultationRate: number) => {
   try {
-    console.log('🔄 Creating consultation session for appointment:', appointment.id);
+    console.log('🔄 [AppointmentActions] Creating consultation session for appointment:', appointment.id);
+    console.log('📋 [AppointmentActions] Appointment details:', {
+      type: appointment.consultation_type,
+      patient: appointment.patient.first_name + ' ' + appointment.patient.last_name,
+      rate: consultationRate
+    });
     
-    // Use the secure database function for virtual appointments
+    // Use the secure database function for ALL virtual appointments
     if (appointment.consultation_type === 'virtual') {
-      console.log('📹 Creating virtual consultation session with room');
+      console.log('📹 [AppointmentActions] Creating virtual consultation session with secure function');
       
       const { data: sessionId, error: functionError } = await supabase
         .rpc('create_virtual_consultation_session', {
@@ -33,11 +38,17 @@ export const createConsultationSession = async (appointment: PendingAppointment,
         });
 
       if (functionError) {
-        console.error('❌ Database function error:', functionError);
-        throw functionError;
+        console.error('❌ [AppointmentActions] Database function error:', functionError);
+        throw new Error(`Failed to create virtual session: ${functionError.message}`);
       }
 
-      // Fetch the created session with related data
+      if (!sessionId) {
+        throw new Error('Session creation returned null - check database function');
+      }
+
+      console.log('✅ [AppointmentActions] Virtual session created with ID:', sessionId);
+
+      // Verify the session was created correctly
       const { data: sessionData, error: fetchError } = await supabase
         .from('consultation_sessions')
         .select(`
@@ -49,16 +60,35 @@ export const createConsultationSession = async (appointment: PendingAppointment,
         .single();
 
       if (fetchError) {
-        console.error('❌ Error fetching created session:', fetchError);
-        throw fetchError;
+        console.error('❌ [AppointmentActions] Error fetching created session:', fetchError);
+        throw new Error('Session created but failed to fetch details');
       }
 
-      console.log('✅ Virtual consultation session created:', sessionData);
+      // Verify consultation room was created
+      const { data: roomData, error: roomError } = await supabase
+        .from('consultation_rooms')
+        .select('*')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (roomError || !roomData) {
+        console.error('❌ [AppointmentActions] Consultation room not found for session:', sessionId);
+        throw new Error('Session created but consultation room is missing');
+      }
+
+      console.log('✅ [AppointmentActions] Virtual consultation session fully created:', {
+        sessionId: sessionData.id,
+        sessionType: sessionData.session_type,
+        status: sessionData.status,
+        roomToken: roomData.room_token,
+        roomStatus: roomData.room_status
+      });
+
       return sessionData;
       
     } else {
       // For non-virtual appointments, create chat session manually
-      console.log('💬 Creating chat consultation session');
+      console.log('💬 [AppointmentActions] Creating chat consultation session');
       
       const sessionData = {
         appointment_id: appointment.id,
@@ -81,29 +111,38 @@ export const createConsultationSession = async (appointment: PendingAppointment,
         .single();
 
       if (sessionError) {
-        console.error('❌ Error creating chat session:', sessionError);
+        console.error('❌ [AppointmentActions] Error creating chat session:', sessionError);
         throw sessionError;
       }
 
-      console.log('✅ Chat consultation session created:', sessionResult);
+      console.log('✅ [AppointmentActions] Chat consultation session created:', sessionResult);
       return sessionResult;
     }
   } catch (error) {
-    console.error('💥 Error creating consultation session:', error);
+    console.error('💥 [AppointmentActions] Fatal error creating consultation session:', error);
     throw error;
   }
 };
 
 export const updateAppointmentStatus = async (appointmentId: string, status: 'accepted' | 'rejected') => {
+  console.log('🔄 [AppointmentActions] Updating appointment status:', { appointmentId, status });
+  
   const { error } = await supabase
     .from('appointments')
     .update({ status })
     .eq('id', appointmentId);
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [AppointmentActions] Error updating appointment status:', error);
+    throw error;
+  }
+  
+  console.log('✅ [AppointmentActions] Appointment status updated successfully');
 };
 
 export const createPhysicianPatientRelationship = async (physicianId: string, patientId: string) => {
+  console.log('🔄 [AppointmentActions] Creating physician-patient relationship');
+  
   const { error } = await supabase
     .from('physician_patients')
     .upsert({
@@ -114,10 +153,17 @@ export const createPhysicianPatientRelationship = async (physicianId: string, pa
       onConflict: 'physician_id,patient_id'
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [AppointmentActions] Error creating relationship:', error);
+    throw error;
+  }
+  
+  console.log('✅ [AppointmentActions] Physician-patient relationship created');
 };
 
 export const createConversation = async (patientId: string, physicianId: string, patientName: string) => {
+  console.log('🔄 [AppointmentActions] Creating conversation');
+  
   const { error } = await supabase
     .from('conversations')
     .insert({
@@ -128,5 +174,10 @@ export const createConversation = async (patientId: string, physicianId: string,
       status: 'active'
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error('❌ [AppointmentActions] Error creating conversation:', error);
+    throw error;
+  }
+  
+  console.log('✅ [AppointmentActions] Conversation created successfully');
 };
