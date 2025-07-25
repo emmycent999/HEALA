@@ -11,19 +11,7 @@ import { EnhancedVirtualConsultationRoom } from '@/components/consultation/Enhan
 import { handleError } from '@/lib/errorHandler';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { SkeletonLoader } from '@/components/shared/SkeletonLoader';
-
-interface ConsultationSession {
-  id: string;
-  session_type: string;
-  status: string;
-  created_at: string;
-  consultation_rate: number;
-  physician: {
-    first_name: string;
-    last_name: string;
-    specialization: string;
-  };
-}
+import { ConsultationSession } from '@/components/consultation/types';
 
 export const VirtualConsultationTab: React.FC = () => {
   const { user } = useAuth();
@@ -44,14 +32,27 @@ export const VirtualConsultationTab: React.FC = () => {
         .from('consultation_sessions')
         .select(`
           *,
-          physician:profiles!consultation_sessions_physician_id_fkey(first_name, last_name, specialization)
+          physician:profiles!consultation_sessions_physician_id_fkey(
+            first_name,
+            last_name,
+            specialization
+          )
         `)
         .eq('patient_id', user?.id)
-        .eq('session_type', 'virtual')
+        .eq('session_type', 'video')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSessions(data || []);
+      
+      // Transform the data to match our expected interface
+      const transformedSessions = data?.map(session => ({
+        ...session,
+        physician: Array.isArray(session.physician) 
+          ? session.physician[0] 
+          : session.physician || { first_name: '', last_name: '', specialization: '' }
+      })) || [];
+      
+      setSessions(transformedSessions);
     } catch (error) {
       console.error('Error fetching sessions:', error);
       handleError(error, toast);
@@ -137,7 +138,7 @@ export const VirtualConsultationTab: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4" />
                       <span className="font-medium">
-                        Dr. {session.physician.first_name} {session.physician.last_name}
+                        Dr. {session.physician?.first_name || 'Unknown'} {session.physician?.last_name || 'Physician'}
                       </span>
                     </div>
                     <Badge variant={getStatusColor(session.status)}>
@@ -146,7 +147,7 @@ export const VirtualConsultationTab: React.FC = () => {
                   </div>
                   
                   <p className="text-sm text-muted-foreground mb-2">
-                    {session.physician.specialization}
+                    {session.physician?.specialization || 'General Practice'}
                   </p>
                   
                   <div className="flex items-center justify-between">

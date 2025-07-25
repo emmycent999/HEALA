@@ -13,23 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRetry } from '@/hooks/useRetry';
 import { handleError, showSuccess } from '@/lib/errorHandler';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-
-interface EmergencyRequest {
-  id: string;
-  emergency_type: string;
-  description: string;
-  pickup_address: string;
-  contact_phone: string;
-  status: string;
-  created_at: string;
-  ambulance_eta?: number;
-}
-
-interface LocationData {
-  latitude: number;
-  longitude: number;
-  address: string;
-}
+import { EmergencyRequest, LocationData } from './types';
 
 export const EnhancedEmergencyRequest: React.FC = () => {
   const { user } = useAuth();
@@ -155,20 +139,9 @@ export const EnhancedEmergencyRequest: React.FC = () => {
 
       const { latitude, longitude } = position.coords;
       
-      // Reverse geocoding to get address
-      const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=YOUR_API_KEY`
-      );
+      // Simple reverse geocoding fallback
+      let address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
       
-      let address = `${latitude}, ${longitude}`;
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          address = data.results[0].formatted;
-        }
-      }
-
       const locationData = { latitude, longitude, address };
       setLocationData(locationData);
       setFormData(prev => ({ ...prev, pickup_address: address }));
@@ -219,11 +192,15 @@ export const EnhancedEmergencyRequest: React.FC = () => {
     try {
       await executeWithRetry(async () => {
         const requestData = {
-          ...formData,
+          emergency_type: formData.emergency_type,
+          description: formData.description,
           patient_id: user?.id,
-          pickup_latitude: locationData?.latitude,
-          pickup_longitude: locationData?.longitude,
           status: 'pending',
+          severity: 'medium',
+          location_latitude: locationData?.latitude,
+          location_longitude: locationData?.longitude,
+          pickup_address: formData.pickup_address,
+          contact_phone: formData.contact_phone,
         };
 
         const { data, error } = await supabase
@@ -426,19 +403,25 @@ export const EnhancedEmergencyRequest: React.FC = () => {
                     </span>
                   </div>
                   
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {request.description}
-                  </p>
+                  {request.description && (
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {request.description}
+                    </p>
+                  )}
                   
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {request.pickup_address}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Phone className="w-4 h-4" />
-                      {request.contact_phone}
-                    </div>
+                    {request.pickup_address && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-4 h-4" />
+                        {request.pickup_address}
+                      </div>
+                    )}
+                    {request.contact_phone && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="w-4 h-4" />
+                        {request.contact_phone}
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       <Clock className="w-4 h-4" />
                       {new Date(request.created_at).toLocaleString()}
