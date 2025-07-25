@@ -17,6 +17,10 @@ import HospitalDashboard from "./pages/HospitalDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import Contact from "./pages/Contact";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import About from "./pages/About";
+import TermsOfService from "./pages/TermsOfService";
 
 const queryClient = new QueryClient();
 
