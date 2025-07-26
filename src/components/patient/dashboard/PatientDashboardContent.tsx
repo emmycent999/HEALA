@@ -4,6 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppointmentsTab } from './AppointmentsTab';
+import { WalletTab } from './WalletTab';
+import { VirtualConsultationTab } from './VirtualConsultationTab';
+import { EmergencyTab } from './EmergencyTab';
+import { HealthRecordsTab } from './HealthRecordsTab';
+import { PrescriptionsTab } from './PrescriptionsTab';
+import { AIAssistantTab } from './AIAssistantTab';
+import { SubscriptionTab } from './SubscriptionTab';
+import { ProfileTab } from './ProfileTab';
+import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -22,111 +31,141 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
     return 'Good Evening';
   };
 
-  // Render different content based on activeTab from URL
   const renderTabContent = () => {
     switch (activeTab) {
       case 'appointments':
         return <AppointmentsTab />;
       case 'wallet':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Wallet functionality is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <WalletTab />;
       case 'virtual-consultation':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Virtual Consultation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Virtual consultation features are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <VirtualConsultationTab />;
       case 'emergency':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Emergency Services</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Emergency services are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <EmergencyTab />;
       case 'health-records':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Health Records</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Health records management is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <HealthRecordsTab />;
       case 'prescriptions':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Prescriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Prescription management is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <PrescriptionsTab />;
       case 'ai-assistant':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Assistant</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                AI assistance features are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <AIAssistantTab />;
       case 'subscription':
+        return <SubscriptionTab />;
+      case 'profile':
+        return <ProfileTab />;
+      case 'symptom-checker':
+        return <SymptomChecker />;
+      case 'chat':
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Subscription Management</CardTitle>
+              <CardTitle>Chat</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Subscription management is available through the sidebar navigation.
+                Chat functionality is available through the sidebar navigation.
               </p>
             </CardContent>
           </Card>
         );
-      case 'profile':
+      case 'emergency-contacts':
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
+              <CardTitle>Emergency Contacts</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Profile settings are available through the sidebar navigation.
+                Emergency contacts management is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'contact-agent':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact Agent</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Agent contact features are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'physician':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Physician</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Physician features are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'transport':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transport</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Transport booking is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'settings':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Settings are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'accessibility':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Accessibility Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Accessibility settings are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'offline':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Offline Mode</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Offline features are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'ambulance':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ambulance Services</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Ambulance services are available through the sidebar navigation.
               </p>
             </CardContent>
           </Card>
