@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, User, Phone, Mail, Calendar, MapPin } from 'lucide-react';
+import { Search, User, Phone, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FixedTransportBooking } from './FixedTransportBooking';
@@ -15,9 +15,6 @@ interface PatientProfile {
   last_name: string;
   email: string;
   phone: string;
-  address: string;
-  city?: string;
-  state?: string;
 }
 
 export const FixedPatientAssistance: React.FC = () => {
@@ -41,7 +38,7 @@ export const FixedPatientAssistance: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, phone, address, city, state')
+        .select('id, first_name, last_name, email, phone')
         .eq('role', 'patient')
         .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
         .limit(10);
@@ -57,10 +54,7 @@ export const FixedPatientAssistance: React.FC = () => {
         first_name: patient.first_name || '',
         last_name: patient.last_name || '',
         email: patient.email || '',
-        phone: patient.phone || '',
-        address: patient.address || '',
-        city: patient.city || '',
-        state: patient.state || ''
+        phone: patient.phone || ''
       }));
 
       setSearchResults(transformedData);
@@ -182,12 +176,6 @@ export const FixedPatientAssistance: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-gray-400" />
                       <span>{selectedPatient.phone}</span>
-                    </div>
-                  )}
-                  {selectedPatient.address && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span>{selectedPatient.address}</span>
                     </div>
                   )}
                 </div>
