@@ -15,7 +15,6 @@ interface PatientProfile {
   last_name: string;
   email: string;
   phone: string;
-  date_of_birth: string;
   address: string;
   city?: string;
   state?: string;
@@ -42,7 +41,7 @@ export const FixedPatientAssistance: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, phone, date_of_birth, address, city, state')
+        .select('id, first_name, last_name, email, phone, address, city, state')
         .eq('role', 'patient')
         .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
         .limit(10);
@@ -59,7 +58,6 @@ export const FixedPatientAssistance: React.FC = () => {
         last_name: patient.last_name || '',
         email: patient.email || '',
         phone: patient.phone || '',
-        date_of_birth: patient.date_of_birth || '',
         address: patient.address || '',
         city: patient.city || '',
         state: patient.state || ''
@@ -184,12 +182,6 @@ export const FixedPatientAssistance: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4 text-gray-400" />
                       <span>{selectedPatient.phone}</span>
-                    </div>
-                  )}
-                  {selectedPatient.date_of_birth && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{new Date(selectedPatient.date_of_birth).toLocaleDateString()}</span>
                     </div>
                   )}
                   {selectedPatient.address && (

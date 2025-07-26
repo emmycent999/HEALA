@@ -38,7 +38,13 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
   
   // Use external activeTab if provided, otherwise use internal state
   const activeTab = externalActiveTab || internalActiveTab;
-  const setActiveTab = externalActiveTab ? () => {} : setInternalActiveTab;
+  
+  // Handle tab changes - only update internal state if no external activeTab is provided
+  const handleTabChange = (value: string) => {
+    if (!externalActiveTab) {
+      setInternalActiveTab(value as PatientDashboardTab);
+    }
+  };
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
@@ -69,7 +75,7 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
       </Card>
 
       {/* Main Dashboard Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5 lg:grid-cols-9">
           <TabsTrigger value="appointments" className="flex items-center gap-2">
             <Calendar className="w-4 h-4" />
