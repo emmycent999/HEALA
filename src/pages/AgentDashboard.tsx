@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { FixedPatientAssistance } from '@/components/agent/FixedPatientAssistance';
 import { AgentChatInterface } from '@/components/agent/AgentChatInterface';
-import { AppointmentBooking } from '@/components/agent/AppointmentBooking';
+import { AppointmentBookingAgent } from '@/components/agent/AppointmentBooking';
 import { AssistedPatients } from '@/components/agent/AssistedPatients';
 import { DynamicOverview } from '@/components/agent/DynamicOverview';
 
@@ -31,7 +31,7 @@ const AgentDashboard = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Agent Dashboard">
       <div className="space-y-6">
         {/* Welcome Header */}
         <Card>
@@ -94,7 +94,7 @@ const AgentDashboard = () => {
           </TabsContent>
 
           <TabsContent value="appointments" className="mt-6">
-            <AppointmentBooking />
+            <AppointmentBookingAgent />
           </TabsContent>
 
           <TabsContent value="assisted-patients" className="mt-6">

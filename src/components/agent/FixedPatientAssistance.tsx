@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { FixedTransportBooking } from './FixedTransportBooking';
 
-interface Patient {
+interface PatientProfile {
   id: string;
   first_name: string;
   last_name: string;
@@ -17,13 +17,15 @@ interface Patient {
   phone: string;
   date_of_birth: string;
   address: string;
+  city?: string;
+  state?: string;
 }
 
 export const FixedPatientAssistance: React.FC = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [searchResults, setSearchResults] = useState<PatientProfile[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<PatientProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
   const searchPatients = async () => {
@@ -40,7 +42,7 @@ export const FixedPatientAssistance: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, email, phone, date_of_birth, address, city, state')
         .eq('role', 'patient')
         .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
         .limit(10);
@@ -50,9 +52,22 @@ export const FixedPatientAssistance: React.FC = () => {
         throw error;
       }
 
-      setSearchResults(data || []);
+      // Transform the data to match our PatientProfile interface
+      const transformedData = (data || []).map(patient => ({
+        id: patient.id,
+        first_name: patient.first_name || '',
+        last_name: patient.last_name || '',
+        email: patient.email || '',
+        phone: patient.phone || '',
+        date_of_birth: patient.date_of_birth || '',
+        address: patient.address || '',
+        city: patient.city || '',
+        state: patient.state || ''
+      }));
+
+      setSearchResults(transformedData);
       
-      if (!data || data.length === 0) {
+      if (transformedData.length === 0) {
         toast({
           title: "No Results",
           description: "No patients found matching your search criteria.",
@@ -70,7 +85,7 @@ export const FixedPatientAssistance: React.FC = () => {
     }
   };
 
-  const selectPatient = (patient: Patient) => {
+  const selectPatient = (patient: PatientProfile) => {
     setSelectedPatient(patient);
     setSearchResults([]);
     setSearchTerm('');

@@ -24,10 +24,21 @@ import { ProfileTab } from './ProfileTab';
 import { PrescriptionsTab } from './PrescriptionsTab';
 import { AIAssistantTab } from './AIAssistantTab';
 import { SubscriptionTab } from './SubscriptionTab';
+import { PatientDashboardTab } from './types';
 
-export const PatientDashboardContent: React.FC = () => {
+interface PatientDashboardContentProps {
+  activeTab?: PatientDashboardTab;
+}
+
+export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = ({ 
+  activeTab: externalActiveTab 
+}) => {
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('appointments');
+  const [internalActiveTab, setInternalActiveTab] = useState<PatientDashboardTab>('appointments');
+  
+  // Use external activeTab if provided, otherwise use internal state
+  const activeTab = externalActiveTab || internalActiveTab;
+  const setActiveTab = externalActiveTab ? () => {} : setInternalActiveTab;
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
