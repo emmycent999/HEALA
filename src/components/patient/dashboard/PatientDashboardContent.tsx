@@ -1,29 +1,9 @@
 
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Calendar, 
-  MessageSquare, 
-  Video, 
-  Wallet, 
-  FileText, 
-  User, 
-  AlertTriangle, 
-  Bot,
-  CreditCard
-} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppointmentsTab } from './AppointmentsTab';
-import { FixedVirtualConsultationTab } from './FixedVirtualConsultationTab';
-import { FixedWalletTab } from './FixedWalletTab';
-import { FixedEmergencyTab } from './FixedEmergencyTab';
-import { HealthRecordsTab } from './HealthRecordsTab';
-import { ProfileTab } from './ProfileTab';
-import { PrescriptionsTab } from './PrescriptionsTab';
-import { AIAssistantTab } from './AIAssistantTab';
-import { SubscriptionTab } from './SubscriptionTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -31,26 +11,129 @@ interface PatientDashboardContentProps {
 }
 
 export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = ({ 
-  activeTab: externalActiveTab 
+  activeTab = 'appointments'
 }) => {
-  const { user, profile } = useAuth();
-  const [internalActiveTab, setInternalActiveTab] = useState<PatientDashboardTab>('appointments');
-  
-  // Use external activeTab if provided, otherwise use internal state
-  const activeTab = externalActiveTab || internalActiveTab;
-  
-  // Handle tab changes - only update internal state if no external activeTab is provided
-  const handleTabChange = (value: string) => {
-    if (!externalActiveTab) {
-      setInternalActiveTab(value as PatientDashboardTab);
-    }
-  };
+  const { profile } = useAuth();
 
   const getWelcomeMessage = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
     if (hour < 17) return 'Good Afternoon';
     return 'Good Evening';
+  };
+
+  // Render different content based on activeTab from URL
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'appointments':
+        return <AppointmentsTab />;
+      case 'wallet':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Wallet</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Wallet functionality is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'virtual-consultation':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Virtual Consultation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Virtual consultation features are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'emergency':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Emergency Services</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Emergency services are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'health-records':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Health Records</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Health records management is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'prescriptions':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Prescriptions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Prescription management is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'ai-assistant':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Assistant</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                AI assistance features are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'subscription':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Subscription Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Subscription management is available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      case 'profile':
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Profile settings are available through the sidebar navigation.
+              </p>
+            </CardContent>
+          </Card>
+        );
+      default:
+        return <AppointmentsTab />;
+    }
   };
 
   return (
@@ -74,83 +157,8 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
         </CardHeader>
       </Card>
 
-      {/* Main Dashboard Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-9">
-          <TabsTrigger value="appointments" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            <span className="hidden sm:inline">Appointments</span>
-          </TabsTrigger>
-          <TabsTrigger value="consultation" className="flex items-center gap-2">
-            <Video className="w-4 h-4" />
-            <span className="hidden sm:inline">Virtual</span>
-          </TabsTrigger>
-          <TabsTrigger value="wallet" className="flex items-center gap-2">
-            <Wallet className="w-4 h-4" />
-            <span className="hidden sm:inline">Wallet</span>
-          </TabsTrigger>
-          <TabsTrigger value="emergency" className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="hidden sm:inline">Emergency</span>
-          </TabsTrigger>
-          <TabsTrigger value="health-records" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Records</span>
-          </TabsTrigger>
-          <TabsTrigger value="prescriptions" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            <span className="hidden sm:inline">Rx</span>
-          </TabsTrigger>
-          <TabsTrigger value="ai-assistant" className="flex items-center gap-2">
-            <Bot className="w-4 h-4" />
-            <span className="hidden sm:inline">AI Help</span>
-          </TabsTrigger>
-          <TabsTrigger value="subscription" className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            <span className="hidden sm:inline">Plan</span>
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="appointments" className="mt-6">
-          <AppointmentsTab />
-        </TabsContent>
-
-        <TabsContent value="consultation" className="mt-6">
-          <FixedVirtualConsultationTab />
-        </TabsContent>
-
-        <TabsContent value="wallet" className="mt-6">
-          <FixedWalletTab />
-        </TabsContent>
-
-        <TabsContent value="emergency" className="mt-6">
-          <FixedEmergencyTab />
-        </TabsContent>
-
-        <TabsContent value="health-records" className="mt-6">
-          <HealthRecordsTab />
-        </TabsContent>
-
-        <TabsContent value="prescriptions" className="mt-6">
-          <PrescriptionsTab />
-        </TabsContent>
-
-        <TabsContent value="ai-assistant" className="mt-6">
-          <AIAssistantTab />
-        </TabsContent>
-
-        <TabsContent value="subscription" className="mt-6">
-          <SubscriptionTab />
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-6">
-          <ProfileTab />
-        </TabsContent>
-      </Tabs>
+      {/* Dynamic Content Based on Active Tab */}
+      {renderTabContent()}
     </div>
   );
 };

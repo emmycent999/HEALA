@@ -7,7 +7,6 @@ import {
   Users, 
   MessageSquare, 
   Calendar, 
-  Car,
   BarChart3,
   Settings
 } from 'lucide-react';
