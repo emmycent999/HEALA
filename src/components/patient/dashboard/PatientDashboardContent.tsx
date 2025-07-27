@@ -12,7 +12,16 @@ import { PrescriptionsTab } from './PrescriptionsTab';
 import { AIAssistantTab } from './AIAssistantTab';
 import { SubscriptionTab } from './SubscriptionTab';
 import { ProfileTab } from './ProfileTab';
-import { SymptomChecker } from '@/components/symptom-checker/SymptomChecker';
+import { SymptomCheckerTab } from './SymptomCheckerTab';
+import { ChatTab } from './ChatTab';
+import { EmergencyContactsTab } from './EmergencyContactsTab';
+import { ContactAgentTab } from './ContactAgentTab';
+import { PhysicianTab } from './PhysicianTab';
+import { TransportTab } from './TransportTab';
+import { SettingsTab } from './SettingsTab';
+import { AccessibilityTab } from './AccessibilityTab';
+import { OfflineTab } from './OfflineTab';
+import { AmbulanceTab } from './AmbulanceTab';
 import { PatientDashboardTab } from './types';
 
 interface PatientDashboardContentProps {
@@ -52,124 +61,25 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
       case 'profile':
         return <ProfileTab />;
       case 'symptom-checker':
-        return <SymptomChecker />;
+        return <SymptomCheckerTab />;
       case 'chat':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Chat</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Chat functionality is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <ChatTab />;
       case 'emergency-contacts':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Emergency Contacts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Emergency contacts management is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <EmergencyContactsTab />;
       case 'contact-agent':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Agent</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Agent contact features are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <ContactAgentTab />;
       case 'physician':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Physician</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Physician features are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <PhysicianTab />;
       case 'transport':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Transport</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Transport booking is available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <TransportTab />;
       case 'settings':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Settings are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <SettingsTab />;
       case 'accessibility':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Accessibility Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Accessibility settings are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <AccessibilityTab />;
       case 'offline':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Offline Mode</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Offline features are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <OfflineTab />;
       case 'ambulance':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Ambulance Services</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Ambulance services are available through the sidebar navigation.
-              </p>
-            </CardContent>
-          </Card>
-        );
+        return <AmbulanceTab />;
       default:
         return <AppointmentsTab />;
     }
