@@ -32,7 +32,7 @@ export const VirtualConsultationTab: React.FC = () => {
         .from('consultation_sessions')
         .select(`
           *,
-          physician:profiles!consultation_sessions_physician_id_fkey(
+          physician:profiles(
             first_name,
             last_name,
             specialization
