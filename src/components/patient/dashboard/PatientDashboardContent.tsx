@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppointmentsTab } from './AppointmentsTab';
 import { WalletTab } from './WalletTab';
-import { VirtualConsultationTab } from './VirtualConsultationTab';
+import { EnhancedVirtualConsultationTab } from './EnhancedVirtualConsultationTab';
 import { EmergencyTab } from './EmergencyTab';
 import { HealthRecordsTab } from './HealthRecordsTab';
 import { PrescriptionsTab } from './PrescriptionsTab';
