@@ -306,64 +306,6 @@ export type Database = {
           },
         ]
       }
-      chat_messages: {
-        Row: {
-          appointment_id: string | null
-          created_at: string | null
-          id: string
-          is_read: boolean | null
-          message: string
-          message_type: string | null
-          read_at: string | null
-          receiver_id: string | null
-          sender_id: string | null
-        }
-        Insert: {
-          appointment_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_read?: boolean | null
-          message: string
-          message_type?: string | null
-          read_at?: string | null
-          receiver_id?: string | null
-          sender_id?: string | null
-        }
-        Update: {
-          appointment_id?: string | null
-          created_at?: string | null
-          id?: string
-          is_read?: boolean | null
-          message?: string
-          message_type?: string | null
-          read_at?: string | null
-          receiver_id?: string | null
-          sender_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_appointment_id_fkey"
-            columns: ["appointment_id"]
-            isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_receiver_id_fkey"
-            columns: ["receiver_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       compliance_alerts: {
         Row: {
           alert_type: string
