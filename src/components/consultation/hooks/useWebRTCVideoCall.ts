@@ -301,7 +301,8 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   const startCall = async () => {
     try {
-      console.log('📞 [WebRTCVideoCall] Starting call...');
+      console.log('📞 [WebRTCVideoCall] Starting call...', { sessionId, userId, userRole });
+      console.log('📞 [WebRTCVideoCall] Channel ref:', channelRef.current);
       setIsConnecting(true);
 
       // Get user media with fallback constraints
