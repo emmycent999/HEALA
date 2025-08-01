@@ -47,7 +47,7 @@ export const PatientDashboardContent: React.FC<PatientDashboardContentProps> = (
       case 'wallet':
         return <WalletTab />;
       case 'virtual-consultation':
-        return <VirtualConsultationTab />;
+        return <EnhancedVirtualConsultationTab />;
       case 'emergency':
         return <EmergencyTab />;
       case 'health-records':
