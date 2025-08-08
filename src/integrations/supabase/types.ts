@@ -401,89 +401,42 @@ export type Database = {
         }
         Relationships: []
       }
-      consultation_messages: {
+      consultation_rooms: {
         Row: {
-          content: string
           created_at: string
           id: string
-          message_type: string
-          metadata: Json | null
-          sender_id: string
-          sender_type: string
+          patient_joined: boolean
+          physician_joined: boolean
+          room_status: string
+          room_token: string
           session_id: string
           updated_at: string
         }
         Insert: {
-          content: string
           created_at?: string
           id?: string
-          message_type?: string
-          metadata?: Json | null
-          sender_id: string
-          sender_type: string
+          patient_joined?: boolean
+          physician_joined?: boolean
+          room_status?: string
+          room_token: string
           session_id: string
           updated_at?: string
         }
         Update: {
-          content?: string
           created_at?: string
           id?: string
-          message_type?: string
-          metadata?: Json | null
-          sender_id?: string
-          sender_type?: string
-          session_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "consultation_messages_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "consultation_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      consultation_rooms: {
-        Row: {
-          created_at: string | null
-          id: string
-          patient_joined_at: string | null
-          physician_joined_at: string | null
-          recording_enabled: boolean | null
-          recording_url: string | null
-          room_status: string | null
-          room_token: string
-          session_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          patient_joined_at?: string | null
-          physician_joined_at?: string | null
-          recording_enabled?: boolean | null
-          recording_url?: string | null
-          room_status?: string | null
-          room_token: string
-          session_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          patient_joined_at?: string | null
-          physician_joined_at?: string | null
-          recording_enabled?: boolean | null
-          recording_url?: string | null
-          room_status?: string | null
+          patient_joined?: boolean
+          physician_joined?: boolean
+          room_status?: string
           room_token?: string
           session_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "consultation_rooms_session_id_fkey"
             columns: ["session_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "consultation_sessions"
             referencedColumns: ["id"]
           },
@@ -493,50 +446,47 @@ export type Database = {
         Row: {
           appointment_id: string | null
           consultation_rate: number
-          created_at: string | null
+          created_at: string
           duration_minutes: number | null
           ended_at: string | null
           id: string
           patient_id: string
-          payment_status: string | null
+          payment_status: string
           physician_id: string
-          session_data: Json | null
-          session_type: string | null
+          session_type: string
           started_at: string | null
-          status: string | null
-          updated_at: string | null
+          status: string
+          updated_at: string
         }
         Insert: {
           appointment_id?: string | null
-          consultation_rate: number
-          created_at?: string | null
+          consultation_rate?: number
+          created_at?: string
           duration_minutes?: number | null
           ended_at?: string | null
           id?: string
           patient_id: string
-          payment_status?: string | null
+          payment_status?: string
           physician_id: string
-          session_data?: Json | null
-          session_type?: string | null
+          session_type?: string
           started_at?: string | null
-          status?: string | null
-          updated_at?: string | null
+          status?: string
+          updated_at?: string
         }
         Update: {
           appointment_id?: string | null
           consultation_rate?: number
-          created_at?: string | null
+          created_at?: string
           duration_minutes?: number | null
           ended_at?: string | null
           id?: string
           patient_id?: string
-          payment_status?: string | null
+          payment_status?: string
           physician_id?: string
-          session_data?: Json | null
-          session_type?: string | null
+          session_type?: string
           started_at?: string | null
-          status?: string | null
-          updated_at?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -544,6 +494,20 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_sessions_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_sessions_physician_id_fkey"
+            columns: ["physician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
