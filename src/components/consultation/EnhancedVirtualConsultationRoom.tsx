@@ -18,7 +18,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useConsultationSession } from './hooks/useConsultationSession';
-import { useWebRTC } from '@/hooks/useWebRTC';
+import { useWebRTCVideoCall } from './hooks/useWebRTCVideoCall';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { handleError, showSuccess } from '@/lib/errorHandler';
@@ -49,13 +49,23 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
     formatDuration
   } = useConsultationSession(sessionId);
 
-  const {
-    connection,
+const {
+    isCallActive,
+    connectionState,
+    isConnecting,
+    localVideoRef,
+    remoteVideoRef,
+    startCall,
+    endCall,
     toggleVideo,
     toggleAudio,
-    endCall,
-    reconnect
-  } = useWebRTC(sessionId, session?.physician_id === user?.id);
+    startScreenShare,
+    stopScreenShare
+  } = useWebRTCVideoCall({
+    sessionId,
+    userId: user?.id || '',
+    userRole: session?.physician_id === user?.id ? 'physician' : 'patient'
+  });
 
   useEffect(() => {
     if (session && session.status === 'scheduled' && user) {
@@ -121,32 +131,6 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
     }
   };
 
-  const getConnectionQualityColor = () => {
-    switch (connection.connectionQuality) {
-      case 'excellent':
-        return 'text-green-500';
-      case 'good':
-        return 'text-yellow-500';
-      case 'poor':
-        return 'text-red-500';
-      default:
-        return 'text-gray-500';
-    }
-  };
-
-  const getConnectionQualityIcon = () => {
-    switch (connection.connectionQuality) {
-      case 'excellent':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'good':
-        return <Clock className="w-4 h-4" />;
-      case 'poor':
-        return <AlertTriangle className="w-4 h-4" />;
-      default:
-        return <Signal className="w-4 h-4" />;
-    }
-  };
-
   if (loading) {
     return (
       <Card>
@@ -204,33 +188,31 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${
-                connection.isConnected ? 'bg-green-500' : 
-                connection.isConnecting ? 'bg-yellow-500' : 'bg-red-500'
+                connectionState === 'connected' ? 'bg-green-500' : 
+                isConnecting || connectionState === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
               }`} />
               <span className="text-sm">
-                {connection.isConnected ? 'Connected' : 
-                 connection.isConnecting ? 'Connecting...' : 'Disconnected'}
+                {isConnecting ? 'Connecting...' : `Status: ${connectionState}`}
               </span>
             </div>
             
-            <div className={`flex items-center gap-2 ${getConnectionQualityColor()}`}>
-              {getConnectionQualityIcon()}
-              <span className="text-sm capitalize">{connection.connectionQuality}</span>
-            </div>
+            {!isCallActive && (
+              <Button size="sm" onClick={startCall}>Join Call</Button>
+            )}
           </div>
-          
-          {connection.error && (
+
+          {connectionState === 'failed' && (
             <Alert variant="destructive" className="mt-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                {connection.error}
+                Connection failed. Please try again.
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={reconnect}
+                  onClick={startCall}
                   className="ml-2"
                 >
-                  Reconnect
+                  Retry
                 </Button>
               </AlertDescription>
             </Alert>
