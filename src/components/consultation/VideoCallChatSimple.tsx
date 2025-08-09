@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Send, MessageCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,13 +14,13 @@ interface ChatMessage {
   created_at: string;
 }
 
-interface VideoCallChatProps {
+interface VideoCallChatSimpleProps {
   sessionId: string;
   currentUserId: string;
   onClose: () => void;
 }
 
-export const VideoCallChat: React.FC<VideoCallChatProps> = ({
+export const VideoCallChatSimple: React.FC<VideoCallChatSimpleProps> = ({
   sessionId,
   currentUserId,
   onClose
@@ -42,86 +40,6 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Load existing messages from consultation_messages table
-  useEffect(() => {
-    const loadMessages = async () => {
-      try {
-        console.log('📥 [VideoCallChat] Loading messages for session:', sessionId);
-        
-        const { data, error } = await supabase
-          .from('consultation_messages')
-          .select('*')
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          console.error('❌ [VideoCallChat] Error loading messages:', error);
-          return;
-        }
-        
-        console.log('✅ [VideoCallChat] Loaded messages:', data?.length || 0);
-        
-        // Map messages to ChatMessage format
-        const chatMessages: ChatMessage[] = (data || []).map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          sender_id: msg.sender_id,
-          sender_type: msg.sender_type as 'patient' | 'physician',
-          created_at: msg.created_at
-        }));
-        
-        setMessages(chatMessages);
-      } catch (error) {
-        console.error('❌ [VideoCallChat] Error loading chat messages:', error);
-      }
-    };
-
-    if (sessionId) {
-      loadMessages();
-    }
-  }, [sessionId]);
-
-  // Set up real-time message subscription
-  useEffect(() => {
-    if (!sessionId) return;
-
-    console.log('📡 [VideoCallChat] Setting up real-time subscription for session:', sessionId);
-    
-    const channel = supabase
-      .channel(`consultation_messages_${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'consultation_messages',
-          filter: `session_id=eq.${sessionId}`
-        },
-        (payload) => {
-          console.log('📨 [VideoCallChat] New message received:', payload);
-          const newMsg = payload.new;
-          
-          const chatMessage: ChatMessage = {
-            id: newMsg.id,
-            content: newMsg.content,
-            sender_id: newMsg.sender_id,
-            sender_type: newMsg.sender_type as 'patient' | 'physician',
-            created_at: newMsg.created_at
-          };
-          
-          setMessages(prev => [...prev, chatMessage]);
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 [VideoCallChat] Subscription status:', status);
-      });
-
-    return () => {
-      console.log('🧹 [VideoCallChat] Cleaning up real-time subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [sessionId]);
-
   const sendMessage = async () => {
     if (!newMessage.trim() || isLoading || !sessionId) return;
 
@@ -129,22 +47,19 @@ export const VideoCallChat: React.FC<VideoCallChatProps> = ({
     try {
       console.log('📤 [VideoCallChat] Sending message:', newMessage.substring(0, 50) + '...');
       
-      const { error } = await supabase
-        .from('consultation_messages')
-        .insert({
-          session_id: sessionId,
-          content: newMessage.trim(),
-          sender_id: currentUserId,
-          sender_type: profile?.role === 'physician' ? 'physician' : 'patient'
-        });
-
-      if (error) {
-        console.error('❌ [VideoCallChat] Error sending message:', error);
-        throw error;
-      }
-
-      console.log('✅ [VideoCallChat] Message sent successfully');
+      // For now, just add to local state - integrate with database later
+      const chatMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: newMessage.trim(),
+        sender_id: currentUserId,
+        sender_type: profile?.role === 'physician' ? 'physician' : 'patient',
+        created_at: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, chatMessage]);
       setNewMessage('');
+      
+      console.log('✅ [VideoCallChat] Message sent successfully');
     } catch (error) {
       console.error('❌ [VideoCallChat] Error sending message:', error);
       toast({

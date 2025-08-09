@@ -226,20 +226,16 @@ const {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             {/* Local Video */}
             <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-              {connection.localStream ? (
-                <video
-                  ref={(video) => {
-                    if (video && connection.localStream) {
-                      video.srcObject = connection.localStream;
-                    }
-                  }}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              
+              {!isCallActive && (
+                <div className="absolute inset-0 bg-gray-900 flex items-center justify-center text-white">
                   <Video className="w-12 h-12 opacity-50" />
                 </div>
               )}
@@ -257,19 +253,15 @@ const {
 
             {/* Remote Video */}
             <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-              {connection.remoteStream ? (
-                <video
-                  ref={(video) => {
-                    if (video && connection.remoteStream) {
-                      video.srcObject = connection.remoteStream;
-                    }
-                  }}
-                  autoPlay
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white">
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+              
+              {!isCallActive && (
+                <div className="absolute inset-0 bg-gray-900 flex items-center justify-center text-white">
                   <div className="text-center">
                     <Video className="w-12 h-12 opacity-50 mx-auto mb-2" />
                     <p className="text-sm opacity-75">

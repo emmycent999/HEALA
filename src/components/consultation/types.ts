@@ -25,6 +25,11 @@ export interface ConsultationSession {
     appointment_date: string;
     appointment_time: string;
   } | null;
+  consultation_rooms?: {
+    id: string;
+    room_token: string;
+    room_status: string;
+  };
 }
 
 export interface VirtualConsultationRoomProps {

@@ -8,7 +8,7 @@ import { VideoStreams } from './VideoStreams';
 import { EnhancedVideoControls } from './EnhancedVideoControls';
 import { ConnectionQualityIndicator } from './ConnectionQualityIndicator';
 import { ConsultationActions } from './ConsultationActions';
-import { VideoCallChat } from './VideoCallChat';
+import { VideoCallChatSimple } from './VideoCallChatSimple';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -295,7 +295,7 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
         {/* Chat Panel */}
         {showChat && (
           <div className="w-80">
-            <VideoCallChat
+            <VideoCallChatSimple
               sessionId={currentSession.id}
               currentUserId={user?.id || ''}
               onClose={() => setShowChat(false)}

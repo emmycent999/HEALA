@@ -35,7 +35,7 @@ interface ConsultationSession {
     id: string;
     room_token: string;
     room_status: string;
-  }[];
+  };
 }
 
 export const FixedVirtualConsultation: React.FC = () => {
@@ -141,7 +141,12 @@ export const FixedVirtualConsultation: React.FC = () => {
                 first_name: 'Unknown',
                 last_name: 'Physician',
                 specialization: 'General Practice'
-              }
+              },
+              consultation_rooms: session.consultation_rooms ? {
+                id: session.consultation_rooms.id,
+                room_token: session.consultation_rooms.room_token,
+                room_status: session.consultation_rooms.room_status
+              } : undefined
             };
           } catch (profileError) {
             console.error('Error fetching profiles for session:', session.id, profileError);
@@ -158,7 +163,12 @@ export const FixedVirtualConsultation: React.FC = () => {
                 first_name: 'Unknown',
                 last_name: 'Physician',
                 specialization: 'General Practice'
-              }
+              },
+              consultation_rooms: session.consultation_rooms ? {
+                id: session.consultation_rooms.id,
+                room_token: session.consultation_rooms.room_token,
+                room_status: session.consultation_rooms.room_status
+              } : undefined
             };
           }
         })
