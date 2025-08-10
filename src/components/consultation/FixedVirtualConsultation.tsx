@@ -8,6 +8,7 @@ import { Video, Users, Clock, Calendar, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { DevConsole } from './DevConsole';
 
 interface ConsultationSession {
   id: string;
@@ -408,6 +409,8 @@ export const FixedVirtualConsultation: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      
+      <DevConsole sessionId={sessions[0]?.id} userId={user?.id} />
     </div>
   );
 };

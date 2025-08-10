@@ -9,6 +9,7 @@ import { EnhancedVideoControls } from './EnhancedVideoControls';
 import { ConnectionQualityIndicator } from './ConnectionQualityIndicator';
 import { ConsultationActions } from './ConsultationActions';
 import { VideoCallChatSimple } from './VideoCallChatSimple';
+import { ConnectionStatusBanner } from './ConnectionStatusBanner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -238,6 +239,11 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
         {/* Main Video Area */}
         <Card className={showChat ? "flex-1" : "w-full"}>
           <CardContent className="p-0">
+            <ConnectionStatusBanner
+              connectionState={connectionState}
+              isConnecting={isConnecting || isReconnecting}
+              onReconnect={reconnect}
+            />
             <div className="bg-gray-900 aspect-video rounded-lg relative overflow-hidden min-h-[400px]">
               <VideoStreams
                 localVideoRef={localVideoRef}

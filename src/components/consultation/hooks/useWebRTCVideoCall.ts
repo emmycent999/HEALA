@@ -27,6 +27,25 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   console.log(`🎥 [WebRTCVideoCall] Hook initialized for ${userRole} in session ${sessionId}`);
 
+  // Track room join status
+  const updateRoomJoinStatus = useCallback(async (joined: boolean) => {
+    try {
+      const updateField = userRole === 'patient' ? 'patient_joined' : 'physician_joined';
+      const { error } = await supabase
+        .from('consultation_rooms')
+        .update({ [updateField]: joined })
+        .eq('session_id', sessionId);
+      
+      if (error) {
+        console.error(`❌ [WebRTCVideoCall] Failed to update room join status:`, error);
+      } else {
+        console.log(`✅ [WebRTCVideoCall] Updated ${updateField} to ${joined}`);
+      }
+    } catch (error) {
+      console.error(`❌ [WebRTCVideoCall] Error updating room join status:`, error);
+    }
+  }, [sessionId, userRole]);
+
   // WebRTC configuration with STUN and TURN servers for better connectivity
   const rtcConfig: RTCConfiguration = {
     iceServers: [
@@ -67,30 +86,38 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
     const handleOffer = async (payload: any) => {
       if (payload.payload.fromUser === userId) return;
       
-      console.log('📥 [WebRTCVideoCall] Received offer');
+      console.log('📥 [WebRTCVideoCall] Received offer from', payload.payload.fromUser);
+      setIsConnecting(true);
       
-      const pc = createPeerConnection();
-      peerConnectionRef.current = pc;
+      try {
+        const pc = createPeerConnection();
+        peerConnectionRef.current = pc;
 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => {
-          pc.addTrack(track, localStreamRef.current!);
-        });
-      }
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => {
+            pc.addTrack(track, localStreamRef.current!);
+          });
+        }
 
-      await pc.setRemoteDescription(payload.payload.offer);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+        await pc.setRemoteDescription(payload.payload.offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-      if (channelRef.current) {
-        channelRef.current.send({
-          type: 'broadcast',
-          event: 'answer',
-          payload: {
-            answer,
-            fromUser: userId
-          }
-        });
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'answer',
+            payload: {
+              answer,
+              fromUser: userId
+            }
+          });
+        }
+        
+        console.log('📤 [WebRTCVideoCall] Sent answer to', payload.payload.fromUser);
+      } catch (error) {
+        console.error('❌ [WebRTCVideoCall] Error handling offer:', error);
+        setIsConnecting(false);
       }
     };
 
@@ -335,6 +362,9 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
       }
 
       setIsCallActive(true);
+      
+      // Update room join status
+      await updateRoomJoinStatus(true);
 
       // Create peer connection and add tracks
       const pc = createPeerConnection();
@@ -344,8 +374,12 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
         pc.addTrack(track, stream);
       });
 
-      // If physician, create and send offer
+      // Wait a moment for the signaling channel to be ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // If physician, create and send offer after ensuring patient is ready
       if (userRole === 'physician') {
+        console.log('👨‍⚕️ [WebRTCVideoCall] Physician creating offer...');
         const offer = await pc.createOffer({
           offerToReceiveAudio: true,
           offerToReceiveVideo: true
@@ -353,6 +387,7 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
         await pc.setLocalDescription(offer);
 
         if (channelRef.current) {
+          console.log('👨‍⚕️ [WebRTCVideoCall] Sending offer to patient');
           channelRef.current.send({
             type: 'broadcast',
             event: 'offer',
@@ -362,6 +397,8 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
             }
           });
         }
+      } else {
+        console.log('🧑‍🤝‍🧑 [WebRTCVideoCall] Patient ready, waiting for physician offer');
       }
 
       toast({
@@ -382,6 +419,9 @@ export const useWebRTCVideoCall = ({ sessionId, userId, userRole }: WebRTCVideoC
 
   const endCall = (sendSignal = true) => {
     console.log('📞 [WebRTCVideoCall] Ending call');
+    
+    // Update room join status
+    updateRoomJoinStatus(false);
     
     // Stop all streams
     if (localStreamRef.current) {
