@@ -512,20 +512,6 @@ export type Database = {
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "consultation_sessions_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "consultation_sessions_physician_id_fkey"
-            columns: ["physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       conversations: {
@@ -1090,24 +1076,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "hospital_patients_assigned_physician_id_fkey"
-            columns: ["assigned_physician_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "hospital_patients_hospital_id_fkey"
             columns: ["hospital_id"]
             isOneToOne: false
             referencedRelation: "hospitals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hospital_patients_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1644,96 +1616,68 @@ export type Database = {
       }
       profiles: {
         Row: {
-          account_locked_until: string | null
           city: string | null
-          consultation_rate_max: number | null
-          consultation_rate_min: number | null
-          created_at: string | null
+          created_at: string
           current_consultation_rate: number | null
           email: string
           first_name: string | null
           hospital_id: string | null
           id: string
           is_active: boolean | null
-          last_login_at: string | null
           last_name: string | null
           license_number: string | null
-          location: string | null
-          location_latitude: number | null
-          location_longitude: number | null
-          login_attempts: number | null
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           specialization: string | null
           state: string | null
-          subscription_plan:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled: boolean | null
-          updated_at: string | null
-          wallet_pin: string | null
+          subscription_plan: Database["public"]["Enums"]["subscription_plan"]
+          updated_at: string
         }
         Insert: {
-          account_locked_until?: string | null
           city?: string | null
-          consultation_rate_max?: number | null
-          consultation_rate_min?: number | null
-          created_at?: string | null
+          created_at?: string
           current_consultation_rate?: number | null
           email: string
           first_name?: string | null
           hospital_id?: string | null
           id: string
           is_active?: boolean | null
-          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
-          location?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          login_attempts?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
           state?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled?: boolean | null
-          updated_at?: string | null
-          wallet_pin?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
         }
         Update: {
-          account_locked_until?: string | null
           city?: string | null
-          consultation_rate_max?: number | null
-          consultation_rate_min?: number | null
-          created_at?: string | null
+          created_at?: string
           current_consultation_rate?: number | null
           email?: string
           first_name?: string | null
           hospital_id?: string | null
           id?: string
           is_active?: boolean | null
-          last_login_at?: string | null
           last_name?: string | null
           license_number?: string | null
-          location?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          login_attempts?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           specialization?: string | null
           state?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled?: boolean | null
-          updated_at?: string | null
-          wallet_pin?: string | null
+          subscription_plan?: Database["public"]["Enums"]["subscription_plan"]
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_attendance: {
         Row: {
@@ -2196,94 +2140,19 @@ export type Database = {
       }
       users: {
         Row: {
-          account_locked_until: string | null
-          city: string | null
-          consultation_rate_max: number | null
-          consultation_rate_min: number | null
-          created_at: string | null
-          current_consultation_rate: number | null
+          created_at: string
           email: string
-          first_name: string | null
-          hospital_id: string | null
           id: string
-          is_active: boolean | null
-          last_login_at: string | null
-          last_name: string | null
-          license_number: string | null
-          location: string | null
-          location_latitude: number | null
-          location_longitude: number | null
-          login_attempts: number | null
-          phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          specialization: string | null
-          state: string | null
-          subscription_plan:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled: boolean | null
-          updated_at: string | null
-          wallet_pin: string | null
         }
         Insert: {
-          account_locked_until?: string | null
-          city?: string | null
-          consultation_rate_max?: number | null
-          consultation_rate_min?: number | null
-          created_at?: string | null
-          current_consultation_rate?: number | null
+          created_at?: string
           email: string
-          first_name?: string | null
-          hospital_id?: string | null
           id: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          last_name?: string | null
-          license_number?: string | null
-          location?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          login_attempts?: number | null
-          phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          state?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled?: boolean | null
-          updated_at?: string | null
-          wallet_pin?: string | null
         }
         Update: {
-          account_locked_until?: string | null
-          city?: string | null
-          consultation_rate_max?: number | null
-          consultation_rate_min?: number | null
-          created_at?: string | null
-          current_consultation_rate?: number | null
+          created_at?: string
           email?: string
-          first_name?: string | null
-          hospital_id?: string | null
           id?: string
-          is_active?: boolean | null
-          last_login_at?: string | null
-          last_name?: string | null
-          license_number?: string | null
-          location?: string | null
-          location_latitude?: number | null
-          location_longitude?: number | null
-          login_attempts?: number | null
-          phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          specialization?: string | null
-          state?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          two_factor_enabled?: boolean | null
-          updated_at?: string | null
-          wallet_pin?: string | null
         }
         Relationships: []
       }
