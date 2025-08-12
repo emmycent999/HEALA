@@ -2589,6 +2589,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      jwt_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       log_admin_action: {
         Args:
           | {

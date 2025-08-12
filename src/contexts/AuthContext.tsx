@@ -68,7 +68,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           return;
         }
-        throw error;
+        // Don't throw on other errors, just log them and set profile to null
+        console.error('Failed to fetch profile, continuing without profile data');
+        setProfile(null);
+        return;
       }
       
       console.log('Profile fetched successfully:', data);
