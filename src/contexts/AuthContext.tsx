@@ -55,51 +55,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Add retry logic for profile fetching
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (attempts < maxAttempts) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-          if (error) {
-            console.error(`Attempt ${attempts + 1} - Error fetching profile:`, error);
-            
-            if (error.code === 'PGRST116') {
-              console.log('Profile not found, user may need to complete registration');
-              setProfile(null);
-              return;
-            }
-            
-            // If it's an infinite recursion error, wait a bit and try again
-            if (error.message?.includes('infinite recursion') && attempts < maxAttempts - 1) {
-              console.log(`Infinite recursion detected, retrying in ${(attempts + 1) * 1000}ms...`);
-              await new Promise(resolve => setTimeout(resolve, (attempts + 1) * 1000));
-              attempts++;
-              continue;
-            }
-            
-            throw error;
-          }
-          
-          console.log('Profile fetched successfully:', data);
-          setProfile(data as UserProfile);
+      if (error) {
+        console.error('Error fetching profile:', error);
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, user may need to complete registration');
+          setProfile(null);
           return;
-          
-        } catch (innerError) {
-          attempts++;
-          if (attempts >= maxAttempts) {
-            throw innerError;
-          }
         }
+        throw error;
       }
+      
+      console.log('Profile fetched successfully:', data);
+      setProfile(data as UserProfile);
     } catch (error) {
-      console.error('Error fetching profile after all attempts:', error);
+      console.error('Error fetching profile:', error);
       setProfile(null);
     }
   };
@@ -115,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch profile with timeout to prevent hanging
           try {
             await fetchProfile(session.user.id);
           } catch (error) {

@@ -35,10 +35,6 @@ const Login = () => {
           console.log('Unknown role, redirecting to home');
           navigate('/');
       }
-    } else if (!loading && user && !profile) {
-      console.log('User exists but no profile found. This might indicate a database issue or the user needs to complete registration.');
-      // Instead of waiting indefinitely, we could redirect to a profile completion page
-      // For now, we'll just log the issue and let the user stay on the login page
     }
   }, [user, profile, loading, navigate]);
 
