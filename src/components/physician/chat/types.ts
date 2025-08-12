@@ -14,7 +14,7 @@ export interface Conversation {
   title: string;
   status: string;
   created_at: string;
-  patient_full_name: string;
+  patient_name: string; // Added this required property
 }
 
 export interface Message {

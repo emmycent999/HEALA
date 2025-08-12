@@ -22,7 +22,7 @@ export interface Wallet {
   updated_at: string;
 }
 
-export const getWalletByUserId = async (userId: string): Promise<Wallet | null> => {
+export const getWallet = async (userId: string): Promise<Wallet> => {
   const { data, error } = await supabase
     .from('wallets')
     .select('*')
@@ -31,7 +31,7 @@ export const getWalletByUserId = async (userId: string): Promise<Wallet | null> 
 
   if (error) {
     console.error('Error fetching wallet:', error);
-    return null;
+    throw error;
   }
 
   return data;
@@ -49,106 +49,51 @@ export const getWalletTransactions = async (walletId: string): Promise<WalletTra
     return [];
   }
 
-  return data || [];
+  // Cast transaction_type to proper union type
+  return (data || []).map(tx => ({
+    ...tx,
+    transaction_type: tx.transaction_type as 'credit' | 'debit'
+  }));
 };
 
 export const creditWallet = async (walletId: string, amount: number, description: string, reference?: string) => {
-  try {
-    // Get current balance
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('id', walletId)
-      .single();
+  const { data, error } = await supabase.rpc('credit_wallet', {
+    wallet_id_param: walletId,
+    amount_param: amount,
+    description_param: description,
+    reference_param: reference
+  });
 
-    if (walletError) throw walletError;
-
-    const newBalance = wallet.balance + amount;
-
-    // Update wallet balance
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', walletId);
-
-    if (updateError) throw updateError;
-
-    // Insert transaction record
-    const { data: transaction, error: transactionError } = await supabase
-      .from('wallet_transactions')
-      .insert({
-        wallet_id: walletId,
-        transaction_type: 'credit',
-        amount,
-        balance_after: newBalance,
-        description,
-        reference_id: reference,
-        status: 'completed'
-      })
-      .select()
-      .single();
-
-    if (transactionError) throw transactionError;
-
-    return { success: true, transaction, new_balance: newBalance };
-  } catch (error) {
-    console.error('Error crediting wallet:', error);
-    throw error;
-  }
+  if (error) throw error;
+  return data;
 };
 
 export const debitWallet = async (walletId: string, amount: number, description: string, reference?: string) => {
-  try {
-    // Get current balance
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('id', walletId)
-      .single();
+  const { data, error } = await supabase.rpc('debit_wallet', {
+    wallet_id_param: walletId,
+    amount_param: amount,
+    description_param: description,
+    reference_param: reference
+  });
 
-    if (walletError) throw walletError;
-
-    if (wallet.balance < amount) {
-      throw new Error('Insufficient balance');
-    }
-
-    const newBalance = wallet.balance - amount;
-
-    // Update wallet balance
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq('id', walletId);
-
-    if (updateError) throw updateError;
-
-    // Insert transaction record
-    const { data: transaction, error: transactionError } = await supabase
-      .from('wallet_transactions')
-      .insert({
-        wallet_id: walletId,
-        transaction_type: 'debit',
-        amount,
-        balance_after: newBalance,
-        description,
-        reference_id: reference,
-        status: 'completed'
-      })
-      .select()
-      .single();
-
-    if (transactionError) throw transactionError;
-
-    return { success: true, transaction, new_balance: newBalance };
-  } catch (error) {
-    console.error('Error debiting wallet:', error);
-    throw error;
-  }
+  if (error) throw error;
+  return data;
 };
 
-export const requestWithdrawal = async (walletId: string, amount: number, bankDetails: any) => {
+export const processConsultationPayment = async (fromWalletId: string, toWalletId: string, amount: number, sessionId: string) => {
+  const { data, error } = await supabase.rpc('transfer_funds', {
+    from_wallet_id: fromWalletId,
+    to_wallet_id: toWalletId,
+    amount_param: amount,
+    description_param: `Consultation payment - Session ${sessionId}`
+  });
+
+  if (error) throw error;
+  return data;
+};
+
+export const initiateWithdrawal = async (walletId: string, amount: number, bankDetails: any) => {
   try {
-    // Check if withdrawal_requests table exists, if not create the request in a different way
     const { data, error } = await supabase
       .from('wallet_transactions')
       .insert({
@@ -163,10 +108,19 @@ export const requestWithdrawal = async (walletId: string, amount: number, bankDe
       .single();
 
     if (error) throw error;
-
     return { success: true, request: data };
   } catch (error) {
     console.error('Error requesting withdrawal:', error);
     throw error;
   }
+};
+
+// Create a namespace object for backwards compatibility
+export const WalletService = {
+  getWallet,
+  getWalletTransactions,
+  creditWallet,
+  debitWallet,
+  processConsultationPayment,
+  initiateWithdrawal
 };

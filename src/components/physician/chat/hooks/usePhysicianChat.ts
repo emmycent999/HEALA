@@ -38,37 +38,40 @@ export const usePhysicianChat = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First get conversations
+      const { data: conversationsData, error: convError } = await supabase
         .from('conversations')
-        .select(`
-          id,
-          patient_id,
-          physician_id,
-          title,
-          status,
-          created_at,
-          profiles!conversations_patient_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
+        .select('id, patient_id, physician_id, title, status, created_at')
         .eq('physician_id', user.id)
         .eq('type', 'physician_consultation')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (convError) throw convError;
 
-      const conversationsWithNames = data?.map(conv => ({
-        id: conv.id,
-        patient_id: conv.patient_id,
-        physician_id: conv.physician_id,
-        title: conv.title || 'Chat',
-        status: conv.status,
-        created_at: conv.created_at,
-        patient_full_name: conv.profiles 
-          ? `${conv.profiles.first_name} ${conv.profiles.last_name}`
-          : 'Unknown Patient'
-      })) || [];
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations([]);
+        return;
+      }
+
+      // Get patient names for each conversation
+      const patientIds = conversationsData.map(conv => conv.patient_id);
+      const { data: patientsData, error: patientsError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', patientIds);
+
+      if (patientsError) throw patientsError;
+
+      // Combine conversation data with patient names
+      const conversationsWithNames = conversationsData.map(conv => {
+        const patient = patientsData?.find(p => p.id === conv.patient_id);
+        return {
+          ...conv,
+          patient_name: patient 
+            ? `${patient.first_name} ${patient.last_name}`
+            : 'Unknown Patient'
+        };
+      });
 
       setConversations(conversationsWithNames);
     } catch (error) {
