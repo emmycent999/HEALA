@@ -44,7 +44,10 @@ export const useHospitalData = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchHospitalData = async () => {
-    if (!profile?.hospital_id) return;
+    if (!profile?.hospital_id) {
+      console.log('No hospital_id found in profile:', profile);
+      return;
+    }
 
     try {
       const { data: hospital, error } = await supabase
@@ -128,8 +131,15 @@ export const useHospitalData = () => {
 
   useEffect(() => {
     if (user && profile?.role === 'hospital_admin' && profile?.hospital_id) {
+      console.log('Loading hospital data for profile:', profile);
       fetchHospitalData();
       fetchDashboardStats();
+    } else if (user && profile && profile.role === 'hospital_admin' && !profile.hospital_id) {
+      console.log('Hospital admin profile found but no hospital_id:', profile);
+      setLoading(false);
+    } else if (user && profile && profile.role !== 'hospital_admin') {
+      console.log('User profile found but not hospital_admin role:', profile.role);
+      setLoading(false);
     }
   }, [user, profile]);
 

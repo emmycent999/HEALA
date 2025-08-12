@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +18,11 @@ interface UserProfile {
   specialization?: string;
   subscription_plan?: SubscriptionPlan;
   current_consultation_rate?: number;
+  is_active?: boolean;
+  city?: string;
+  state?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AuthContextType {
@@ -49,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();

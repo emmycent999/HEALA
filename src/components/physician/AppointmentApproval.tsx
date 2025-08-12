@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,13 +36,7 @@ export const AppointmentApproval: React.FC = () => {
   const [showPrescriptionFor, setShowPrescriptionFor] = useState<string | null>(null);
   const [processingAppointments, setProcessingAppointments] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (user) {
-      loadPendingAppointments();
-    }
-  }, [user, loadPendingAppointments]);
-
-  const loadPendingAppointments = useCallback(async () => {
+  const loadPendingAppointments = async () => {
     if (!user) return;
 
     try {
@@ -58,7 +52,13 @@ export const AppointmentApproval: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadPendingAppointments();
+    }
+  }, [user]);
 
   const handleAcceptedAppointment = async (appointment: PendingAppointment) => {
     await createPhysicianPatientRelationship(user?.id!, appointment.patient_id);

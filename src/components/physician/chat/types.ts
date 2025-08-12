@@ -4,6 +4,7 @@ export interface Patient {
   first_name: string;
   last_name: string;
   email: string;
+  phone?: string;
 }
 
 export interface Conversation {
@@ -11,7 +12,16 @@ export interface Conversation {
   patient_id: string;
   physician_id: string;
   title: string;
-  status: 'active' | 'inactive' | 'archived';
+  status: string;
   created_at: string;
   patient_full_name: string;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_type: string;
+  content: string;
+  created_at: string;
 }

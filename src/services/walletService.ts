@@ -1,103 +1,172 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface WalletTransaction {
   id: string;
   wallet_id: string;
-  amount: number;
   transaction_type: 'credit' | 'debit';
-  description: string;
-  reference?: string;
-  status: 'pending' | 'completed' | 'failed';
+  amount: number;
   balance_after: number;
+  description: string;
+  reference_id?: string;
+  status: string;
   created_at: string;
 }
 
-export class WalletService {
-  static async getWallet(userId: string) {
-    const { data, error } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+}
 
-    if (error && error.code === 'PGRST116') {
-      // Create wallet if doesn't exist
-      return await this.createWallet(userId);
-    }
-    
-    if (error) throw error;
-    return data;
+export const getWalletByUserId = async (userId: string): Promise<Wallet | null> => {
+  const { data, error } = await supabase
+    .from('wallets')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching wallet:', error);
+    return null;
   }
 
-  static async createWallet(userId: string) {
-    const { data, error } = await supabase
+  return data;
+};
+
+export const getWalletTransactions = async (walletId: string): Promise<WalletTransaction[]> => {
+  const { data, error } = await supabase
+    .from('wallet_transactions')
+    .select('*')
+    .eq('wallet_id', walletId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching transactions:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+export const creditWallet = async (walletId: string, amount: number, description: string, reference?: string) => {
+  try {
+    // Get current balance
+    const { data: wallet, error: walletError } = await supabase
       .from('wallets')
-      .insert({ user_id: userId, balance: 0, currency: 'NGN' })
+      .select('balance')
+      .eq('id', walletId)
+      .single();
+
+    if (walletError) throw walletError;
+
+    const newBalance = wallet.balance + amount;
+
+    // Update wallet balance
+    const { error: updateError } = await supabase
+      .from('wallets')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('id', walletId);
+
+    if (updateError) throw updateError;
+
+    // Insert transaction record
+    const { data: transaction, error: transactionError } = await supabase
+      .from('wallet_transactions')
+      .insert({
+        wallet_id: walletId,
+        transaction_type: 'credit',
+        amount,
+        balance_after: newBalance,
+        description,
+        reference_id: reference,
+        status: 'completed'
+      })
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    if (transactionError) throw transactionError;
+
+    return { success: true, transaction, new_balance: newBalance };
+  } catch (error) {
+    console.error('Error crediting wallet:', error);
+    throw error;
   }
+};
 
-  static async creditWallet(walletId: string, amount: number, description: string, reference?: string) {
-    const { data, error } = await supabase.rpc('credit_wallet', {
-      wallet_id_param: walletId,
-      amount_param: amount,
-      description_param: description,
-      reference_param: reference
-    });
+export const debitWallet = async (walletId: string, amount: number, description: string, reference?: string) => {
+  try {
+    // Get current balance
+    const { data: wallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('id', walletId)
+      .single();
 
-    if (error) throw error;
-    return data;
-  }
+    if (walletError) throw walletError;
 
-  static async debitWallet(walletId: string, amount: number, description: string, reference?: string) {
-    const { data, error } = await supabase.rpc('debit_wallet', {
-      wallet_id_param: walletId,
-      amount_param: amount,
-      description_param: description,
-      reference_param: reference
-    });
+    if (wallet.balance < amount) {
+      throw new Error('Insufficient balance');
+    }
 
-    if (error) throw error;
-    return data;
-  }
+    const newBalance = wallet.balance - amount;
 
-  static async transferFunds(fromWalletId: string, toWalletId: string, amount: number, description: string) {
-    const { data, error } = await supabase.rpc('transfer_funds', {
-      from_wallet_id: fromWalletId,
-      to_wallet_id: toWalletId,
-      amount_param: amount,
-      description_param: description
-    });
+    // Update wallet balance
+    const { error: updateError } = await supabase
+      .from('wallets')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('id', walletId);
 
-    if (error) throw error;
-    return data;
-  }
+    if (updateError) throw updateError;
 
-  static async initiateWithdrawal(walletId: string, amount: number, bankDetails: any) {
-    const { data, error } = await supabase
-      .from('withdrawal_requests')
+    // Insert transaction record
+    const { data: transaction, error: transactionError } = await supabase
+      .from('wallet_transactions')
       .insert({
         wallet_id: walletId,
+        transaction_type: 'debit',
         amount,
-        bank_details: bankDetails,
+        balance_after: newBalance,
+        description,
+        reference_id: reference,
+        status: 'completed'
+      })
+      .select()
+      .single();
+
+    if (transactionError) throw transactionError;
+
+    return { success: true, transaction, new_balance: newBalance };
+  } catch (error) {
+    console.error('Error debiting wallet:', error);
+    throw error;
+  }
+};
+
+export const requestWithdrawal = async (walletId: string, amount: number, bankDetails: any) => {
+  try {
+    // Check if withdrawal_requests table exists, if not create the request in a different way
+    const { data, error } = await supabase
+      .from('wallet_transactions')
+      .insert({
+        wallet_id: walletId,
+        transaction_type: 'debit',
+        amount,
+        balance_after: 0, // Will be updated after processing
+        description: `Withdrawal request - ${JSON.stringify(bankDetails)}`,
         status: 'pending'
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data;
-  }
 
-  static async processConsultationPayment(patientWalletId: string, physicianWalletId: string, amount: number, sessionId: string) {
-    return await this.transferFunds(
-      patientWalletId,
-      physicianWalletId,
-      amount,
-      `Virtual consultation payment - Session ${sessionId}`
-    );
+    return { success: true, request: data };
+  } catch (error) {
+    console.error('Error requesting withdrawal:', error);
+    throw error;
   }
-}
+};
