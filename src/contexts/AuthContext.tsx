@@ -51,6 +51,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const createProfile = async (userId: string, email: string, userData: any = {}) => {
+    try {
+      console.log('Creating profile for user:', userId, 'with data:', userData);
+      
+      const profileData = {
+        id: userId,
+        email: email,
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        phone: userData.phone || '',
+        role: (userData.role as UserRole) || 'patient',
+        license_number: userData.license_number || null,
+        specialization: userData.specialization || null,
+        subscription_plan: 'basic' as SubscriptionPlan,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert(profileData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating profile:', error);
+        throw error;
+      }
+
+      console.log('Profile created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Failed to create profile:', error);
+      throw error;
+    }
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
@@ -64,11 +102,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error fetching profile:', error);
         if (error.code === 'PGRST116') {
-          console.log('Profile not found, user may need to complete registration');
-          setProfile(null);
-          return;
+          console.log('Profile not found, attempting to create one...');
+          
+          // Try to get user metadata from auth
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            const newProfile = await createProfile(userId, authUser.email!, authUser.user_metadata);
+            setProfile(newProfile as UserProfile);
+            return;
+          } else {
+            console.log('Could not get user metadata for profile creation');
+            setProfile(null);
+            return;
+          }
         }
-        // Don't throw on other errors, just log them and set profile to null
         console.error('Failed to fetch profile, continuing without profile data');
         setProfile(null);
         return;
@@ -93,13 +140,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          try {
-            await fetchProfile(session.user.id);
-          } catch (error) {
-            console.error('Failed to fetch profile:', error);
-          } finally {
-            setLoading(false);
-          }
+          // Use setTimeout to avoid blocking the auth callback
+          setTimeout(() => {
+            fetchProfile(session.user.id).finally(() => {
+              setLoading(false);
+            });
+          }, 0);
         } else {
           setProfile(null);
           setLoading(false);
@@ -114,9 +160,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id).finally(() => {
-          setLoading(false);
-        });
+        setTimeout(() => {
+          fetchProfile(session.user.id).finally(() => {
+            setLoading(false);
+          });
+        }, 0);
       } else {
         setLoading(false);
       }

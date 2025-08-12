@@ -50,7 +50,7 @@ const Login = () => {
     );
   }
 
-  // If user is logged in but has no profile, show a message
+  // If user is logged in but has no profile, show a message with retry option
   if (user && !profile && !loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -62,13 +62,19 @@ const Login = () => {
           </div>
           <h2 className="text-xl font-semibold mb-2">Profile Setup Required</h2>
           <p className="text-gray-600 mb-4">
-            Your account exists but your profile needs to be set up. Please contact support if this issue persists.
+            Your account exists but your profile needs to be set up. This should happen automatically. Please try refreshing the page.
           </p>
           <button 
             onClick={() => window.location.reload()} 
-            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 mr-2"
           >
             Retry
+          </button>
+          <button 
+            onClick={() => navigate('/auth/register')} 
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+          >
+            Complete Setup
           </button>
         </div>
       </div>
