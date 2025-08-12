@@ -57,9 +57,9 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
         .from('consultation_sessions')
         .select(`
           *,
-          patient:patient_id (first_name, last_name),
-          physician:physician_id (first_name, last_name, specialization),
-          appointment:appointment_id (appointment_date, appointment_time)
+          patient:profiles!consultation_sessions_patient_id_fkey (first_name, last_name),
+          physician:profiles!consultation_sessions_physician_id_fkey (first_name, last_name, specialization),
+          appointment:appointments (appointment_date, appointment_time)
         `)
         .eq('id', sessionId)
         .single();
@@ -74,7 +74,16 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
         return;
       }
 
-      setSessionData(data);
+      // Transform the data to ensure proper typing
+      const transformedData: ConsultationSession = {
+        ...data,
+        room_status: data.room_status || 'waiting',
+        patient: Array.isArray(data.patient) ? data.patient[0] : data.patient,
+        physician: Array.isArray(data.physician) ? data.physician[0] : data.physician,
+        appointment: Array.isArray(data.appointment) ? data.appointment[0] : data.appointment
+      };
+
+      setSessionData(transformedData);
       setPaymentCompleted(data.payment_status === 'paid');
     } catch (error) {
       console.error('Error fetching session data:', error);
