@@ -77,7 +77,6 @@ export const EnhancedVideoInterface: React.FC<EnhancedVideoInterfaceProps> = ({
       // Transform the data to ensure proper typing
       const transformedData: ConsultationSession = {
         ...data,
-        room_status: data.room_status || 'waiting',
         patient: Array.isArray(data.patient) ? data.patient[0] : data.patient,
         physician: Array.isArray(data.physician) ? data.physician[0] : data.physician,
         appointment: Array.isArray(data.appointment) ? data.appointment[0] : data.appointment
