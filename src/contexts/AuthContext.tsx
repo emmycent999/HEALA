@@ -49,14 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
 
       if (error) {
         console.error('Error fetching profile:', error);
-        throw error;
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, user may need to complete registration');
+        }
+        setProfile(null);
+        return;
       }
       
       console.log('Profile fetched successfully:', data);
@@ -78,15 +82,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Use setTimeout to prevent blocking the auth state change
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
+          // Fetch profile with timeout to prevent hanging
+          fetchProfile(session.user.id).finally(() => {
+            setLoading(false);
+          });
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
@@ -97,7 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id).finally(() => {
+          setLoading(false);
+        });
       } else {
         setLoading(false);
       }

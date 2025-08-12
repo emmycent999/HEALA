@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,9 +40,9 @@ export const AppointmentApproval: React.FC = () => {
     if (user) {
       loadPendingAppointments();
     }
-  }, [user]);
+  }, [user, loadPendingAppointments]);
 
-  const loadPendingAppointments = async () => {
+  const loadPendingAppointments = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -58,82 +58,77 @@ export const AppointmentApproval: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  }, [user, toast]);
+
+  const handleAcceptedAppointment = async (appointment: PendingAppointment) => {
+    await createPhysicianPatientRelationship(user?.id!, appointment.patient_id);
+    
+    if (appointment.consultation_type === 'virtual') {
+      await handleVirtualConsultation(appointment);
+    } else {
+      handleInPersonConsultation(appointment);
+    }
+  };
+
+  const handleVirtualConsultation = async (appointment: PendingAppointment) => {
+    try {
+      const sessionData = await createConsultationSession(
+        appointment, 
+        user?.id!, 
+        profile?.current_consultation_rate || 5000
+      );
+      
+      toast({
+        title: "🎥 Virtual Consultation Created!",
+        description: `Video consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
+        duration: 8000,
+      });
+
+      await createConversation(
+        appointment.patient_id,
+        user?.id!,
+        `${appointment.patient.first_name} ${appointment.patient.last_name}`
+      );
+    } catch (sessionError) {
+      toast({
+        title: "⚠️ Virtual Session Issue",
+        description: `Appointment accepted but failed to create video consultation session: ${sessionError instanceof Error ? sessionError.message : 'Unknown error'}. Please try creating the session manually from the Virtual Consultation tab.`,
+        variant: "destructive",
+        duration: 10000,
+      });
+    }
+  };
+
+  const handleInPersonConsultation = (appointment: PendingAppointment) => {
+    toast({
+      title: "✅ Appointment Accepted",
+      description: `In-person appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been accepted.`,
+    });
+  };
+
+  const handleRejectedAppointment = (appointment: PendingAppointment) => {
+    toast({
+      title: "❌ Appointment Rejected",
+      description: `Appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been rejected.`,
+    });
   };
 
   const handleAppointmentAction = async (appointmentId: string, action: 'accepted' | 'rejected', appointment: PendingAppointment) => {
-    // Prevent duplicate processing
-    if (processingAppointments.has(appointmentId)) {
-      return;
-    }
+    if (processingAppointments.has(appointmentId)) return;
 
     setProcessingAppointments(prev => new Set(prev).add(appointmentId));
 
     try {
-      console.log('🔄 [AppointmentApproval] Processing appointment action:', { appointmentId, action });
-
       await updateAppointmentStatus(appointmentId, action);
 
       if (action === 'accepted') {
-        await createPhysicianPatientRelationship(user?.id!, appointment.patient_id);
-
-        if (appointment.consultation_type === 'virtual') {
-          try {
-            console.log('📹 [AppointmentApproval] Creating virtual consultation session');
-            
-            const sessionData = await createConsultationSession(
-              appointment, 
-              user?.id!, 
-              profile?.current_consultation_rate || 5000
-            );
-            
-            console.log('✅ [AppointmentApproval] Virtual consultation session created successfully:', sessionData);
-            
-            toast({
-              title: "🎥 Virtual Consultation Created!",
-              description: `Video consultation session created for ${appointment.patient.first_name} ${appointment.patient.last_name}. You can now start the session from the Virtual Consultation tab.`,
-              duration: 8000,
-            });
-
-            // Also create conversation for messaging
-            await createConversation(
-              appointment.patient_id,
-              user?.id!,
-              `${appointment.patient.first_name} ${appointment.patient.last_name}`
-            );
-
-          } catch (sessionError) {
-            console.error('❌ [AppointmentApproval] Error creating virtual consultation session:', sessionError);
-            
-            toast({
-              title: "⚠️ Virtual Session Issue",
-              description: `Appointment accepted but failed to create video consultation session: ${sessionError instanceof Error ? sessionError.message : 'Unknown error'}. Please try creating the session manually from the Virtual Consultation tab.`,
-              variant: "destructive",
-              duration: 10000,
-            });
-          }
-        } else {
-          console.log('📅 [AppointmentApproval] In-person appointment accepted');
-          
-          toast({
-            title: "✅ Appointment Accepted",
-            description: `In-person appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been accepted.`,
-          });
-        }
+        await handleAcceptedAppointment(appointment);
       } else {
-        console.log('❌ [AppointmentApproval] Appointment rejected');
-        
-        toast({
-          title: "❌ Appointment Rejected",
-          description: `Appointment with ${appointment.patient.first_name} ${appointment.patient.last_name} has been rejected.`,
-        });
+        handleRejectedAppointment(appointment);
       }
 
-      // Reload appointments to reflect changes
       await loadPendingAppointments();
-
     } catch (error) {
-      console.error('💥 [AppointmentApproval] Fatal error updating appointment:', error);
-      
       toast({
         title: "Error",
         description: `Failed to ${action === 'accepted' ? 'accept' : 'reject'} appointment: ${error instanceof Error ? error.message : 'Unknown error'}`,

@@ -111,8 +111,8 @@ export const useHospitalData = () => {
         today_appointments: todayAppointments || 0,
         total_patients: uniquePatients,
         emergency_requests: emergencyRequests || 0,
-        revenue_this_month: Math.floor(Math.random() * 500000) + 100000, // Mock data
-        occupancy_rate: Math.floor(Math.random() * 30) + 70 // Mock data 70-100%
+        revenue_this_month: 0, // Will be calculated from financial data
+        occupancy_rate: 0 // Will be calculated from patient data
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);

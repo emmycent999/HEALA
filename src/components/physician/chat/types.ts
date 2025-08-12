@@ -11,7 +11,7 @@ export interface Conversation {
   patient_id: string;
   physician_id: string;
   title: string;
-  status: string;
+  status: 'active' | 'inactive' | 'archived';
   created_at: string;
-  patient_name: string;
+  patient_full_name: string;
 }

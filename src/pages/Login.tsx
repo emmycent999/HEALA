@@ -10,6 +10,8 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Login useEffect - loading:', loading, 'user:', !!user, 'profile:', !!profile, 'role:', profile?.role);
+    
     if (!loading && user && profile) {
       console.log('Redirecting user with role:', profile.role);
       // Redirect based on role to the correct dashboard routes
@@ -30,8 +32,11 @@ const Login = () => {
           navigate('/admin?tab=users');
           break;
         default:
+          console.log('Unknown role, redirecting to home');
           navigate('/');
       }
+    } else if (!loading && user && !profile) {
+      console.log('User exists but no profile found, waiting for profile to load...');
     }
   }, [user, profile, loading, navigate]);
 

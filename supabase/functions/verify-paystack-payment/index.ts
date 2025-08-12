@@ -11,25 +11,19 @@ serve(async (req) => {
   }
 
   try {
-    const { email, amount, metadata } = await req.json()
+    const { reference } = await req.json()
     
     const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY')
     if (!paystackSecretKey) {
       throw new Error('Paystack secret key not configured')
     }
 
-    const response = await fetch('https://api.paystack.co/transaction/initialize', {
-      method: 'POST',
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${paystackSecretKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        email,
-        amount: amount * 100, // Convert to kobo
-        metadata,
-        callback_url: `${req.headers.get('origin')}/payment-verification`
-      }),
     })
 
     const data = await response.json()

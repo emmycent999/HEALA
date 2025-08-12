@@ -10,6 +10,7 @@ import { SessionList } from './SessionList';
 import { TestVideoSession } from './TestVideoSession';
 import { VirtualConsultationRoomProps } from './types';
 import { useAuth } from '@/contexts/AuthContext';
+import { WalletService } from '@/services/walletService';
 
 export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = ({ sessionId: initialSessionId }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId || null);
@@ -39,6 +40,31 @@ export const VirtualConsultationRoom: React.FC<VirtualConsultationRoomProps> = (
       console.error('No user ID available for ending session');
       return;
     }
+    
+    // Process payment when session ends
+    if (session && session.status === 'in_progress' && session.payment_status !== 'paid') {
+      try {
+        const amount = session.consultation_fee || 5000; // Default fee
+        const physicianId = session.physician_id;
+        
+        if (physicianId) {
+          const patientWallet = await WalletService.getWallet(user.id);
+          const physicianWallet = await WalletService.getWallet(physicianId);
+          
+          if (patientWallet.balance >= amount) {
+            await WalletService.processConsultationPayment(
+              patientWallet.id,
+              physicianWallet.id,
+              amount,
+              session.id
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Payment processing failed:', error);
+      }
+    }
+    
     return await endSession(user.id);
   };
 

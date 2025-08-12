@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,16 @@ import { FileText, Upload, Check, X, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+const DOCUMENT_TYPES = [
+  'Medical License',
+  'Board Certification',
+  'CV/Resume',
+  'Professional ID',
+  'Hospital Affiliation',
+  'Insurance Certificate',
+  'Other'
+];
 
 interface PhysicianDocument {
   id: string;
@@ -32,23 +42,15 @@ export const PhysicianDocumentUpload: React.FC = () => {
   const [documentName, setDocumentName] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
 
-  const documentTypes = [
-    'Medical License',
-    'Board Certification',
-    'CV/Resume',
-    'Professional ID',
-    'Hospital Affiliation',
-    'Insurance Certificate',
-    'Other'
-  ];
+
 
   useEffect(() => {
     if (user) {
       fetchDocuments();
     }
-  }, [user]);
+  }, [user, fetchDocuments]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -70,7 +72,7 @@ export const PhysicianDocumentUpload: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   const uploadDocument = async () => {
     if (!user || !documentType || !documentName || !documentUrl) {
@@ -162,7 +164,7 @@ export const PhysicianDocumentUpload: React.FC = () => {
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {documentTypes.map((type) => (
+                {DOCUMENT_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
