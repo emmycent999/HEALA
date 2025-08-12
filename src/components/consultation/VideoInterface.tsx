@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ConsultationSession } from '../types';
+import { ConsultationSession } from './types';
 import { useWebRTCVideoCall } from './hooks/useWebRTCVideoCall';
 import { VideoStreams } from './VideoStreams';
 import { ConsultationControls } from './ConsultationControls';
@@ -8,9 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ReloadIcon } from '@radix-ui/react-icons';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { processConsultationPayment } from '@/services/walletService';
+import { useConsultationPayment } from './hooks/useConsultationPayment';
 import { VideoCallChatSimple } from './VideoCallChatSimple';
 
 interface VideoInterfaceProps {
@@ -153,7 +154,7 @@ export const VideoInterface: React.FC<VideoInterfaceProps> = ({
           <p className="text-center text-gray-500">{error}</p>
           {retryCount < maxRetries && (
             <Button onClick={fetchSessionData} className="mt-4">
-              <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               Retrying...
             </Button>
           )}

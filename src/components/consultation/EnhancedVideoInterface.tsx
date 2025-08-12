@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { useWebRTCVideoCall } from './hooks/useWebRTCVideoCall';
 import { useConsultationPayment } from './hooks/useConsultationPayment';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ConsultationSession } from '../types';
+import { ConsultationSession } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import { VideoCallChatSimple } from './VideoCallChatSimple';
 

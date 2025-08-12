@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,16 +9,13 @@ import { useToast } from '@/hooks/use-toast';
 import { VideoStreams } from './VideoStreams';
 import { VideoCallControls } from './VideoCallControls';
 import { useWebRTCVideoCall } from './hooks/useWebRTCVideoCall';
-import { ConsultationSession } from './types';
+import { ConsultationSession, EnhancedVirtualConsultationRoomProps } from './types';
 import { supabase } from '@/integrations/supabase/client';
 import { useConsultationPayment } from './hooks/useConsultationPayment';
 
-interface EnhancedVirtualConsultationRoomProps {
-  sessionId?: string;
-}
-
 export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultationRoomProps> = ({
-  sessionId
+  sessionId,
+  onSessionEnd
 }) => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -74,7 +72,16 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
           return;
         }
 
-        setSessionData(data);
+        // Transform the data to ensure proper typing
+        const transformedData: ConsultationSession = {
+          ...data,
+          room_status: data.consultation_rooms?.room_status,
+          patient: Array.isArray(data.patient) ? data.patient[0] : data.patient,
+          physician: Array.isArray(data.physician) ? data.physician[0] : data.physician,
+          appointment: Array.isArray(data.appointment) ? data.appointment[0] : data.appointment
+        };
+
+        setSessionData(transformedData);
         setPaymentCompleted(data.payment_status === 'paid');
       } catch (error) {
         console.error('Error fetching session data:', error);
@@ -120,7 +127,11 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
 
   const handleEndCall = () => {
     endCall();
-    navigate('/patient-dashboard?tab=appointments');
+    if (onSessionEnd) {
+      onSessionEnd();
+    } else {
+      navigate('/patient-dashboard?tab=appointments');
+    }
   };
 
   if (isLoading) {
@@ -175,15 +186,6 @@ export const EnhancedVirtualConsultationRoom: React.FC<EnhancedVirtualConsultati
           </Button>
         </div>
       )}
-
-      {/* Display session details for debugging */}
-      {/* <div className="absolute top-4 left-4 bg-white p-4 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold">Session Details</h3>
-        <p>Session ID: {sessionId}</p>
-        <p>Status: {sessionData.status}</p>
-        <p>Room Status: {sessionData.consultation_rooms?.room_status}</p>
-        <p>Payment Status: {sessionData.payment_status}</p>
-      </div> */}
     </div>
   );
 };
