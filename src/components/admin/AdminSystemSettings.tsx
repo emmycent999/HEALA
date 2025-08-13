@@ -47,12 +47,14 @@ export const AdminSystemSettings: React.FC = () => {
 
       setSettings(data || []);
       
-      // Extract AI API key settings with proper typing
+      // Extract AI API key settings with proper type checking
       const aiSetting = data?.find(s => s.setting_key === 'ai_api_key');
-      if (aiSetting && typeof aiSetting.setting_value === 'object' && aiSetting.setting_value !== null) {
-        const aiValue = aiSetting.setting_value as AIApiSetting;
-        setAiApiKey(aiValue.key || '');
-        setAiProvider(aiValue.provider || 'openai');
+      if (aiSetting && aiSetting.setting_value && typeof aiSetting.setting_value === 'object' && !Array.isArray(aiSetting.setting_value)) {
+        const aiValue = aiSetting.setting_value as unknown as AIApiSetting;
+        if (aiValue && typeof aiValue === 'object' && 'key' in aiValue && 'provider' in aiValue) {
+          setAiApiKey(aiValue.key || '');
+          setAiProvider(aiValue.provider || 'openai');
+        }
       }
     } catch (error) {
       console.error('Error fetching system settings:', error);
