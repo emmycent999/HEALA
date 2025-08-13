@@ -151,20 +151,45 @@ export const FixedPatientAssistance: React.FC = () => {
 
   const fetchAssistedPatients = async () => {
     try {
-      const { data, error } = await supabase
+      // First get the assistance records
+      const { data: assistanceData, error: assistanceError } = await supabase
         .from('agent_assisted_patients')
-        .select(`
-          *,
-          patient:profiles!agent_assisted_patients_patient_id_fkey(*)
-        `)
+        .select('*')
         .eq('agent_id', user?.id);
 
-      if (error) throw error;
+      if (assistanceError) throw assistanceError;
 
-      const records = data?.map(record => ({
-        ...record,
-        patient: record.patient as PatientInfo
-      })) || [];
+      if (!assistanceData || assistanceData.length === 0) {
+        setAssistanceRecords([]);
+        return;
+      }
+
+      // Get unique patient IDs
+      const patientIds = [...new Set(assistanceData.map(record => record.patient_id))];
+
+      // Fetch patient profiles separately
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, phone, subscription_plan')
+        .in('id', patientIds);
+
+      if (profilesError) throw profilesError;
+
+      // Combine the data
+      const records: AssistanceRecord[] = assistanceData.map(record => {
+        const profile = profilesData?.find(p => p.id === record.patient_id);
+        return {
+          ...record,
+          patient: {
+            id: profile?.id || record.patient_id,
+            first_name: profile?.first_name || '',
+            last_name: profile?.last_name || '',
+            email: profile?.email || '',
+            phone: profile?.phone || '',
+            subscription_plan: profile?.subscription_plan || 'basic'
+          }
+        };
+      });
 
       setAssistanceRecords(records);
     } catch (error) {
