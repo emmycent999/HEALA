@@ -625,6 +625,7 @@ export type Database = {
       emergency_requests: {
         Row: {
           assigned_physician_id: string | null
+          contact_phone: string | null
           created_at: string | null
           description: string | null
           emergency_type: string
@@ -639,6 +640,7 @@ export type Database = {
         }
         Insert: {
           assigned_physician_id?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           description?: string | null
           emergency_type: string
@@ -653,6 +655,7 @@ export type Database = {
         }
         Update: {
           assigned_physician_id?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           description?: string | null
           emergency_type?: string
