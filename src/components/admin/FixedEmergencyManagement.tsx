@@ -40,10 +40,12 @@ export const FixedEmergencyManagement: React.FC = () => {
           .eq('is_active', true);
         targetUsers = allUsers || [];
       } else {
+        // Cast the string to the proper role type
+        const roleFilter = alertData.targetRole as 'patient' | 'physician' | 'hospital_admin' | 'agent' | 'admin';
         const { data: roleUsers } = await supabase
           .from('profiles')
           .select('id')
-          .eq('role', alertData.targetRole)
+          .eq('role', roleFilter)
           .eq('is_active', true);
         targetUsers = roleUsers || [];
       }

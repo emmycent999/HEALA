@@ -33,10 +33,11 @@ export const FixedSystemSettings: React.FC = () => {
       if (error) throw error;
       setSettings(data || []);
 
-      // Find AI API key setting
+      // Find AI API key setting and properly access the key property
       const aiKeySetting = data?.find(s => s.setting_key === 'ai_api_key');
-      if (aiKeySetting) {
-        setAiApiKey(aiKeySetting.setting_value?.key || '');
+      if (aiKeySetting && typeof aiKeySetting.setting_value === 'object' && aiKeySetting.setting_value !== null) {
+        const settingValue = aiKeySetting.setting_value as { key?: string };
+        setAiApiKey(settingValue.key || '');
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
