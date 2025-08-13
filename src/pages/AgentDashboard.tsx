@@ -6,7 +6,7 @@ import { DynamicOverview } from '@/components/agent/DynamicOverview';
 import { PatientLookup } from '@/components/agent/PatientLookup';
 import { AssistedPatients } from '@/components/agent/AssistedPatients';
 import { FixedTransportBooking } from '@/components/agent/FixedTransportBooking';
-import { AppointmentBooking } from '@/components/agent/AppointmentBooking';
+import { AppointmentBookingAgent } from '@/components/agent/AppointmentBooking';
 import { EnhancedAgentChatInterface } from '@/components/agent/EnhancedAgentChatInterface';
 import { AgentSettings } from '@/components/agent/AgentSettings';
 
@@ -14,17 +14,22 @@ const AgentDashboard = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const activeTab = searchParams.get('tab') || 'overview';
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; name: string } | null>(null);
+
+  const handlePatientFound = (patient: { id: string; name: string }) => {
+    setSelectedPatient(patient);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'patient-lookup':
-        return <PatientLookup />;
+        return <PatientLookup onPatientFound={handlePatientFound} />;
       case 'assisted-patients':
         return <AssistedPatients />;
       case 'transport-booking':
         return <FixedTransportBooking />;
       case 'appointment-booking':
-        return <AppointmentBooking />;
+        return <AppointmentBookingAgent />;
       case 'chat':
         return <EnhancedAgentChatInterface />;
       case 'settings':

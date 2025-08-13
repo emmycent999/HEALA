@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Settings, Key, Database, Security, Globe, Mail, Bell } from 'lucide-react';
+import { Settings, Key, Database, Shield, Globe, Mail, Bell } from 'lucide-react';
 
 interface SystemSetting {
   id: string;
@@ -18,6 +18,11 @@ interface SystemSetting {
   category: string;
   description: string;
   is_active: boolean;
+}
+
+interface AIApiSetting {
+  key: string;
+  provider: string;
 }
 
 export const AdminSystemSettings: React.FC = () => {
@@ -42,11 +47,12 @@ export const AdminSystemSettings: React.FC = () => {
 
       setSettings(data || []);
       
-      // Extract AI API key settings
+      // Extract AI API key settings with proper typing
       const aiSetting = data?.find(s => s.setting_key === 'ai_api_key');
-      if (aiSetting) {
-        setAiApiKey(aiSetting.setting_value.key || '');
-        setAiProvider(aiSetting.setting_value.provider || 'openai');
+      if (aiSetting && typeof aiSetting.setting_value === 'object' && aiSetting.setting_value !== null) {
+        const aiValue = aiSetting.setting_value as AIApiSetting;
+        setAiApiKey(aiValue.key || '');
+        setAiProvider(aiValue.provider || 'openai');
       }
     } catch (error) {
       console.error('Error fetching system settings:', error);
@@ -123,36 +129,13 @@ export const AdminSystemSettings: React.FC = () => {
     }
   };
 
-  const createNewSetting = async (key: string, value: any, category: string, description: string) => {
-    try {
-      const { error } = await supabase
-        .from('system_settings')
-        .insert({
-          setting_key: key,
-          setting_value: value,
-          category: category,
-          description: description
-        });
-
-      if (error) throw error;
-
-      fetchSystemSettings();
-      toast({
-        title: "Setting Created",
-        description: `New setting ${key} has been created.`,
-      });
-    } catch (error) {
-      console.error('Error creating setting:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create setting.",
-        variant: "destructive"
-      });
-    }
-  };
-
   const getSettingsByCategory = (category: string) => {
     return settings.filter(s => s.category === category);
+  };
+
+  const getSettingValue = (key: string, defaultValue: any = '') => {
+    const setting = settings.find(s => s.setting_key === key);
+    return setting?.setting_value ?? defaultValue;
   };
 
   return (
@@ -204,7 +187,7 @@ export const AdminSystemSettings: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Security className="w-5 h-5" />
+            <Shield className="w-5 h-5" />
             Security Settings
           </CardTitle>
         </CardHeader>
@@ -216,7 +199,7 @@ export const AdminSystemSettings: React.FC = () => {
                 <p className="text-sm text-gray-600">Require 2FA for all admin users</p>
               </div>
               <Switch
-                checked={getSettingsByCategory('security').find(s => s.setting_key === 'require_2fa')?.setting_value || false}
+                checked={getSettingValue('require_2fa', false)}
                 onCheckedChange={(checked) => updateSetting('require_2fa', checked)}
               />
             </div>
@@ -228,47 +211,10 @@ export const AdminSystemSettings: React.FC = () => {
               <Input
                 type="number"
                 className="w-24"
-                value={getSettingsByCategory('security').find(s => s.setting_key === 'session_timeout')?.setting_value || 60}
+                value={getSettingValue('session_timeout', 60)}
                 onChange={(e) => updateSetting('session_timeout', parseInt(e.target.value))}
               />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Email Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5" />
-            Email Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="smtpHost">SMTP Host</Label>
-            <Input
-              id="smtpHost"
-              value={getSettingsByCategory('email').find(s => s.setting_key === 'smtp_host')?.setting_value || ''}
-              onChange={(e) => updateSetting('smtp_host', e.target.value)}
-              placeholder="smtp.gmail.com"
-            />
-          </div>
-          <div>
-            <Label htmlFor="smtpPort">SMTP Port</Label>
-            <Input
-              id="smtpPort"
-              type="number"
-              value={getSettingsByCategory('email').find(s => s.setting_key === 'smtp_port')?.setting_value || 587}
-              onChange={(e) => updateSetting('smtp_port', parseInt(e.target.value))}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Enable Email Notifications</Label>
-            <Switch
-              checked={getSettingsByCategory('email').find(s => s.setting_key === 'email_enabled')?.setting_value || true}
-              onCheckedChange={(checked) => updateSetting('email_enabled', checked)}
-            />
           </div>
         </CardContent>
       </Card>
@@ -286,56 +232,15 @@ export const AdminSystemSettings: React.FC = () => {
             <Label htmlFor="systemName">System Name</Label>
             <Input
               id="systemName"
-              value={getSettingsByCategory('general').find(s => s.setting_key === 'system_name')?.setting_value || 'Heala'}
+              value={getSettingValue('system_name', 'Heala')}
               onChange={(e) => updateSetting('system_name', e.target.value)}
             />
           </div>
-          <div>
+          <div className="flex items-center justify-between">
             <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
             <Switch
-              checked={getSettingsByCategory('general').find(s => s.setting_key === 'maintenance_mode')?.setting_value || false}
+              checked={getSettingValue('maintenance_mode', false)}
               onCheckedChange={(checked) => updateSetting('maintenance_mode', checked)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="maxFileSize">Max File Upload Size (MB)</Label>
-            <Input
-              id="maxFileSize"
-              type="number"
-              value={getSettingsByCategory('general').find(s => s.setting_key === 'max_file_size')?.setting_value || 10}
-              onChange={(e) => updateSetting('max_file_size', parseInt(e.target.value))}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notification Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
-            Notification Settings
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Emergency Alerts</Label>
-              <p className="text-sm text-gray-600">Send immediate alerts for emergencies</p>
-            </div>
-            <Switch
-              checked={getSettingsByCategory('notifications').find(s => s.setting_key === 'emergency_alerts')?.setting_value !== false}
-              onCheckedChange={(checked) => updateSetting('emergency_alerts', checked)}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Admin Notifications</Label>
-              <p className="text-sm text-gray-600">Send notifications to admin users</p>
-            </div>
-            <Switch
-              checked={getSettingsByCategory('notifications').find(s => s.setting_key === 'admin_notifications')?.setting_value !== false}
-              onCheckedChange={(checked) => updateSetting('admin_notifications', checked)}
             />
           </div>
         </CardContent>
