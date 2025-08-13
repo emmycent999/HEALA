@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,8 @@ export const FixedUserManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (roleFilter !== 'all') {
-        query = query.eq('role', roleFilter);
+        // Cast roleFilter to proper enum type
+        query = query.eq('role', roleFilter as 'patient' | 'physician' | 'hospital_admin' | 'agent' | 'admin');
       }
 
       if (statusFilter !== 'all') {

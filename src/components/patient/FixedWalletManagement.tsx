@@ -24,6 +24,8 @@ export const FixedWalletManagement: React.FC = () => {
     bank_code: ''
   });
   const [withdrawing, setWithdrawing] = useState(false);
+  const [fundingAmount, setFundingAmount] = useState('');
+  const [funding, setFunding] = useState(false);
 
   const fetchWalletData = async () => {
     if (!user?.id) return;
@@ -118,6 +120,52 @@ export const FixedWalletManagement: React.FC = () => {
     }
   };
 
+  const fundWallet = async () => {
+    if (!fundingAmount || parseFloat(fundingAmount) <= 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid amount to fund.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setFunding(true);
+    try {
+      // Convert Naira to Kobo (multiply by 100 for Paystack)
+      const amountInKobo = Math.round(parseFloat(fundingAmount) * 100);
+      
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+        body: {
+          amount: amountInKobo, // Amount in kobo
+          email: user?.email,
+          currency: 'NGN'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.authorization_url) {
+        // Open Paystack checkout in a new tab
+        window.open(data.authorization_url, '_blank');
+        
+        toast({
+          title: "Payment Initiated",
+          description: "Paystack payment window opened. Complete the payment to fund your wallet.",
+        });
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initiate payment.",
+        variant: "destructive"
+      });
+    } finally {
+      setFunding(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-6">Loading wallet...</div>;
   }
@@ -135,6 +183,33 @@ export const FixedWalletManagement: React.FC = () => {
           <div className="text-3xl font-bold text-green-600">
             ₦{balance.toLocaleString()}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Fund Wallet
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Amount (₦)</label>
+            <Input
+              type="number"
+              value={fundingAmount}
+              onChange={(e) => setFundingAmount(e.target.value)}
+              placeholder="Enter amount to fund"
+              min="1"
+              step="1"
+            />
+          </div>
+
+          <Button onClick={fundWallet} disabled={funding} className="w-full">
+            <CreditCard className="w-4 h-4 mr-2" />
+            {funding ? 'Processing...' : 'Fund Wallet'}
+          </Button>
         </CardContent>
       </Card>
 
