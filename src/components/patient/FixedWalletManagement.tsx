@@ -84,10 +84,19 @@ export const FixedWalletManagement: React.FC = () => {
 
     setWithdrawing(true);
     try {
+      // Get wallet_id first
+      const { data: walletData, error: walletError } = await supabase
+        .from('wallets')
+        .select('id')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (walletError) throw walletError;
+
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .insert({
-          user_id: user?.id,
+          wallet_id: walletData.id,
           amount: parseFloat(withdrawalAmount),
           bank_details: bankDetails
         })
